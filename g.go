@@ -5,8 +5,8 @@
 package dm
 
 import (
-	"dm/util"
 	"fmt"
+	"gitee.com/chunanyong/dm/util"
 	"math"
 	"os"
 	"sort"

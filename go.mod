@@ -1,4 +1,4 @@
-module dm
+module gitee.com/chunanyong/dm
 
 go 1.13
 

@@ -6,7 +6,7 @@ package dm
 
 import (
 	"crypto/tls"
-	"dm/security"
+	"gitee.com/chunanyong/dm/security"
 	"net"
 	"strconv"
 	"time"

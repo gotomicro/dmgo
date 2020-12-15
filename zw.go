@@ -8,7 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"dm/util"
+	"gitee.com/chunanyong/dm/util"
 	"io"
 	"strings"
 	"time"

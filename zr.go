@@ -6,7 +6,7 @@
 package dm
 
 import (
-	"dm/util"
+	"gitee.com/chunanyong/dm/util"
 	"math"
 	"strconv"
 	"strings"

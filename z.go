@@ -7,24 +7,24 @@ package dm
 
 import (
 	"bytes"
-	"dm/i18n"
 	"fmt"
+	"gitee.com/chunanyong/dm/i18n"
 	"runtime"
 )
 
 // 驱动级错误
 var (
-	DSN_INVALID_SCHEMA       = newDmError(9001, "error.dsn.invalidSchema")
-	UNSUPPORTED_SCAN         = newDmError(9002, "error.unsupported.scan")
-	INVALID_PARAMETER_NUMBER = newDmError(9003, "error.invalidParameterNumber")
-	THIRD_PART_CIPHER_INIT_FAILED = newDmError(9004, "error.initThirdPartCipherFailed")
-	ECGO_NOT_QUERY_SQL               = newDmError(9005, "error.notQuerySQL")
-	ECGO_NOT_EXEC_SQL                = newDmError(9006, "error.notExecSQL")
-	ECGO_UNKOWN_NETWORK              = newDmError(9007, "error.unkownNetWork")
-	ECGO_INVALID_CONN                = newDmError(9008, "error.invalidConn")
-	ECGO_UNSUPPORTED_INPARAM_TYPE    = newDmError(9009, "error.unsupportedInparamType")
-	ECGO_UNSUPPORTED_OUTPARAM_TYPE   = newDmError(9010, "error.unsupportedOutparamType")
-	ECGO_STORE_IN_NIL_POINTER		 = newDmError(9011, "error.storeInNilPointer")
+	DSN_INVALID_SCHEMA             = newDmError(9001, "error.dsn.invalidSchema")
+	UNSUPPORTED_SCAN               = newDmError(9002, "error.unsupported.scan")
+	INVALID_PARAMETER_NUMBER       = newDmError(9003, "error.invalidParameterNumber")
+	THIRD_PART_CIPHER_INIT_FAILED  = newDmError(9004, "error.initThirdPartCipherFailed")
+	ECGO_NOT_QUERY_SQL             = newDmError(9005, "error.notQuerySQL")
+	ECGO_NOT_EXEC_SQL              = newDmError(9006, "error.notExecSQL")
+	ECGO_UNKOWN_NETWORK            = newDmError(9007, "error.unkownNetWork")
+	ECGO_INVALID_CONN              = newDmError(9008, "error.invalidConn")
+	ECGO_UNSUPPORTED_INPARAM_TYPE  = newDmError(9009, "error.unsupportedInparamType")
+	ECGO_UNSUPPORTED_OUTPARAM_TYPE = newDmError(9010, "error.unsupportedOutparamType")
+	ECGO_STORE_IN_NIL_POINTER      = newDmError(9011, "error.storeInNilPointer")
 )
 
 var (
@@ -68,8 +68,8 @@ var (
 
 //Svr Msg Err
 var (
-	ECGO_DATA_OVERFLOW               = newDmError(-6102, "error.dataOverflow")
-	ECGO_DATETIME_OVERFLOW           = newDmError(-6112, "error.datetimeOverflow")
+	ECGO_DATA_OVERFLOW       = newDmError(-6102, "error.dataOverflow")
+	ECGO_DATETIME_OVERFLOW   = newDmError(-6112, "error.datetimeOverflow")
 	EC_RN_EXCEED_ROWSET_SIZE = &DmError{-7036, "", nil, ""}
 	EC_BP_WITH_ERROR         = &DmError{121, "", nil, ""}
 )

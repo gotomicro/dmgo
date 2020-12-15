@@ -7,7 +7,7 @@ package dm
 
 import (
 	"bufio"
-	"dm/util"
+	"gitee.com/chunanyong/dm/util"
 	"io"
 	"os"
 	"runtime"
@@ -77,7 +77,6 @@ const (
 )
 
 var (
-
 	DbAliveCheckFreq = DbAliveCheckFreqDef
 
 	Locale = LocaleDef // 0:简体中文 1：英文 2:繁体中文

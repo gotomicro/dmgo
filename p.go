@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql/driver"
-	"dm/util"
+	"gitee.com/chunanyong/dm/util"
 	"net"
 	"net/url"
 	"os"
