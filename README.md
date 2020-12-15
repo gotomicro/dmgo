@@ -10,6 +10,10 @@ go get gitee.com/chunanyong/dm
 ### DSN  
 dm://userName:password@ip:port  
 
+### 版本号  
+golang三段位版本号和达梦四段位版本号不兼容,统一使用1.达梦主版本号.发布的小版本号,具体查看标签的备注
+例如 v1.8.0 备注是 达梦8.1.1.26
+
 
 
 
