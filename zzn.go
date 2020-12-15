@@ -5,8 +5,9 @@
 package dm
 
 import (
-	"gitee.com/chunanyong/dm/util"
 	"strconv"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 const (

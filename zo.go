@@ -5,11 +5,12 @@
 package dm
 
 import (
-	"gitee.com/chunanyong/dm/util"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 const (

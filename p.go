@@ -8,13 +8,14 @@ import (
 	"bytes"
 	"context"
 	"database/sql/driver"
-	"gitee.com/chunanyong/dm/util"
 	"net"
 	"net/url"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 const (

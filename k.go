@@ -7,8 +7,9 @@ package dm
 
 import (
 	"bytes"
-	"gitee.com/chunanyong/dm/util"
 	"time"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 /**

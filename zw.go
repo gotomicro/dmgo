@@ -8,10 +8,11 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"gitee.com/chunanyong/dm/util"
 	"io"
 	"strings"
 	"time"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 const (

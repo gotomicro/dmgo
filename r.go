@@ -8,8 +8,9 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"gitee.com/chunanyong/dm/i18n"
 	"sync"
+
+	"gitee.com/chunanyong/dm/v8/i18n"
 )
 
 // 发版标记

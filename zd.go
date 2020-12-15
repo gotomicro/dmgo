@@ -8,10 +8,11 @@ package dm
 import (
 	"context"
 	"database/sql/driver"
-	"gitee.com/chunanyong/dm/util"
 	"reflect"
 	"strconv"
 	"time"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 type logFilter struct{}

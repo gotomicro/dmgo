@@ -6,7 +6,6 @@ package dm
 
 import (
 	"fmt"
-	"gitee.com/chunanyong/dm/util"
 	"math"
 	"os"
 	"sort"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 type ExecuteTypeEnum int

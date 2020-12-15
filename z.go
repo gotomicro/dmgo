@@ -8,8 +8,9 @@ package dm
 import (
 	"bytes"
 	"fmt"
-	"gitee.com/chunanyong/dm/i18n"
 	"runtime"
+
+	"gitee.com/chunanyong/dm/v8/i18n"
 )
 
 // 驱动级错误

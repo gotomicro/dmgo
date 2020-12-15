@@ -7,12 +7,13 @@ package dm
 
 import (
 	"bufio"
-	"gitee.com/chunanyong/dm/util"
 	"io"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 var LogDirDef, _ = os.Getwd()

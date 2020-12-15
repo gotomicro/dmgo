@@ -6,13 +6,14 @@
 package dm
 
 import (
-	"gitee.com/chunanyong/dm/util"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 type oracleDateFormat struct {

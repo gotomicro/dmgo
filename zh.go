@@ -6,12 +6,13 @@ package dm
 
 import (
 	"bytes"
-	"gitee.com/chunanyong/dm/util"
 	"io"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"gitee.com/chunanyong/dm/v8/util"
 )
 
 var G2DB g2db
