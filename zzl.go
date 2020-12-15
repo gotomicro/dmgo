@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitee.com/chunanyong/dm/v8/util"
+	"gitee.com/chunanyong/dm/util"
 )
 
 var LogDirDef, _ = os.Getwd()

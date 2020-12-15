@@ -7,7 +7,7 @@ package dm
 import (
 	"strconv"
 
-	"gitee.com/chunanyong/dm/v8/util"
+	"gitee.com/chunanyong/dm/util"
 )
 
 const (

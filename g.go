@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gitee.com/chunanyong/dm/v8/util"
+	"gitee.com/chunanyong/dm/util"
 )
 
 type ExecuteTypeEnum int

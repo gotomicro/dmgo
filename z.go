@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"gitee.com/chunanyong/dm/v8/i18n"
+	"gitee.com/chunanyong/dm/i18n"
 )
 
 // 驱动级错误

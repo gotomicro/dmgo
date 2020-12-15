@@ -13,7 +13,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"gitee.com/chunanyong/dm/v8/util"
+	"gitee.com/chunanyong/dm/util"
 )
 
 type oracleDateFormat struct {

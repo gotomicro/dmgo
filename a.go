@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitee.com/chunanyong/dm/v8/security"
+	"gitee.com/chunanyong/dm/security"
 )
 
 const (

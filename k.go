@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"time"
 
-	"gitee.com/chunanyong/dm/v8/util"
+	"gitee.com/chunanyong/dm/util"
 )
 
 /**
