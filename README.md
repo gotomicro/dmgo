@@ -11,6 +11,7 @@ golang轻量ORM https://gitee.com/chunanyong/zorm 支持达梦数据库
 
 ### DSN  
 dm://userName:password@ip:port  
+用户名(userName)就是数据库的名称,达梦用户模式和数据库名称是对应的  
 
 ### 版本号  
 golang三段位版本号和达梦四段位版本号不兼容,统一使用1.达梦主版本号.发布的小版本号,具体查看标签的备注
