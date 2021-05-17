@@ -2,190 +2,251 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
-
 package dm
 
-type DmArray struct {
-	TypeData
-	m_arrDesc *ArrayDescriptor // 数组的描述信息
+import (
+	"io"
+)
 
-	m_arrData []TypeData // 数组中各行数据值
-
-	m_objArray interface{} // 从服务端获取的
-
-	m_itemCount int // 本次获取的行数
-
-	m_itemSize int // 数组中一个数组项的大小，单位bytes
-
-	m_objCount int // 一个数组项中存在对象类型的个数（class、动态数组)
-
-	m_strCount int // 一个数组项中存在字符串类型的个数
-
-	m_objStrOffs []int // 对象在前，字符串在后
-
-	typeName string
-
-	elements []interface{}
+type DmClob struct {
+	lob
+	data           []rune
+	serverEncoding string
 }
 
-func (da *DmArray) init() *DmArray {
-	da.initTypeData()
-	da.m_itemCount = 0
-	da.m_itemSize = 0
-	da.m_objCount = 0
-	da.m_strCount = 0
-	da.m_objStrOffs = nil
-	da.m_dumyData = nil
-	da.m_offset = 0
-
-	da.m_objArray = nil
-	return da
+func newDmClob() *DmClob {
+	return &DmClob{
+		lob: lob{
+			inRow:            true,
+			groupId:          -1,
+			fileId:           -1,
+			pageNo:           -1,
+			readOver:         false,
+			local:            true,
+			updateable:       true,
+			length:           -1,
+			compatibleOracle: false,
+			fetchAll:         false,
+			freed:            false,
+			modify:           false,
+		},
+	}
 }
 
-func NewDmArray(typeName string, elements []interface{}) *DmArray {
-	da := new(DmArray)
-	da.typeName = typeName
-	da.elements = elements
-	return da
+func newClobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmClob {
+	var clob = newDmClob()
+	clob.connection = conn
+	clob.lobFlag = LOB_FLAG_CHAR
+	clob.compatibleOracle = conn.CompatibleOracle()
+	clob.local = false
+	clob.updateable = !column.readonly
+	clob.tabId = column.lobTabId
+	clob.colId = column.lobColId
+
+	clob.inRow = Dm_build_885.Dm_build_978(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
+	clob.blobId = Dm_build_885.Dm_build_992(value, NBLOB_HEAD_BLOBID)
+	if !clob.inRow {
+		clob.groupId = Dm_build_885.Dm_build_982(value, NBLOB_HEAD_OUTROW_GROUPID)
+		clob.fileId = Dm_build_885.Dm_build_982(value, NBLOB_HEAD_OUTROW_FILEID)
+		clob.pageNo = Dm_build_885.Dm_build_987(value, NBLOB_HEAD_OUTROW_PAGENO)
+	}
+	if conn.NewLobFlag {
+		clob.tabId = Dm_build_885.Dm_build_987(value, NBLOB_EX_HEAD_TABLE_ID)
+		clob.colId = Dm_build_885.Dm_build_982(value, NBLOB_EX_HEAD_COL_ID)
+		clob.rowId = Dm_build_885.Dm_build_992(value, NBLOB_EX_HEAD_ROW_ID)
+		clob.exGroupId = Dm_build_885.Dm_build_982(value, NBLOB_EX_HEAD_FPA_GRPID)
+		clob.exFileId = Dm_build_885.Dm_build_982(value, NBLOB_EX_HEAD_FPA_FILEID)
+		clob.exPageNo = Dm_build_885.Dm_build_987(value, NBLOB_EX_HEAD_FPA_PAGENO)
+	}
+	clob.resetCurrentInfo()
+
+	clob.serverEncoding = conn.getServerEncoding()
+	if clob.inRow {
+		if conn.NewLobFlag {
+			clob.data = []rune(Dm_build_885.Dm_build_1039(value, NBLOB_EX_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
+		} else {
+			clob.data = []rune(Dm_build_885.Dm_build_1039(value, NBLOB_INROW_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
+		}
+		clob.length = int64(len(clob.data))
+	} else if fetchAll {
+		clob.loadAllData()
+	}
+	return clob
 }
 
-func (da *DmArray) create(dc *DmConnection) (*DmArray, error) {
-	desc, err := newArrayDescriptor(da.typeName, dc)
+func newClobOfLocal(value string, conn *DmConnection) *DmClob {
+	var clob = newDmClob()
+	clob.connection = conn
+	clob.lobFlag = LOB_FLAG_CHAR
+	clob.data = []rune(value)
+	clob.length = int64(len(clob.data))
+	return clob
+}
+
+func NewClob(value string) *DmClob {
+	var clob = newDmClob()
+
+	clob.lobFlag = LOB_FLAG_CHAR
+	clob.data = []rune(value)
+	clob.length = int64(len(clob.data))
+	return clob
+}
+
+func (clob *DmClob) ReadString(pos int, length int) (result string, err error) {
+	result, err = clob.getSubString(int64(pos), int32(length))
 	if err != nil {
-		return nil, err
+		return
 	}
-	return da.createByArrayDescriptor(desc, dc)
+	if len(result) == 0 {
+		err = io.EOF
+		return
+	}
+	return
 }
 
-func (da *DmArray) createByArrayDescriptor(arrDesc *ArrayDescriptor, conn *DmConnection) (*DmArray, error) {
-
-	if nil == arrDesc {
-		return nil, ECGO_INVALID_PARAMETER_VALUE.throw()
+func (clob *DmClob) WriteString(pos int, s string) (n int, err error) {
+	if err = clob.checkFreed(); err != nil {
+		return
 	}
-
-	da.init()
-
-	da.m_arrDesc = arrDesc
-	if nil == da.elements {
-		da.m_arrData = make([]TypeData, 0)
+	if pos < 1 {
+		err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+		return
+	}
+	if !clob.updateable {
+		err = ECGO_RESULTSET_IS_READ_ONLY.throw()
+		return
+	}
+	pos -= 1
+	if clob.local || clob.fetchAll {
+		if int64(pos) > clob.length {
+			err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+			return
+		}
+		clob.setLocalData(pos, s)
+		n = len(s)
 	} else {
-		// 若为静态数组，判断给定数组长度是否超过静态数组的上限
-		if arrDesc.getMDesc() == nil || (arrDesc.getMDesc().getDType() == SARRAY && len(da.elements) > arrDesc.getMDesc().getStaticArrayLength()) {
-			return nil, ECGO_INVALID_ARRAY_LEN.throw()
+		if err = clob.connection.checkClosed(); err != nil {
+			return -1, err
 		}
-
-		var err error
-		da.m_arrData, err = TypeDataSV.toArray(da.elements, da.m_arrDesc.getMDesc())
+		var writeLen, err = clob.connection.Access.dm_build_196(clob, pos, s, clob.serverEncoding)
 		if err != nil {
-			return nil, err
+			return -1, err
 		}
+
+		if clob.groupId == -1 {
+			clob.setLocalData(pos, s)
+		} else {
+			clob.inRow = false
+			clob.length = -1
+		}
+		n = writeLen
 	}
-
-	da.m_itemCount = len(da.m_arrData)
-	return da, nil
+	clob.modify = true
+	return
 }
 
-func newDmArrayByTypeData(atData []TypeData, desc *TypeDescriptor) *DmArray {
-	da := new(DmArray)
-	da.init()
-	da.m_arrDesc = newArrayDescriptorByTypeDescriptor(desc)
-	da.m_arrData = atData
-	return da
-}
-
-func (da *DmArray) checkIndex(index int64) error {
-	if index < 1 || index > int64(len(da.m_arrData)) {
-		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
-	}
-	return nil
-}
-
-func (da *DmArray) checkIndexAndCount(index int64, count int) error {
-	err := da.checkIndex(index)
-	if err != nil {
+func (clob *DmClob) Truncate(length int64) error {
+	var err error
+	if err = clob.checkFreed(); err != nil {
 		return err
 	}
-
-	if count <= 0 || index-int64(1)+int64(count) > int64(len(da.m_arrData)) {
+	if length < 0 {
 		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
+	if !clob.updateable {
+		return ECGO_RESULTSET_IS_READ_ONLY.throw()
+	}
+	if clob.local || clob.fetchAll {
+		if length >= int64(len(clob.data)) {
+			return nil
+		}
+		clob.data = clob.data[0:length]
+		clob.length = int64(len(clob.data))
+	} else {
+		if err = clob.connection.checkClosed(); err != nil {
+			return err
+		}
+		clob.length, err = clob.connection.Access.dm_build_226(&clob.lob, int(length))
+		if err != nil {
+			return err
+		}
+		if clob.groupId == -1 {
+			clob.data = clob.data[0:clob.length]
+		}
+	}
+	clob.modify = true
 	return nil
 }
 
-func (da *DmArray) GetBaseTypeName() (string, error) {
-	return da.m_arrDesc.m_typeDesc.getFulName()
-}
-
-func (da *DmArray) GetObjArray(index int64, count int) (interface{}, error) {
-	da.checkIndexAndCount(index, count)
-
-	return TypeDataSV.toJavaArray(da, index, count, da.m_arrDesc.getItemDesc().getDType())
-}
-
-func (da *DmArray) GetIntArray(index int64, count int) ([]int, error) {
-	da.checkIndexAndCount(index, count)
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_INTEGER)
-	if err != nil {
-		return nil, err
-	}
-	return tmp.([]int), nil
-}
-
-func (da *DmArray) GetInt16Array(index int64, count int) ([]int16, error) {
-	da.checkIndexAndCount(index, count)
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_SHORT)
-	if err != nil {
-		return nil, err
-	}
-	return tmp.([]int16), nil
-}
-
-func (da *DmArray) GetInt64Array(index int64, count int) ([]int64, error) {
-	da.checkIndexAndCount(index, count)
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_LONG)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp.([]int64), nil
-}
-
-func (da *DmArray) GetFloatArray(index int64, count int) ([]float32, error) {
-	da.checkIndexAndCount(index, count)
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_FLOAT)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp.([]float32), nil
-}
-
-func (da *DmArray) GetDoubleArray(index int64, count int) ([]float64, error) {
-	da.checkIndexAndCount(index, count)
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_DOUBLE)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp.([]float64), nil
-}
-
-func (dest *DmArray) Scan(src interface{}) error {
+func (dest *DmClob) Scan(src interface{}) error {
 	if dest == nil {
 		return ECGO_STORE_IN_NIL_POINTER.throw()
 	}
 	switch src := src.(type) {
 	case nil:
-		*dest = *new(DmArray)
+		*dest = *new(DmClob)
 		return nil
-	case *DmArray:
+	case string:
+		*dest = *NewClob(src)
+		return nil
+	case *DmClob:
 		*dest = *src
 		return nil
 	default:
 		return UNSUPPORTED_SCAN
 	}
+}
+
+func (clob *DmClob) getSubString(pos int64, len int32) (string, error) {
+	var err error
+	var leaveLength int64
+	if err = clob.checkFreed(); err != nil {
+		return "", err
+	}
+	if pos < 1 || len < 0 {
+		return "", ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	pos = pos - 1
+	if leaveLength, err = clob.GetLength(); err != nil {
+		return "", err
+	}
+	if pos > leaveLength {
+		pos = leaveLength
+	}
+	leaveLength -= pos
+	if leaveLength < 0 {
+		return "", ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	if int64(len) > leaveLength {
+		len = int32(leaveLength)
+	}
+	if clob.local || clob.inRow || clob.fetchAll {
+		if pos > clob.length {
+			return "", ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+		}
+		return string(clob.data[pos : pos+int64(len)]), nil
+	} else {
+
+		return clob.connection.Access.dm_build_185(clob, int32(pos), len)
+	}
+}
+
+func (clob *DmClob) loadAllData() {
+	clob.checkFreed()
+	if clob.local || clob.inRow || clob.fetchAll {
+		return
+	}
+	len, _ := clob.GetLength()
+	s, _ := clob.getSubString(1, int32(len))
+	clob.data = []rune(s)
+	clob.fetchAll = true
+}
+
+func (clob *DmClob) setLocalData(pos int, str string) {
+	if pos+len(str) >= int(clob.length) {
+		clob.data = []rune(string(clob.data[0:pos]) + str)
+	} else {
+		clob.data = []rune(string(clob.data[0:pos]) + str + string(clob.data[pos+len(str):len(clob.data)]))
+	}
+	clob.length = int64(len(clob.data))
 }

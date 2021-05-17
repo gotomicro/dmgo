@@ -399,7 +399,7 @@ type sqlStat struct {
 
 	LastSlowParameters string
 
-	Removed bool
+	Removed int64
 
 	ClobOpenCount int64
 
@@ -1129,7 +1129,7 @@ func (cs *connectionStat) getSqlStatMapAndReset() []*SqlStatValue {
 	for s, stat := range cs.sqlStatMap {
 
 		if stat.getExecuteCount() == 0 && stat.RunningCount == 0 {
-			stat.Removed = true
+			stat.Removed = 1
 			delete(cs.sqlStatMap, s)
 		} else {
 			stats = append(stats, stat)
@@ -1249,7 +1249,7 @@ func newGoStat(maxConnSize int) *GoStat {
 }
 
 func (gs *GoStat) createConnStat(conn *DmConnection) *connectionStat {
-	url := conn.dmConnector.host + ":" + strconv.Itoa(conn.dmConnector.port)
+	url := conn.dmConnector.host + ":" + strconv.Itoa(int(conn.dmConnector.port))
 	gs.lock.Lock()
 	defer gs.lock.Unlock()
 	connstat, ok := gs.connStatMap[url]
@@ -2032,7 +2032,7 @@ type statFlusher struct {
 	flushFreq  int
 	filePath   string
 	filePrefix string
-	buffer     *Dm_build_875
+	buffer     *Dm_build_1161
 }
 
 func newStatFlusher() *statFlusher {
@@ -2043,7 +2043,7 @@ func newStatFlusher() *statFlusher {
 	sf.flushFreq = StatFlushFreq
 	sf.filePath = StatDir
 	sf.filePrefix = "dm_go_stat"
-	sf.buffer = Dm_build_879()
+	sf.buffer = Dm_build_1165()
 	return sf
 }
 
@@ -2105,24 +2105,24 @@ func (sf *statFlusher) writeAndFlush(logs []string, startOff int, l int) {
 	for i := startOff; i < startOff+l; i++ {
 		bytes = []byte(logs[i] + util.StringUtil.LineSeparator())
 
-		sf.buffer.Dm_build_901(bytes, 0, len(bytes))
+		sf.buffer.Dm_build_1187(bytes, 0, len(bytes))
 
-		if sf.buffer.Dm_build_880() >= FLUSH_SIZE {
+		if sf.buffer.Dm_build_1166() >= FLUSH_SIZE {
 			sf.doFlush(sf.buffer)
 		}
 	}
 
-	if sf.buffer.Dm_build_880() > 0 {
+	if sf.buffer.Dm_build_1166() > 0 {
 		sf.doFlush(sf.buffer)
 	}
 }
 
-func (sf *statFlusher) doFlush(buffer *Dm_build_875) {
+func (sf *statFlusher) doFlush(buffer *Dm_build_1161) {
 	if sf.needCreateNewFile() {
 		sf.closeCurrentFile()
 		sf.logFile = sf.createNewFile()
 	}
-	buffer.Dm_build_895(sf.logFile, buffer.Dm_build_880())
+	buffer.Dm_build_1181(sf.logFile, buffer.Dm_build_1166())
 }
 func (sf *statFlusher) closeCurrentFile() {
 	if sf.logFile != nil {

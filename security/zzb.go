@@ -3,67 +3,62 @@
  * All rights reserved.
  */
 
-// go官方没有实现ecb加密模式
 package security
 
-import (
-	"crypto/cipher"
-)
+import "math/big"
 
-type ecb struct {
-	b         cipher.Block
-	blockSize int
+type DhKey struct {
+	x     *big.Int
+	y     *big.Int
+	group *dhGroup
 }
 
-func newECB(b cipher.Block) *ecb {
-	return &ecb {
-		b: b,
-		blockSize: b.BlockSize(),
-	}
+func newPublicKey(s []byte) *DhKey {
+	key := new(DhKey)
+	key.y = new(big.Int).SetBytes(s)
+	return key
 }
 
-type ecbEncrypter ecb
-
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
-	return (*ecbEncrypter)(newECB(b))
+func (dk *DhKey) GetX() *big.Int {
+	x := new(big.Int)
+	x.Set(dk.x)
+	return x
 }
 
-func (x *ecbEncrypter) BlockSize() int { return x.blockSize }
-
-func (x *ecbEncrypter) CryptBlocks(dst, src []byte) {
-	if len(src)%x.blockSize != 0 {
-		panic("dm/security: input not full blocks")
-	}
-	if len(dst) < len(src) {
-		panic("dm/security: output smaller than input")
-	}
-	if InexactOverlap(dst[:len(src)], src) {
-		panic("dm/security: invalid buffer overlap")
-	}
-	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs + x.blockSize, be + x.blockSize {
-		x.b.Encrypt(dst[bs:be], src[bs:be])
-	}
+func (dk *DhKey) GetY() *big.Int {
+	y := new(big.Int)
+	y.Set(dk.y)
+	return y
 }
 
-type ecbDecrypter ecb
-
-func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
-	return (*ecbDecrypter)(newECB(b))
+func (dk *DhKey) GetYBytes() []byte {
+	if dk.y == nil {
+		return nil
+	}
+	if dk.group != nil {
+		blen := (dk.group.p.BitLen() + 7) / 8
+		ret := make([]byte, blen)
+		copyWithLeftPad(ret, dk.y.Bytes())
+		return ret
+	}
+	return dk.y.Bytes()
 }
 
-func (x *ecbDecrypter) BlockSize() int { return x.blockSize }
+func (dk *DhKey) GetYString() string {
+	if dk.y == nil {
+		return ""
+	}
+	return dk.y.String()
+}
 
-func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
-	if len(src)%x.blockSize != 0 {
-		panic("dm/security: input not full blocks")
+func (dk *DhKey) IsPrivateKey() bool {
+	return dk.x != nil
+}
+
+func copyWithLeftPad(dest, src []byte) {
+	numPaddingBytes := len(dest) - len(src)
+	for i := 0; i < numPaddingBytes; i++ {
+		dest[i] = 0
 	}
-	if len(dst) < len(src) {
-		panic("dm/security: output smaller than input")
-	}
-	if InexactOverlap(dst[:len(src)], src) {
-		panic("dm/security: invalid buffer overlap")
-	}
-	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs + x.blockSize, be + x.blockSize {
-		x.b.Decrypt(dst[bs:be], src[bs:be])
-	}
+	copy(dest[:numPaddingBytes], src)
 }

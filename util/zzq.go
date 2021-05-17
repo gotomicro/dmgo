@@ -5,71 +5,34 @@
 
 package util
 
-import (
-	"go/build"
-	"os"
-	"runtime"
-	"strings"
-)
-
-const (
-	PathSeparator     = string(os.PathSeparator)
-	PathListSeparator = string(os.PathListSeparator)
-)
-
-var (
-	goRoot = build.Default.GOROOT
-	goPath = build.Default.GOPATH   //获取实际编译时的GOPATH值
-)
-
-type fileUtil struct {
-}
-
-var FileUtil = &fileUtil{}
-
-func (fileUtil *fileUtil) Exists(path string) bool {
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		return true
-	}
-	return false
-}
-
-func (fileUtil *fileUtil) Search(relativePath string) (path string) {
-	if strings.Contains(runtime.GOOS, "windows") {
-		relativePath = strings.ReplaceAll(relativePath, "/", "\\")
-	}
-
-	if fileUtil.Exists(goPath) {
-		for _, s := range strings.Split(goPath, PathListSeparator) {
-			path = s + PathSeparator + "src" + PathSeparator + relativePath
-			if fileUtil.Exists(path) {
-				return path
+func Split(s string, sep string) []string {
+	var foot = make([]int, len(s)) // 足够的元素个数
+	var count, sLen, sepLen = 0, len(s), len(sep)
+	for i := 0; i < sLen; i++ {
+		// 处理 s == “-9999-1" && seperators == "-"情况
+		if i == 0 && sLen >= sepLen {
+			if s[0:sepLen] == sep {
+				i += sepLen - 1
+				continue
+			}
+		}
+		for j := 0; j < sepLen; j++ {
+			if s[i] == sep[j] {
+				foot[count] = i
+				count++
+				break
 			}
 		}
 	}
-
-	if fileUtil.Exists(goPath) {
-		for _, s := range strings.Split(goPath, PathListSeparator) {
-			path = s + PathSeparator + "pkg" + PathSeparator + relativePath
-			if fileUtil.Exists(path) {
-				return path
-			}
-		}
+	var ret = make([]string, count+1)
+	if count == 0 {
+		ret[0] = s
+		return ret
 	}
-
-	//if workDir, _ := os.Getwd(); fileUtil.Exists(workDir) {
-	//	path = workDir + PathSeparator + "src" + PathSeparator + relativePath
-	//	if fileUtil.Exists(path) {
-	//		return path
-	//	}
-	//}
-
-	//if fileUtil.Exists(goRoot) {
-	//	path = goRoot + PathSeparator + "src" + PathSeparator + relativePath
-	//	if fileUtil.Exists(path) {
-	//		return path
-	//	}
-	//}
-
-	return ""
+	ret[0] = s[0:foot[0]]
+	for i := 1; i < count; i++ {
+		ret[i] = s[foot[i-1]+1 : foot[i]]
+	}
+	ret[count] = s[foot[count-1]+1:]
+	return ret
 }

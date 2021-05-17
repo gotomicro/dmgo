@@ -5,457 +5,501 @@
 package dm
 
 import (
-	"math"
-	"strconv"
+	"database/sql/driver"
+	"io"
+	"reflect"
 	"strings"
-
-	"gitee.com/chunanyong/dm/util"
 )
 
-const (
-	QUA_Y  = 0
-	QUA_YM = 1
-	QUA_MO = 2
-)
-
-type DmIntervalYM struct {
-	leadScale      int
-	isLeadScaleSet bool
-	_type          byte
-	years          int
-	months         int
-	scaleForSvr    int
+type DmRows struct {
+	filterable
+	CurrentRows *innerRows
+	finish      func()
 }
 
-func NewDmIntervalYMByString(str string) (ym *DmIntervalYM, err error) {
-	defer func() {
-		if p := recover(); p != nil {
-			err = ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-	}()
-	ym = new(DmIntervalYM)
-	ym.isLeadScaleSet = false
-	if err = ym.parseIntervYMString(strings.TrimSpace(str)); err != nil {
-		return nil, err
-	}
-	return ym, nil
-}
-
-func newDmIntervalYMByBytes(bytes []byte) *DmIntervalYM {
-	ym := new(DmIntervalYM)
-
-	ym.scaleForSvr = int(Dm_build_599.Dm_build_701(bytes, 8))
-	ym.leadScale = (ym.scaleForSvr >> 4) & 0x0000000F
-	ym._type = bytes[9]
-	switch ym._type {
-	case QUA_Y:
-		ym.years = int(Dm_build_599.Dm_build_701(bytes, 0))
-	case QUA_YM:
-		ym.years = int(Dm_build_599.Dm_build_701(bytes, 0))
-		ym.months = int(Dm_build_599.Dm_build_701(bytes, 4))
-	case QUA_MO:
-		ym.months = int(Dm_build_599.Dm_build_701(bytes, 4))
-	}
-	return ym
-}
-
-func (ym *DmIntervalYM) GetYear() int {
-	return ym.years
-}
-
-func (ym *DmIntervalYM) GetMonth() int {
-	return ym.months
-}
-
-func (ym *DmIntervalYM) GetYMType() byte {
-	return ym._type
-}
-
-func (ym *DmIntervalYM) String() string {
-	str := "INTERVAL "
-	var year, month string
-	var l int
-	var destLen int
-
-	switch ym._type {
-	case QUA_Y:
-		year = strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)
-		if ym.years < 0 {
-			str += "-"
-		}
-
-		if ym.leadScale > len(year) {
-			l = len(year)
-			destLen = ym.leadScale
-
-			for destLen > l {
-				year = "0" + year
-				destLen--
-			}
-		}
-
-		str += "'" + year + "' YEAR(" + strconv.FormatInt(int64(ym.leadScale), 10) + ")"
-	case QUA_YM:
-		year = strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)
-		month = strconv.FormatInt(int64(math.Abs(float64(ym.months))), 10)
-
-		if ym.years < 0 || ym.months < 0 {
-			str += "-"
-		}
-
-		if ym.leadScale > len(year) {
-			l = len(year)
-			destLen = ym.leadScale
-
-			for destLen > l {
-				year = "0" + year
-				destLen--
-			}
-		}
-
-		if len(month) < 2 {
-			month = "0" + month
-		}
-
-		str += "'" + year + "-" + month + "' YEAR(" + strconv.FormatInt(int64(ym.leadScale), 10) + ") TO MONTH"
-	case QUA_MO:
-
-		month = strconv.FormatInt(int64(math.Abs(float64(ym.months))), 10)
-		if ym.months < 0 {
-			str += "-"
-		}
-
-		if ym.leadScale > len(month) {
-			l = len(month)
-			destLen = ym.leadScale
-			for destLen > l {
-				month = "0" + month
-				destLen--
-			}
-		}
-
-		str += "'" + month + "' MONTH(" + strconv.FormatInt(int64(ym.leadScale), 10) + ")"
-	}
-	return str
-}
-
-func (dest *DmIntervalYM) Scan(src interface{}) error {
-	if dest == nil {
-		return ECGO_STORE_IN_NIL_POINTER.throw()
-	}
-	switch src := src.(type) {
-	case nil:
-		*dest = *new(DmIntervalYM)
+func (r *DmRows) Columns() []string {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
 		return nil
-	case *DmIntervalYM:
-		*dest = *src
-		return nil
-	case string:
-		ret, err := NewDmIntervalYMByString(src)
-		if err != nil {
-			return err
-		}
-		*dest = *ret
-		return nil
-	default:
-		return UNSUPPORTED_SCAN
 	}
+	if len(r.filterChain.filters) == 0 {
+		return r.columns()
+	}
+	return r.filterChain.reset().DmRowsColumns(r)
 }
 
-func (ym *DmIntervalYM) parseIntervYMString(str string) error {
-	str = strings.ToUpper(str)
-	ret := strings.Split(str, " ")
-	l := len(ret)
-	if l < 3 || !util.StringUtil.EqualsIgnoreCase(ret[0], "INTERVAL") || !(strings.HasPrefix(ret[2], "YEAR") || strings.HasPrefix(ret[2], "MONTH")) {
-		return ECGO_INVALID_TIME_INTERVAL.throw()
-	}
-	ym._type = QUA_YM
-	yearId := strings.Index(str, "YEAR")
-	monthId := strings.Index(str, "MONTH")
-	toId := strings.Index(str, "TO")
-	var err error
-	if toId == -1 {
-		if yearId != -1 && monthId == -1 {
-			ym._type = QUA_Y
-			ym.leadScale, err = ym.getLeadPrec(str, yearId)
-			if err != nil {
-				return err
-			}
-		} else if monthId != -1 && yearId == -1 {
-			ym._type = QUA_MO
-			ym.leadScale, err = ym.getLeadPrec(str, monthId)
-			if err != nil {
-				return err
-			}
-		} else {
-			return ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-	} else {
-		if yearId == -1 || monthId == -1 {
-			return ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-		ym._type = QUA_YM
-		ym.leadScale, err = ym.getLeadPrec(str, yearId)
-		if err != nil {
-			return err
-		}
-	}
-
-	ym.scaleForSvr = (int(ym._type) << 8) + (ym.leadScale << 4)
-	timeVals, err := ym.getTimeValue(ret[1], int(ym._type))
-	if err != nil {
+func (r *DmRows) Close() error {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
 		return err
 	}
-	ym.years = timeVals[0]
-	ym.months = timeVals[1]
-	return ym.checkScale(ym.leadScale)
+	if len(r.filterChain.filters) == 0 {
+		return r.close()
+	}
+	return r.filterChain.reset().DmRowsClose(r)
 }
 
-func (ym *DmIntervalYM) getLeadPrec(str string, startIndex int) (int, error) {
-	if ym.isLeadScaleSet {
-		return ym.leadScale, nil
+func (r *DmRows) Next(dest []driver.Value) error {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return err
 	}
-
-	leftBtId := strings.Index(str[startIndex:], "(")
-	rightBtId := strings.Index(str[startIndex:], ")")
-	leadPrec := 0
-
-	if rightBtId == -1 && leftBtId == -1 {
-		leftBtId += startIndex
-		rightBtId += startIndex
-		l := strings.Index(str, "'")
-		var r int
-		var dataStr string
-		if l != -1 {
-			r = strings.Index(str[l+1:], "'")
-			if r != -1 {
-				r += l + 1
-			}
-		} else {
-			r = -1
-		}
-
-		if r != -1 {
-			dataStr = strings.TrimSpace(str[l+1 : r])
-		} else {
-			dataStr = ""
-		}
-
-		if dataStr != "" {
-			sign := dataStr[0]
-			if sign == '+' || sign == '-' {
-				dataStr = strings.TrimSpace(dataStr[1:])
-			}
-			end := strings.Index(dataStr, "-")
-
-			if end != -1 {
-				dataStr = dataStr[:end]
-			}
-
-			leadPrec = len(dataStr)
-		} else {
-			leadPrec = 2
-		}
-	} else if rightBtId != -1 && leftBtId != -1 && rightBtId > leftBtId+1 {
-		leftBtId += startIndex
-		rightBtId += startIndex
-		strPrec := strings.TrimSpace(str[leftBtId+1 : rightBtId])
-		temp, err := strconv.ParseInt(strPrec, 10, 32)
-		if err != nil {
-			return 0, err
-		}
-
-		leadPrec = int(temp)
-	} else {
-		return 0, ECGO_INVALID_TIME_INTERVAL.throw()
+	if len(r.filterChain.filters) == 0 {
+		return r.next(dest)
 	}
-
-	return leadPrec, nil
+	return r.filterChain.reset().DmRowsNext(r, dest)
 }
 
-func (ym *DmIntervalYM) checkScale(prec int) error {
-	switch ym._type {
-	case QUA_Y:
-		if prec < len(strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)) {
-			return ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-	case QUA_YM:
-		if prec < len(strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)) {
-			return ECGO_INVALID_TIME_INTERVAL.throw()
-		}
+func (r *DmRows) HasNextResultSet() bool {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return false
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.hasNextResultSet()
+	}
+	return r.filterChain.reset().DmRowsHasNextResultSet(r)
+}
 
-		if int64(math.Abs(float64(ym.months))) > 11 {
-			return ECGO_INVALID_TIME_INTERVAL.throw()
-		}
+func (r *DmRows) NextResultSet() error {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return err
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.nextResultSet()
+	}
+	return r.filterChain.reset().DmRowsNextResultSet(r)
+}
 
-	case QUA_MO:
-		if prec < len(strconv.FormatInt(int64(math.Abs(float64(ym.months))), 10)) {
-			return ECGO_INVALID_TIME_INTERVAL.throw()
-		}
+func (r *DmRows) ColumnTypeScanType(index int) reflect.Type {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return nil
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.columnTypeScanType(index)
+	}
+	return r.filterChain.reset().DmRowsColumnTypeScanType(r, index)
+}
+
+func (r *DmRows) ColumnTypeDatabaseTypeName(index int) string {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return ""
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.columnTypeDatabaseTypeName(index)
+	}
+	return r.filterChain.reset().DmRowsColumnTypeDatabaseTypeName(r, index)
+}
+
+func (r *DmRows) ColumnTypeLength(index int) (length int64, ok bool) {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return -1, false
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.columnTypeLength(index)
+	}
+	return r.filterChain.reset().DmRowsColumnTypeLength(r, index)
+}
+
+func (r *DmRows) ColumnTypeNullable(index int) (nullable, ok bool) {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return false, false
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.columnTypeNullable(index)
+	}
+	return r.filterChain.reset().DmRowsColumnTypeNullable(r, index)
+}
+
+func (r *DmRows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
+	if err := r.CurrentRows.dmStmt.checkClosed(); err != nil {
+		return -1, -1, false
+	}
+	if len(r.filterChain.filters) == 0 {
+		return r.columnTypePrecisionScale(index)
+	}
+	return r.filterChain.reset().DmRowsColumnTypePrecisionScale(r, index)
+}
+
+func (rows *DmRows) columns() []string {
+	return rows.CurrentRows.Columns()
+}
+
+func (rows *DmRows) close() error {
+	if f := rows.finish; f != nil {
+		f()
+		rows.finish = nil
+	}
+	return rows.CurrentRows.Close()
+}
+
+func (rows *DmRows) next(dest []driver.Value) error {
+	return rows.CurrentRows.Next(dest)
+}
+
+func (rows *DmRows) hasNextResultSet() bool {
+	return rows.CurrentRows.HasNextResultSet()
+}
+
+func (rows *DmRows) nextResultSet() error {
+	return rows.CurrentRows.NextResultSet()
+}
+
+func (rows *DmRows) columnTypeScanType(index int) reflect.Type {
+	return rows.CurrentRows.ColumnTypeScanType(index)
+}
+
+func (rows *DmRows) columnTypeDatabaseTypeName(index int) string {
+	return rows.CurrentRows.ColumnTypeDatabaseTypeName(index)
+}
+
+func (rows *DmRows) columnTypeLength(index int) (length int64, ok bool) {
+	return rows.CurrentRows.ColumnTypeLength(index)
+}
+
+func (rows *DmRows) columnTypeNullable(index int) (nullable, ok bool) {
+	return rows.CurrentRows.ColumnTypeNullable(index)
+}
+
+func (rows *DmRows) columnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
+	return rows.CurrentRows.ColumnTypePrecisionScale(index)
+}
+
+type innerRows struct {
+	dmStmt *DmStatement
+
+	id int16
+
+	columns []column
+
+	datas [][][]byte
+
+	datasOffset int
+
+	datasStartPos int64
+
+	currentPos int64
+
+	totalRowCount int64
+
+	fetchSize int
+
+	sizeOfRow int
+
+	isBdta bool
+
+	nextExecInfo *execRetInfo
+
+	next *innerRows
+
+	dmRows *DmRows
+
+	closed bool
+}
+
+func (innerRows *innerRows) checkClosed() error {
+	if innerRows.closed {
+		return ECGO_RESULTSET_CLOSED.throw()
 	}
 	return nil
 }
 
-func (ym *DmIntervalYM) getTimeValue(subStr string, _type int) ([]int, error) {
-	hasQuate := false
-	if subStr[0] == '\'' && subStr[len(subStr)-1] == '\'' {
-		hasQuate = true
-		subStr = strings.TrimSpace(subStr[1 : len(subStr)-1])
+func (innerRows *innerRows) Columns() []string {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
 	}
 
-	negative := false
-	if strings.Index(subStr, "-") == 0 {
-		negative = true
-		subStr = subStr[1:]
-	} else if strings.Index(subStr, "+") == 0 {
-		negative = false
-		subStr = subStr[1:]
-	}
+	columnNames := make([]string, len(innerRows.columns))
+	nameCase := innerRows.dmStmt.dmConn.dmConnector.columnNameCase
 
-	if subStr[0] == '\'' && subStr[len(subStr)-1] == '\'' {
-		hasQuate = true
-		subStr = strings.TrimSpace(subStr[1 : len(subStr)-1])
-	}
-
-	if !hasQuate {
-		return nil, ECGO_INVALID_TIME_INTERVAL.throw()
-	}
-
-	lastSignIndex := strings.LastIndex(subStr, "-")
-
-	list := make([]string, 2)
-	if lastSignIndex == -1 || lastSignIndex == 0 {
-		list[0] = subStr
-		list[1] = ""
-	} else {
-		list[0] = subStr[0:lastSignIndex]
-		list[1] = subStr[lastSignIndex+1:]
-	}
-
-	var yearVal, monthVal int64
-	var err error
-	if ym._type == QUA_YM {
-		yearVal, err = strconv.ParseInt(list[0], 10, 32)
-		if err != nil {
-			return nil, err
-		}
-
-		if util.StringUtil.EqualsIgnoreCase(list[1], "") {
-			monthVal = 0
+	for i, column := range innerRows.columns {
+		if nameCase == COLUMN_NAME_NATURAL_CASE {
+			columnNames[i] = column.name
+		} else if nameCase == COLUMN_NAME_UPPER_CASE {
+			columnNames[i] = strings.ToUpper(column.name)
+		} else if nameCase == COLUMN_NAME_LOWER_CASE {
+			columnNames[i] = strings.ToLower(column.name)
 		} else {
-			monthVal, err = strconv.ParseInt(list[1], 10, 32)
+			columnNames[i] = column.name
+		}
+	}
+
+	return columnNames
+}
+
+func (innerRows *innerRows) Close() error {
+	if innerRows.closed {
+		return nil
+	}
+
+	innerRows.closed = true
+
+	if innerRows.dmStmt.innerUsed {
+		innerRows.dmStmt.close()
+	} else {
+		delete(innerRows.dmStmt.rsMap, innerRows.id)
+	}
+
+	innerRows.dmStmt = nil
+
+	return nil
+}
+
+func (innerRows *innerRows) Next(dest []driver.Value) error {
+	err := innerRows.checkClosed()
+	if err != nil {
+		return err
+	}
+
+	if innerRows.totalRowCount == 0 || innerRows.currentPos >= innerRows.totalRowCount {
+		return io.EOF
+	}
+
+	if innerRows.currentPos+1 == innerRows.totalRowCount {
+		innerRows.currentPos++
+		innerRows.datasOffset++
+		return io.EOF
+	}
+
+	if innerRows.currentPos+1 < innerRows.datasStartPos || innerRows.currentPos+1 >= innerRows.datasStartPos+int64(len(innerRows.datas)) {
+		if innerRows.fetchData(innerRows.currentPos + 1) {
+			innerRows.currentPos++
+			err := innerRows.getRowData(dest)
 			if err != nil {
-				return nil, err
+				return err
 			}
-		}
-
-		if negative {
-			yearVal *= -1
-			monthVal *= -1
-		}
-
-		if yearVal > int64(math.Pow10(ym.leadScale))-1 || yearVal < 1-int64(math.Pow10(ym.leadScale)) {
-			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-	} else if ym._type == QUA_Y {
-		yearVal, err = strconv.ParseInt(list[0], 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		monthVal = 0
-
-		if negative {
-			yearVal *= -1
-		}
-
-		if yearVal > int64(math.Pow10(ym.leadScale))-1 || yearVal < 1-int64(math.Pow10(ym.leadScale)) {
-			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		} else {
+			innerRows.currentPos++
+			innerRows.datasOffset++
+			return io.EOF
 		}
 	} else {
-		yearVal = 0
-		monthVal, err = strconv.ParseInt(list[0], 10, 32)
+		innerRows.currentPos++
+		innerRows.datasOffset++
+		err := innerRows.getRowData(dest)
 		if err != nil {
-			return nil, err
-		}
-		if negative {
-			monthVal *= -1
-		}
-
-		if monthVal > int64(math.Pow10(ym.leadScale))-1 || monthVal < 1-int64(math.Pow10(ym.leadScale)) {
-			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+			return err
 		}
 	}
 
-	ret := make([]int, 2)
-	ret[0] = int(yearVal)
-	ret[1] = int(monthVal)
-
-	return ret, nil
+	return nil
 }
 
-func (ym *DmIntervalYM) encode(scale int) ([]byte, error) {
-	if scale == 0 {
-		scale = ym.scaleForSvr
+func (innerRows *innerRows) HasNextResultSet() bool {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
 	}
-	year, month := ym.years, ym.months
-	if err := ym.checkScale(ym.leadScale); err != nil {
-		return nil, err
+
+	if innerRows.nextExecInfo != nil {
+		return innerRows.nextExecInfo.hasResultSet
 	}
-	if scale != ym.scaleForSvr {
-		convertYM, err := ym.convertTo(scale)
-		if err != nil {
-			return nil, err
-		}
-		year = convertYM.years
-		month = convertYM.months
+
+	innerRows.nextExecInfo, err = innerRows.dmStmt.dmConn.Access.Dm_build_119(innerRows.dmStmt, 0)
+	if err != nil {
+		panic(err)
+	}
+
+	if innerRows.nextExecInfo.hasResultSet {
+		innerRows.next = newInnerRows(innerRows.id+1, innerRows.dmStmt, innerRows.nextExecInfo)
+		return true
+	}
+
+	return false
+}
+
+func (innerRows *innerRows) NextResultSet() error {
+	err := innerRows.checkClosed()
+	if err != nil {
+		return err
+	}
+
+	if innerRows.nextExecInfo == nil {
+		innerRows.HasNextResultSet()
+	}
+
+	if innerRows.next == nil {
+		return io.EOF
+	}
+
+	innerRows.next.dmRows = innerRows.dmRows
+	innerRows.dmRows.CurrentRows = innerRows.next
+	return nil
+}
+
+func (innerRows *innerRows) ColumnTypeScanType(index int) reflect.Type {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
+	}
+	column := innerRows.checkIndex(index)
+	return column.ScanType()
+}
+
+func (innerRows *innerRows) ColumnTypeDatabaseTypeName(index int) string {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
+	}
+	column := innerRows.checkIndex(index)
+	return column.typeName
+}
+
+func (innerRows *innerRows) ColumnTypeLength(index int) (length int64, ok bool) {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
+	}
+	column := innerRows.checkIndex(index)
+	return column.Length()
+}
+
+func (innerRows *innerRows) ColumnTypeNullable(index int) (nullable, ok bool) {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
+	}
+	column := innerRows.checkIndex(index)
+	return column.nullable, true
+}
+
+func (innerRows *innerRows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
+	err := innerRows.checkClosed()
+	if err != nil {
+		panic(err)
+	}
+	column := innerRows.checkIndex(index)
+	return column.PrecisionScale()
+}
+
+func newDmRows(currentRows *innerRows) *DmRows {
+	dr := new(DmRows)
+	dr.resetFilterable(&currentRows.dmStmt.filterable)
+	dr.CurrentRows = currentRows
+	dr.idGenerator = dmRowsIDGenerator
+	currentRows.dmRows = dr
+	return dr
+}
+
+func newInnerRows(id int16, stmt *DmStatement, execInfo *execRetInfo) *innerRows {
+	rows := new(innerRows)
+	rows.id = id
+	rows.dmStmt = stmt
+	rows.columns = stmt.columns
+	rows.datas = execInfo.rsDatas
+	rows.totalRowCount = execInfo.updateCount
+	rows.isBdta = execInfo.rsBdta
+	rows.fetchSize = stmt.fetchSize
+
+	if len(execInfo.rsDatas) == 0 {
+		rows.sizeOfRow = 0
 	} else {
-		if err := ym.checkScale(ym.leadScale); err != nil {
-			return nil, err
-		}
+		rows.sizeOfRow = execInfo.rsSizeof / len(execInfo.rsDatas)
 	}
 
-	bytes := make([]byte, 12)
-	Dm_build_599.Dm_build_615(bytes, 0, int32(year))
-	Dm_build_599.Dm_build_615(bytes, 4, int32(month))
-	Dm_build_599.Dm_build_615(bytes, 8, int32(scale))
-	return bytes, nil
+	rows.currentPos = -1
+	rows.datasOffset = -1
+	rows.datasStartPos = 0
+
+	rows.nextExecInfo = nil
+	rows.next = nil
+
+	if rows.dmStmt.rsMap != nil {
+		rows.dmStmt.rsMap[rows.id] = rows
+	}
+
+	if stmt.dmConn.dmConnector.enRsCache && execInfo.rsCacheOffset > 0 &&
+		int64(len(execInfo.rsDatas)) == execInfo.updateCount {
+		rp.put(stmt, stmt.nativeSql, execInfo)
+	}
+
+	return rows
 }
 
-func (ym *DmIntervalYM) convertTo(scale int) (*DmIntervalYM, error) {
-	destType := (scale & 0x0000FF00) >> 8
-	leadPrec := (scale >> 4) & 0x0000000F
-	totalMonths := ym.years*12 + ym.months
-	year := 0
-	month := 0
-	switch destType {
-	case QUA_Y:
-		year = totalMonths / 12
+func newLocalInnerRows(stmt *DmStatement, columns []column, rsDatas [][][]byte) *innerRows {
+	rows := new(innerRows)
+	rows.id = 0
+	rows.dmStmt = stmt
+	rows.fetchSize = stmt.fetchSize
 
-		if totalMonths%12 >= 6 {
-			year++
-		} else if totalMonths%12 <= -6 {
-			year--
-		}
-		if leadPrec < len(strconv.Itoa(int(math.Abs(float64(year))))) {
-			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-	case QUA_YM:
-		year = totalMonths / 12
-		month = totalMonths % 12
-		if leadPrec < len(strconv.Itoa(int(math.Abs(float64(year))))) {
-			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
-		}
-	case QUA_MO:
-		month = totalMonths
-		if leadPrec < len(strconv.Itoa(int(math.Abs(float64(month))))) {
-			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+	if columns == nil {
+		rows.columns = make([]column, 0)
+	} else {
+		rows.columns = columns
+	}
+
+	if rsDatas == nil {
+		rows.datas = make([][][]byte, 0)
+		rows.totalRowCount = 0
+	} else {
+		rows.datas = rsDatas
+		rows.totalRowCount = int64(len(rsDatas))
+	}
+
+	rows.isBdta = false
+	return rows
+}
+
+func (innerRows *innerRows) checkIndex(index int) *column {
+	if index < 0 || index > len(innerRows.columns)-1 {
+		panic(ECGO_INVALID_SEQUENCE_NUMBER)
+	}
+
+	return &innerRows.columns[index]
+}
+
+func (innerRows *innerRows) fetchData(startPos int64) bool {
+	execInfo, err := innerRows.dmStmt.dmConn.Access.Dm_build_126(innerRows, startPos)
+	if err != nil {
+		panic(err)
+	}
+
+	innerRows.totalRowCount = execInfo.updateCount
+	if execInfo.rsDatas != nil {
+		innerRows.datas = execInfo.rsDatas
+		innerRows.datasStartPos = startPos
+		innerRows.datasOffset = 0
+		return true
+	}
+
+	return false
+}
+
+func (innerRows *innerRows) getRowData(dest []driver.Value) (err error) {
+	for i, column := range innerRows.columns {
+
+		if i <= len(dest)-1 {
+			if column.colType == CURSOR {
+				var tmpExecInfo *execRetInfo
+				tmpExecInfo, err = innerRows.dmStmt.dmConn.Access.Dm_build_119(innerRows.dmStmt, 1)
+				if err != nil {
+					return err
+				}
+
+				if tmpExecInfo.hasResultSet {
+					dest[i] = newDmRows(newInnerRows(innerRows.id+1, innerRows.dmStmt, tmpExecInfo))
+				} else {
+					dest[i] = nil
+				}
+				continue
+			}
+
+			dest[i], err = column.getColumnData(innerRows.datas[innerRows.datasOffset][i+1], innerRows.dmStmt.dmConn)
+			innerRows.columns[i].isBdta = innerRows.isBdta
+			if err != nil {
+				return err
+			}
+		} else {
+			return nil
 		}
 	}
-	return &DmIntervalYM{
-		_type:       byte(destType),
-		years:       year,
-		months:      month,
-		scaleForSvr: scale,
-		leadScale:   (scale >> 4) & 0x0000000F,
-	}, nil
+
+	return nil
+}
+
+func (innerRows *innerRows) getRowCount() int64 {
+	innerRows.checkClosed()
+
+	if innerRows.totalRowCount == INT64_MAX {
+		return -1
+	}
+
+	return innerRows.totalRowCount
 }

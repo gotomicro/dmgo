@@ -10,24 +10,24 @@ import (
 	"github.com/golang/snappy"
 )
 
-func Compress(srcBuffer *Dm_build_953, offset int, length int, compressID int) ([]byte, error) {
-	if compressID == Dm_build_83 {
-		return snappy.Encode(nil, srcBuffer.Dm_build_1243(offset, length)), nil
+func Compress(srcBuffer *Dm_build_1239, offset int, length int, compressID int) ([]byte, error) {
+	if compressID == Dm_build_351 {
+		return snappy.Encode(nil, srcBuffer.Dm_build_1529(offset, length)), nil
 	}
 	return GzlibCompress(srcBuffer, offset, length)
 }
 
 func UnCompress(srcBytes []byte, compressID int) ([]byte, error) {
-	if compressID == Dm_build_83 {
+	if compressID == Dm_build_351 {
 		return snappy.Decode(nil, srcBytes)
 	}
 	return GzlibUncompress(srcBytes)
 }
 
-func GzlibCompress(srcBuffer *Dm_build_953, offset int, length int) ([]byte, error) {
+func GzlibCompress(srcBuffer *Dm_build_1239, offset int, length int) ([]byte, error) {
 	var ret bytes.Buffer
 	var w = zlib.NewWriter(&ret)
-	w.Write(srcBuffer.Dm_build_1243(offset, length))
+	w.Write(srcBuffer.Dm_build_1529(offset, length))
 	w.Close()
 	return ret.Bytes(), nil
 }

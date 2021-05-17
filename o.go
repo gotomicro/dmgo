@@ -5,833 +5,373 @@
 package dm
 
 import (
-	"bytes"
-	"context"
-	"database/sql"
-	"database/sql/driver"
-	"fmt"
-	"sync/atomic"
-
-	"gitee.com/chunanyong/dm/parser"
-	"golang.org/x/text/encoding"
+	"math/big"
+	"reflect"
+	"strconv"
+	"strings"
 )
 
-type DmConnection struct {
-	filterable
+const (
+	XDEC_MAX_PREC int = 38
+	XDEC_SIZE         = 21
 
-	dmConnector        *DmConnector
-	Access             *dm_build_1285
-	stmtMap            map[int32]*DmStatement
-	stmtPool           []stmtPoolInfo
-	lastExecInfo       *execInfo
-	lexer              *parser.Lexer
-	encode             encoding.Encoding
-	encodeBuffer       *bytes.Buffer
-	transformReaderDst []byte
-	transformReaderSrc []byte
+	FLAG_ZERO     int = 0x80
+	FLAG_POSITIVE int = 0xC1
+	FLAG_NEGTIVE  int = 0x3E
+	EXP_MAX       int = 0xFF - 1 - FLAG_POSITIVE
+	EXP_MIN       int = FLAG_NEGTIVE + 1 - 0x7F
 
-	serverEncoding          string
-	GlobalServerSeries      int
-	ServerVersion           string
-	Malini2                 bool
-	Execute2                bool
-	LobEmptyCompOrcl        bool
-	IsoLevel                int32
-	ReadOnly                bool
-	NewLobFlag              bool
-	sslEncrypt              int
-	MaxRowSize              int32
-	DDLAutoCommit           bool
-	BackslashEscape         bool
-	SvrStat                 int16
-	SvrMode                 int16
-	ConstParaOpt            bool
-	DbTimezone              int16
-	LifeTimeRemainder       int16
-	InstanceName            string
-	Schema                  string
-	LastLoginIP             string
-	LastLoginTime           string
-	FailedAttempts          int32
-	LoginWarningID          int32
-	GraceTimeRemainder      int32
-	Guid                    string
-	DbName                  string
-	StandbyHost             string
-	StandbyPort             int32
-	StandbyCount            uint16
-	SessionID               int64
-	OracleDateFormat        string
-	OracleTimestampFormat   string
-	OracleTimestampTZFormat string
-	OracleTimeFormat        string
-	OracleTimeTZFormat      string
-	OracleDateLanguage      byte
-	Local                   bool
-	TrxStatus               int32
-	trxFinish               bool
-	sessionID               int64
-	autoCommit              bool
-	isBatch                 bool
+	NUM_POSITIVE int = 1
+	NUM_NEGTIVE  int = 101
+)
 
-	watching bool
-	watcher  chan<- context.Context
-	closech  chan struct{}
-	finished chan<- struct{}
-	canceled atomicError
-	closed   atomicBool
+type DmDecimal struct {
+	sign   int
+	weight int
+	prec   int
+	scale  int
+	digits string
 }
 
-func (conn *DmConnection) setTrxFinish(status int32) {
-	switch status & Dm_build_122 {
-	case Dm_build_119, Dm_build_120, Dm_build_121:
-		conn.trxFinish = true
+func NewDecimalFromInt64(x int64) (*DmDecimal, error) {
+	return NewDecimalFromBigInt(big.NewInt(x))
+}
+func (d DmDecimal) ToInt64() int64 {
+	return d.ToBigInt().Int64()
+}
+func NewDecimalFromFloat64(x float64) (*DmDecimal, error) {
+	return NewDecimalFromBigFloat(big.NewFloat(x))
+}
+func (d DmDecimal) ToFloat64() float64 {
+	f, _ := d.ToBigFloat().Float64()
+	return f
+}
+func NewDecimalFromBigInt(bigInt *big.Int) (*DmDecimal, error) {
+	return newDecimal(bigInt, len(bigInt.String()), 0)
+}
+func (d DmDecimal) ToBigInt() *big.Int {
+	if d.isZero() {
+		return big.NewInt(0)
+	}
+	var digits = d.digits
+	if d.sign < 0 {
+		digits = "-" + digits
+	}
+	i1, ok := new(big.Int).SetString(digits, 10)
+	if !ok {
+		return nil
+	}
+	if d.weight > 0 {
+		i2, ok := new(big.Int).SetString("1"+strings.Repeat("0", d.weight), 10)
+		if !ok {
+			return nil
+		}
+		i1.Mul(i1, i2)
+	} else if d.weight < 0 {
+		i2, ok := new(big.Int).SetString("1"+strings.Repeat("0", -d.weight), 10)
+		if !ok {
+			return nil
+		}
+		i1.Quo(i1, i2)
+	}
+	return i1
+}
+func NewDecimalFromBigFloat(bigFloat *big.Float) (*DmDecimal, error) {
+	return newDecimal(bigFloat, int(bigFloat.Prec()), int(bigFloat.Prec()))
+}
+func (d DmDecimal) ToBigFloat() *big.Float {
+	if d.isZero() {
+		return big.NewFloat(0.0)
+	}
+	var digits = d.digits
+	if d.sign < 0 {
+		digits = "-" + digits
+	}
+	f1, ok := new(big.Float).SetString(digits)
+	if !ok {
+		return nil
+	}
+	if d.weight > 0 {
+		f2, ok := new(big.Float).SetString("1" + strings.Repeat("0", d.weight))
+		if !ok {
+			return nil
+		}
+		f1.Mul(f1, f2)
+	} else if d.weight < 0 {
+		f2, ok := new(big.Float).SetString("1" + strings.Repeat("0", -d.weight))
+		if !ok {
+			return nil
+		}
+		f1.Quo(f1, f2)
+	}
+	return f1
+}
+
+func NewDecimalFromString(s string) (*DmDecimal, error) {
+	num, ok := new(big.Float).SetString(strings.TrimSpace(s))
+	if !ok {
+		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+	}
+	return NewDecimalFromBigFloat(num)
+}
+
+func (d DmDecimal) String() string {
+	return d.ToBigFloat().Text('f', 10)
+}
+
+func (d DmDecimal) Sign() int {
+	return d.sign
+}
+
+func (dest *DmDecimal) Scan(src interface{}) error {
+	if dest == nil {
+		return ECGO_STORE_IN_NIL_POINTER.throw()
+	}
+	switch src := src.(type) {
+	case nil:
+		*dest = *new(DmDecimal)
+		return nil
+	case int, int8, int16, int32, int64:
+		d, err := NewDecimalFromInt64(reflect.ValueOf(src).Int())
+		if err != nil {
+			return err
+		}
+		*dest = *d
+		return nil
+	case uint, uint8, uint16, uint32, uint64:
+		d, err := NewDecimalFromBigInt(new(big.Int).SetUint64(reflect.ValueOf(src).Uint()))
+		if err != nil {
+			return err
+		}
+		*dest = *d
+		return nil
+	case string:
+		d, err := NewDecimalFromString(src)
+		if err != nil {
+			return err
+		}
+		*dest = *d
+		return nil
+	case *DmDecimal:
+		*dest = *src
+		return nil
 	default:
-		conn.trxFinish = false
+		return UNSUPPORTED_SCAN
 	}
 }
 
-func (dmConn *DmConnection) init() {
-	if dmConn.dmConnector.stmtPoolMaxSize > 0 {
-		dmConn.stmtPool = make([]stmtPoolInfo, 0, dmConn.dmConnector.stmtPoolMaxSize)
+func newDecimal(dec interface{}, prec int, scale int) (*DmDecimal, error) {
+	d := &DmDecimal{
+		prec:  prec,
+		scale: scale,
 	}
+	switch de := dec.(type) {
+	case *big.Int:
+		d.sign = de.Sign()
 
-	dmConn.stmtMap = make(map[int32]*DmStatement)
-	dmConn.DbTimezone = 0
-	dmConn.GlobalServerSeries = 0
-	dmConn.MaxRowSize = 0
-	dmConn.LobEmptyCompOrcl = false
-	dmConn.ReadOnly = false
-	dmConn.DDLAutoCommit = false
-	dmConn.ConstParaOpt = false
-	dmConn.IsoLevel = -1
-	dmConn.sessionID = -1
-	dmConn.Malini2 = true
-	dmConn.NewLobFlag = true
-	dmConn.Execute2 = true
-	dmConn.serverEncoding = ENCODING_GB18030
-	dmConn.TrxStatus = Dm_build_70
-
-	dmConn.idGenerator = dmConnIDGenerator
-}
-
-func (dmConn *DmConnection) reset() {
-	dmConn.DbTimezone = 0
-	dmConn.GlobalServerSeries = 0
-	dmConn.MaxRowSize = 0
-	dmConn.LobEmptyCompOrcl = false
-	dmConn.ReadOnly = false
-	dmConn.DDLAutoCommit = false
-	dmConn.ConstParaOpt = false
-	dmConn.IsoLevel = -1
-	dmConn.sessionID = -1
-	dmConn.Malini2 = true
-	dmConn.NewLobFlag = true
-	dmConn.Execute2 = true
-	dmConn.serverEncoding = ENCODING_GB18030
-	dmConn.TrxStatus = Dm_build_70
-}
-
-func (dc *DmConnection) checkClosed() error {
-	if dc.closed.IsSet() {
-		return driver.ErrBadConn
-	}
-
-	return nil
-}
-
-func (dc *DmConnection) executeInner(query string, execType int16) (interface{}, error) {
-
-	stmt, err := NewDmStmt(dc, query)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if execType == Dm_build_87 {
-		defer stmt.close()
-	}
-
-	stmt.innerUsed = true
-	if stmt.dmConn.dmConnector.escapeProcess {
-		stmt.nativeSql, err = stmt.dmConn.escape(stmt.nativeSql, stmt.dmConn.dmConnector.keyWords)
-		if err != nil {
-			stmt.close()
-			return nil, err
+		if d.isZero() {
+			return d, nil
 		}
-	}
+		str := de.String()
 
-	var optParamList []OptParameter
-
-	if stmt.dmConn.ConstParaOpt {
-		optParamList = make([]OptParameter, 0)
-		stmt.nativeSql, optParamList, err = stmt.dmConn.execOpt(stmt.nativeSql, optParamList, stmt.dmConn.getServerEncoding())
-		if err != nil {
-			stmt.close()
-			optParamList = nil
-		}
-	}
-
-	if execType == Dm_build_86 && dc.dmConnector.enRsCache {
-		rpv, err := rp.get(stmt, query)
-		if err != nil {
-			return nil, err
+		if d.sign < 0 {
+			str = str[1:]
 		}
 
-		if rpv != nil {
-			stmt.execInfo = rpv.execInfo
-			dc.lastExecInfo = rpv.execInfo
-			return newDmRows(rpv.getResultSet(stmt)), nil
+		if err := checkPrec(len(str), prec); err != nil {
+			return d, err
 		}
-	}
+		i := 0
+		istart := len(str) - 1
 
-	var info *execInfo
-
-	if optParamList != nil && len(optParamList) > 0 {
-		info, err = dc.Access.Dm_build_1363(stmt, optParamList)
-		if err != nil {
-			stmt.nativeSql = query
-			info, err = dc.Access.Dm_build_1369(stmt, execType)
-		}
-	} else {
-		info, err = dc.Access.Dm_build_1369(stmt, execType)
-	}
-
-	dc.lastExecInfo = info
-	if err != nil {
-		stmt.close()
-		return nil, err
-	}
-
-	if info.hasResultSet {
-		return newDmRows(newInnerRows(0, stmt, info)), nil
-	} else {
-		return newDmResult(stmt, info), nil
-	}
-}
-
-func g2dbIsoLevel(isoLevel int32) int32 {
-	switch isoLevel {
-	case 1:
-		return Dm_build_74
-	case 2:
-		return Dm_build_75
-	case 4:
-		return Dm_build_76
-	case 6:
-		return Dm_build_77
-	default:
-		return -1
-	}
-}
-
-func (dc *DmConnection) Begin() (driver.Tx, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.begin()
-	} else {
-		return dc.filterChain.reset().DmConnectionBegin(dc)
-	}
-}
-
-func (dc *DmConnection) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.beginTx(ctx, opts)
-	}
-	return dc.filterChain.reset().DmConnectionBeginTx(dc, ctx, opts)
-}
-
-func (dc *DmConnection) Commit() error {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.commit()
-	} else {
-		return dc.filterChain.reset().DmConnectionCommit(dc)
-	}
-}
-
-func (dc *DmConnection) Rollback() error {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.rollback()
-	} else {
-		return dc.filterChain.reset().DmConnectionRollback(dc)
-	}
-}
-
-func (dc *DmConnection) Close() error {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.close()
-	} else {
-		return dc.filterChain.reset().DmConnectionClose(dc)
-	}
-}
-
-func (dc *DmConnection) Ping(ctx context.Context) error {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.ping(ctx)
-	} else {
-		return dc.filterChain.reset().DmConnectionPing(dc, ctx)
-	}
-}
-
-func (dc *DmConnection) Exec(query string, args []driver.Value) (driver.Result, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.exec(query, args)
-	}
-	return dc.filterChain.reset().DmConnectionExec(dc, query, args)
-}
-
-func (dc *DmConnection) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.execContext(ctx, query, args)
-	}
-	return dc.filterChain.reset().DmConnectionExecContext(dc, ctx, query, args)
-}
-
-func (dc *DmConnection) Query(query string, args []driver.Value) (driver.Rows, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.query(query, args)
-	}
-	return dc.filterChain.reset().DmConnectionQuery(dc, query, args)
-}
-
-func (dc *DmConnection) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.queryContext(ctx, query, args)
-	}
-	return dc.filterChain.reset().DmConnectionQueryContext(dc, ctx, query, args)
-}
-
-func (dc *DmConnection) Prepare(query string) (driver.Stmt, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.prepare(query)
-	}
-	return dc.filterChain.reset().DmConnectionPrepare(dc, query)
-}
-
-func (dc *DmConnection) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.prepareContext(ctx, query)
-	}
-	return dc.filterChain.reset().DmConnectionPrepareContext(dc, ctx, query)
-}
-
-func (dc *DmConnection) ResetSession(ctx context.Context) error {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.resetSession(ctx)
-	}
-	return dc.filterChain.reset().DmConnectionResetSession(dc, ctx)
-}
-
-func (dc *DmConnection) CheckNamedValue(nv *driver.NamedValue) error {
-	if len(dc.filterChain.filters) == 0 {
-		return dc.checkNamedValue(nv)
-	}
-	return dc.filterChain.reset().DmConnectionCheckNamedValue(dc, nv)
-}
-
-func (dc *DmConnection) begin() (*DmConnection, error) {
-	return dc.beginTx(context.Background(), driver.TxOptions{driver.IsolationLevel(sql.LevelDefault), false})
-}
-
-func (dc *DmConnection) beginTx(ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
-
-	dc.autoCommit = false
-
-	if sql.IsolationLevel(opts.Isolation) == sql.LevelDefault {
-		opts.Isolation = driver.IsolationLevel(sql.LevelReadCommitted)
-	}
-
-	dc.ReadOnly = opts.ReadOnly
-
-	if dc.IsoLevel == int32(opts.Isolation) {
-		return dc, nil
-	}
-
-	switch sql.IsolationLevel(opts.Isolation) {
-	case sql.LevelDefault:
-		return dc, nil
-	case sql.LevelReadUncommitted, sql.LevelReadCommitted, sql.LevelSerializable:
-		dc.IsoLevel = int32(opts.Isolation)
-	case sql.LevelRepeatableRead:
-		if dc.CompatibleMysql() {
-			dc.IsoLevel = int32(sql.LevelReadCommitted)
-		} else {
-			return nil, ECGO_INVALID_TRAN_ISOLATION.throw()
-		}
-	default:
-		return nil, ECGO_INVALID_TRAN_ISOLATION.throw()
-	}
-
-	err = dc.Access.Dm_build_1423(dc)
-	if err != nil {
-		return nil, err
-	}
-	return dc, nil
-}
-
-func (dc *DmConnection) commit() error {
-	err := dc.checkClosed()
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		dc.autoCommit = dc.dmConnector.autoCommit
-	}()
-
-	if !dc.autoCommit {
-		err = dc.Access.Commit()
-		if err != nil {
-			return err
-		}
-		dc.trxFinish = true
-		return nil
-	} else if !dc.dmConnector.alwayseAllowCommit {
-		return ECGO_COMMIT_IN_AUTOCOMMIT_MODE.throw()
-	}
-
-	return nil
-}
-
-func (dc *DmConnection) rollback() error {
-	err := dc.checkClosed()
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		dc.autoCommit = dc.dmConnector.autoCommit
-	}()
-
-	if !dc.autoCommit {
-		err = dc.Access.Rollback()
-		if err != nil {
-			return err
-		}
-		dc.trxFinish = true
-		return nil
-	} else if !dc.dmConnector.alwayseAllowCommit {
-		return ECGO_ROLLBACK_IN_AUTOCOMMIT_MODE.throw()
-	}
-
-	return nil
-}
-
-func (dc *DmConnection) reconnect() error {
-	err := dc.Access.Close()
-	if err != nil {
-		return err
-	}
-
-	for _, stmt := range dc.stmtMap {
-		stmt.closed = true
-		for id, _ := range stmt.rsMap {
-			delete(stmt.rsMap, id)
-		}
-	}
-
-	if dc.stmtPool != nil {
-		dc.stmtPool = dc.stmtPool[:0]
-	}
-
-	dc.dmConnector.reConnection = dc
-
-	if dc.dmConnector.group != nil {
-		_, err = dc.dmConnector.group.connect(dc.dmConnector)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err = dc.dmConnector.connect(context.Background())
-	}
-
-	for _, stmt := range dc.stmtMap {
-		err = dc.Access.Dm_build_1341(stmt)
-		if err != nil {
-			return err
-		}
-
-		if stmt.paramCount > 0 {
-			err = stmt.prepare()
-			if err != nil {
-				return err
+		for i = istart; i > 0; i-- {
+			if str[i] != '0' {
+				break
 			}
 		}
-	}
+		str = str[:i+1]
+		d.weight += istart - i
 
-	return nil
-}
-
-func (dc *DmConnection) close() error {
-	if dc.closed.IsSet() {
-		return nil
-	}
-
-	close(dc.closech)
-	if dc.Access == nil {
-		return nil
-	}
-
-	err := dc.rollback()
-	if err != nil {
-		return err
-	}
-
-	for _, stmt := range dc.stmtMap {
-		err = stmt.free()
-		if err != nil {
-			return err
+		if isOdd(d.weight) {
+			str += "0"
+			d.weight -= 1
 		}
-	}
+		if isOdd(len(str)) {
+			str = "0" + str
+		}
+		d.digits = str
+	case *big.Float:
+		d.sign = de.Sign()
 
-	if dc.stmtPool != nil {
-		for _, spi := range dc.stmtPool {
-			err = dc.Access.Dm_build_1346(spi.id)
-			if err != nil {
-				return err
+		if d.isZero() {
+			return d, nil
+		}
+		str := de.Text('f', -1)
+
+		if d.sign < 0 {
+			str = str[1:]
+		}
+
+		pointIndex := strings.IndexByte(str, '.')
+		i, istart, length := 0, 0, len(str)
+
+		if pointIndex != -1 {
+			if str[0] == '0' {
+
+				istart = 2
+				for i = istart; i < length; i++ {
+					if str[i] != '0' {
+						break
+					}
+				}
+				str = str[i:]
+				d.weight -= i - istart + len(str)
+			} else {
+				str = str[:pointIndex] + str[pointIndex+1:]
+				d.weight -= length - pointIndex - 1
 			}
 		}
-		dc.stmtPool = nil
-	}
 
-	err = dc.Access.Close()
-	if err != nil {
-		return err
-	}
-
-	dc.closed.Set(true)
-	return nil
-}
-
-func (dc *DmConnection) ping(ctx context.Context) error {
-	rows, err := dc.query("select 1", nil)
-	if err != nil {
-		return err
-	}
-	return rows.close()
-}
-
-func (dc *DmConnection) exec(query string, args []driver.Value) (*DmResult, error) {
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	if args != nil && len(args) > 0 {
-		stmt, err := dc.prepare(query)
-		dc.lastExecInfo = stmt.execInfo
-		defer stmt.close()
-		if err != nil {
-			return nil, err
-		}
-
-		return stmt.exec(args)
-	} else {
-		r1, err := dc.executeInner(query, Dm_build_87)
-		if err != nil {
-			return nil, err
-		}
-
-		if r2, ok := r1.(*DmResult); ok {
-			return r2, nil
-		} else {
-			return nil, ECGO_NOT_EXEC_SQL.throw()
-		}
-	}
-}
-
-func (dc *DmConnection) execContext(ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
-
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
-
-	if args != nil && len(args) > 0 {
-		stmt, err := dc.prepare(query)
-		dc.lastExecInfo = stmt.execInfo
-		defer stmt.close()
-		if err != nil {
-			return nil, err
-		}
-
-		return stmt.execContext(ctx, args)
-	} else {
-		r1, err := dc.executeInner(query, Dm_build_87)
-		if err != nil {
-			return nil, err
-		}
-
-		if r2, ok := r1.(*DmResult); ok {
-			return r2, nil
-		} else {
-			return nil, ECGO_NOT_EXEC_SQL.throw()
-		}
-	}
-}
-
-func (dc *DmConnection) query(query string, args []driver.Value) (*DmRows, error) {
-
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	if args != nil && len(args) > 0 {
-		stmt, err := dc.prepare(query)
-		dc.lastExecInfo = stmt.execInfo
-		if err != nil {
-			stmt.close()
-			return nil, err
-		}
-
-		stmt.innerUsed = true
-		return stmt.query(args)
-
-	} else {
-		r1, err := dc.executeInner(query, Dm_build_86)
-		if err != nil {
-			return nil, err
-		}
-
-		if r2, ok := r1.(*DmRows); ok {
-			return r2, nil
-		} else {
-			return nil, ECGO_NOT_QUERY_SQL.throw()
-		}
-	}
-}
-
-func (dc *DmConnection) queryContext(ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
-
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
-
-	if args != nil && len(args) > 0 {
-		stmt, err := dc.prepare(query)
-		dc.lastExecInfo = stmt.execInfo
-		if err != nil {
-			stmt.close()
-			return nil, err
-		}
-
-		stmt.innerUsed = true
-		return stmt.queryContext(ctx, args)
-
-	} else {
-		r1, err := dc.executeInner(query, Dm_build_86)
-		if err != nil {
-			return nil, err
-		}
-
-		if r2, ok := r1.(*DmRows); ok {
-			return r2, nil
-		} else {
-			return nil, ECGO_NOT_QUERY_SQL.throw()
-		}
-	}
-
-}
-
-func (dc *DmConnection) prepare(query string) (*DmStatement, error) {
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	stmt, err := NewDmStmt(dc, query)
-	if err != nil {
-		return nil, err
-	}
-
-	err = stmt.prepare()
-	return stmt, err
-}
-
-func (dc *DmConnection) prepareContext(ctx context.Context, query string) (*DmStatement, error) {
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
-
-	stmt, err := dc.prepare(query)
-	if err != nil {
-		return nil, err
-	}
-
-	return stmt, nil
-}
-
-func (dc *DmConnection) resetSession(ctx context.Context) error {
-	err := dc.checkClosed()
-	if err != nil {
-		return err
-	}
-
-	for _, stmt := range dc.stmtMap {
-		stmt.inUse = false
-	}
-
-	return nil
-}
-
-func (dc *DmConnection) checkNamedValue(nv *driver.NamedValue) error {
-	var err error
-	var cvt = converter{dc, false}
-	nv.Value, err = cvt.ConvertValue(nv.Value)
-	dc.isBatch = cvt.isBatch
-	return err
-}
-
-func (dc *DmConnection) getServerEncoding() string {
-	if dc.dmConnector.charCode != "" {
-		return dc.dmConnector.charCode
-	}
-	return dc.serverEncoding
-}
-
-func (dc *DmConnection) lobFetchAll() bool {
-	return dc.dmConnector.lobMode == 2
-}
-
-func (conn *DmConnection) CompatibleOracle() bool {
-	return conn.dmConnector.compatibleMode == COMPATIBLE_MODE_ORACLE
-}
-
-func (conn *DmConnection) CompatibleMysql() bool {
-	return conn.dmConnector.compatibleMode == COMPATIBLE_MODE_MYSQL
-}
-
-func (conn *DmConnection) cancel(err error) {
-	conn.canceled.Set(err)
-	fmt.Println(conn.close())
-}
-
-func (conn *DmConnection) finish() {
-	if !conn.watching || conn.finished == nil {
-		return
-	}
-	select {
-	case conn.finished <- struct{}{}:
-		conn.watching = false
-	case <-conn.closech:
-	}
-}
-
-func (conn *DmConnection) startWatcher() {
-	watcher := make(chan context.Context, 1)
-	conn.watcher = watcher
-	finished := make(chan struct{})
-	conn.finished = finished
-	go func() {
-		for {
-			var ctx context.Context
-			select {
-			case ctx = <-watcher:
-			case <-conn.closech:
-				return
-			}
-
-			select {
-			case <-ctx.Done():
-				conn.cancel(ctx.Err())
-			case <-finished:
-			case <-conn.closech:
-				return
+		length = len(str)
+		istart = length - 1
+		for i = istart; i > 0; i-- {
+			if str[i] != '0' {
+				break
 			}
 		}
-	}()
+		str = str[:i+1] + str[length:]
+		d.weight += istart - i
+
+		if isOdd(d.weight) {
+			str += "0"
+			d.weight -= 1
+		}
+		if isOdd(len(str)) {
+			str = "0" + str
+		}
+		d.digits = str
+	case []byte:
+		return decodeDecimal(de, prec, scale)
+	}
+	return d, nil
 }
 
-func (conn *DmConnection) watchCancel(ctx context.Context) error {
-	if conn.watching {
-
-		return conn.close()
+func (d DmDecimal) encodeDecimal() ([]byte, error) {
+	if d.isZero() {
+		return []byte{byte(FLAG_ZERO)}, nil
 	}
-
-	if err := ctx.Err(); err != nil {
-		return err
+	exp := (d.weight+len(d.digits))/2 - 1
+	if exp > EXP_MAX || exp < EXP_MIN {
+		return nil, ECGO_DATA_TOO_LONG.throw()
 	}
+	validLen := len(d.digits)/2 + 1
 
-	if ctx.Done() == nil {
-		return nil
+	if d.sign < 0 && validLen >= XDEC_SIZE {
+		validLen = XDEC_SIZE - 1
+	} else if validLen > XDEC_SIZE {
+		validLen = XDEC_SIZE
 	}
-
-	if conn.watcher == nil {
-		return nil
+	retLen := validLen
+	if d.sign < 0 {
+		retLen = validLen + 1
 	}
-
-	conn.watching = true
-	conn.watcher <- ctx
-	return nil
-}
-
-type noCopy struct{}
-
-func (*noCopy) Lock() {}
-
-type atomicBool struct {
-	_noCopy noCopy
-	value   uint32
-}
-
-func (ab *atomicBool) IsSet() bool {
-	return atomic.LoadUint32(&ab.value) > 0
-}
-
-func (ab *atomicBool) Set(value bool) {
-	if value {
-		atomic.StoreUint32(&ab.value, 1)
+	retBytes := make([]byte, retLen)
+	if d.sign > 0 {
+		retBytes[0] = byte(exp + FLAG_POSITIVE)
 	} else {
-		atomic.StoreUint32(&ab.value, 0)
+		retBytes[0] = byte(FLAG_NEGTIVE - exp)
 	}
-}
 
-func (ab *atomicBool) TrySet(value bool) bool {
-	if value {
-		return atomic.SwapUint32(&ab.value, 1) == 0
+	ibytes := 1
+	for ichar := 0; ibytes < validLen; {
+		digit1, err := strconv.Atoi(string(d.digits[ichar]))
+		if err != nil {
+			return nil, err
+		}
+		ichar++
+		digit2, err := strconv.Atoi(string(d.digits[ichar]))
+		ichar++
+		if err != nil {
+			return nil, err
+		}
+
+		digit := digit1*10 + digit2
+		if d.sign > 0 {
+			retBytes[ibytes] = byte(digit + NUM_POSITIVE)
+		} else {
+			retBytes[ibytes] = byte(NUM_NEGTIVE - digit)
+		}
+		ibytes++
 	}
-	return atomic.SwapUint32(&ab.value, 0) > 0
+	if d.sign < 0 && ibytes < retLen {
+		retBytes[ibytes] = 0x66
+		ibytes++
+	}
+	if ibytes < retLen {
+		retBytes[ibytes] = 0x00
+	}
+	return retBytes, nil
 }
 
-type atomicError struct {
-	_noCopy noCopy
-	value   atomic.Value
+func decodeDecimal(values []byte, prec int, scale int) (*DmDecimal, error) {
+	var decimal = &DmDecimal{
+		prec:   prec,
+		scale:  scale,
+		sign:   0,
+		weight: 0,
+	}
+	if values == nil || len(values) == 0 || len(values) > XDEC_SIZE {
+		return nil, ECGO_FATAL_ERROR.throw()
+	}
+	if values[0] == byte(FLAG_ZERO) || len(values) == 1 {
+		return decimal, nil
+	}
+	if values[0]&byte(FLAG_ZERO) != 0 {
+		decimal.sign = 1
+	} else {
+		decimal.sign = -1
+	}
+
+	var flag = int(Dm_build_885.Dm_build_1005(values, 0))
+	var exp int
+	if decimal.sign > 0 {
+		exp = flag - FLAG_POSITIVE
+	} else {
+		exp = FLAG_NEGTIVE - flag
+	}
+	var digit = 0
+	var sf = ""
+	for ival := 1; ival < len(values); ival++ {
+		if decimal.sign > 0 {
+			digit = int(values[ival]) - NUM_POSITIVE
+		} else {
+			digit = NUM_NEGTIVE - int(values[ival])
+		}
+		if digit < 0 || digit > 99 {
+			break
+		}
+		if digit < 10 {
+			sf += "0"
+		}
+		sf += strconv.Itoa(digit)
+	}
+	decimal.digits = sf
+	decimal.weight = exp*2 - (len(decimal.digits) - 2)
+
+	return decimal, nil
 }
 
-func (ae *atomicError) Set(value error) {
-	ae.value.Store(value)
+func (d DmDecimal) isZero() bool {
+	return d.sign == 0
 }
 
-func (ae *atomicError) Value() error {
-	if v := ae.value.Load(); v != nil {
-
-		return v.(error)
+func checkPrec(len int, prec int) error {
+	if prec > 0 && len > prec || len > XDEC_MAX_PREC {
+		return ECGO_DATA_TOO_LONG.throw()
 	}
 	return nil
+}
+
+func isOdd(val int) bool {
+	return val%2 != 0
 }

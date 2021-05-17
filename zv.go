@@ -6,165 +6,119 @@
 package dm
 
 import (
-	"math/rand"
 	"strconv"
-	"time"
+	"strings"
 )
 
-var rwMap = make(map[string]*rwCounter)
-
-type rwCounter struct {
-	ntrx_primary int64
-
-	ntrx_total int64
-
-	primaryPercent float64
-
-	standbyPercent float64
-
-	standbyNTrxMap map[string]int64
-
-	standbyCount int
+type Properties struct {
+	innerProps map[string]string
 }
 
-func newRWCounter(primaryPercent int, standbyCount int) *rwCounter {
-	rwc := new(rwCounter)
-	rwc.reset(primaryPercent, standbyCount)
-	return rwc
-}
-
-func (rwc *rwCounter) reset(primaryPercent int, standbyCount int) {
-	rwc.ntrx_primary = 0
-	rwc.ntrx_total = 0
-	rwc.standbyNTrxMap = make(map[string]int64)
-	rwc.standbyCount = standbyCount
-	if standbyCount > 0 {
-		rwc.primaryPercent = float64(primaryPercent) / 100.0
-		rwc.standbyPercent = float64(100-primaryPercent) / 100.0 / float64(standbyCount)
-	} else {
-		rwc.primaryPercent = 1
-		rwc.standbyPercent = 0
+func NewProperties() *Properties {
+	p := Properties{
+		innerProps: make(map[string]string, 50),
 	}
+	return &p
 }
 
-/**
-* 连接创建成功后调用，需要服务器返回standbyCount
- */
-func getRwCounterInstance(conn *DmConnection) *rwCounter {
-	key := conn.dmConnector.host + "_" + strconv.Itoa(conn.dmConnector.port) + "_" + strconv.Itoa(conn.dmConnector.rwPercent)
-
-	rwc, ok := rwMap[key]
-	if !ok {
-		rwc = newRWCounter(conn.dmConnector.rwPercent, int(conn.StandbyCount))
-		rwMap[key] = rwc
-	} else if rwc.standbyCount != int(conn.StandbyCount) {
-		rwc.reset(conn.dmConnector.rwPercent, int(conn.StandbyCount))
-	}
-	return rwc
-}
-
-/**
-* @return 主机;
- */
-func (rwc *rwCounter) countPrimary() RWSiteEnum {
-	rwc.adjustNtrx()
-	rwc.ntrx_primary++
-	rwc.ntrx_total++
-	return PRIMARY
-}
-
-/**
-* @param dest 主机; 备机; any;
-* @return 主机; 备机
- */
-func (rwc *rwCounter) count(dest RWSiteEnum, standby *DmConnection) RWSiteEnum {
-	rwc.adjustNtrx()
-	switch dest {
-	case ANYOF:
-		{
-			if rwc.primaryPercent != 1 && (rwc.primaryPercent == 0 || float64(rwc.getStandbyNtrx(standby)) < float64(rwc.ntrx_total)*rwc.standbyPercent || float64(rwc.ntrx_primary) > float64(rwc.ntrx_total)*rwc.primaryPercent) {
-				rwc.incrementStandbyNtrx(standby)
-				dest = STANDBY
-			} else {
-				rwc.ntrx_primary++
-				dest = PRIMARY
-			}
-		}
-	case STANDBY:
-		{
-			rwc.incrementStandbyNtrx(standby)
-		}
-	case PRIMARY:
-		{
-			rwc.ntrx_primary++
-		}
-	}
-
-	rwc.ntrx_total++
-	return dest
-}
-
-/**
-* 防止ntrx超出有效范围，等比调整
- */
-func (rwc *rwCounter) adjustNtrx() {
-	if rwc.ntrx_total < INT64_MAX {
+func (g *Properties) SetProperties(p *Properties) {
+	if p == nil {
 		return
 	}
-
-	var min int64
-	i := 0
-	for _, value := range rwc.standbyNTrxMap {
-		if i == 0 {
-			min = value
-		} else {
-			if value < min {
-				min = value
-			}
-		}
-		i++
+	for k, v := range p.innerProps {
+		g.Set(strings.ToLower(k), v)
 	}
-
-	if min >= rwc.ntrx_primary {
-		min = rwc.ntrx_primary
-	}
-
-	rwc.ntrx_primary = rwc.ntrx_primary / min
-	rwc.ntrx_total = rwc.ntrx_total / min
-
-	for key, value := range rwc.standbyNTrxMap {
-		rwc.standbyNTrxMap[key] = value / min
-	}
-
 }
 
-func (rwc *rwCounter) getStandbyNtrx(standby *DmConnection) int64 {
-	key := standby.dmConnector.host + ":" + strconv.Itoa(standby.dmConnector.port)
-	ret, ok := rwc.standbyNTrxMap[key]
-	if !ok {
-		ret = 0
-	}
-
-	return ret
+func (g *Properties) Len() int {
+	return len(g.innerProps)
 }
 
-func (rwc *rwCounter) incrementStandbyNtrx(standby *DmConnection) {
-	key := standby.dmConnector.host + ":" + strconv.Itoa(standby.dmConnector.port)
-	ret, ok := rwc.standbyNTrxMap[key]
-	if ok {
-		ret += 1
+func (g *Properties) IsNil() bool {
+	return g == nil || g.innerProps == nil
+}
+
+func (g *Properties) GetString(key, def string) string {
+	v, ok := g.innerProps[strings.ToLower(key)]
+
+	if !ok || v == "" {
+		return def
+	}
+	return v
+}
+
+func (g *Properties) GetInt(key string, def int, min int, max int) int {
+	value, ok := g.innerProps[strings.ToLower(key)]
+	if !ok || value == "" {
+		return def
+	}
+
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		return def
+	}
+
+	if i > max || i < min {
+		return def
+	}
+	return i
+}
+
+func (g *Properties) GetBool(key string, def bool) bool {
+	value, ok := g.innerProps[strings.ToLower(key)]
+	if !ok || value == "" {
+		return def
+	}
+	b, err := strconv.ParseBool(value)
+	if err != nil {
+		return def
+	}
+	return b
+}
+
+func (g *Properties) GetTrimString(key string, def string) string {
+	value, ok := g.innerProps[strings.ToLower(key)]
+	if !ok || value == "" {
+		return def
 	} else {
-		ret = 1
+		return strings.TrimSpace(value)
 	}
-	rwc.standbyNTrxMap[key] = ret
 }
 
-func (rwc *rwCounter) random(rowCount int) int {
-	rand.Seed(time.Now().UnixNano())
-	return int(rand.Int31n(int32(rowCount)))
+func (g *Properties) GetStringArray(key string, def []string) []string {
+	value, ok := g.innerProps[strings.ToLower(key)]
+	if ok || value != "" {
+		array := strings.Split(value, ",")
+		if len(array) > 0 {
+			return array
+		}
+	}
+	return def
 }
 
-func (rwc *rwCounter) String() string {
-	return "PERCENT(P/S) : " + strconv.FormatFloat(rwc.primaryPercent, 'f', -1, 64) + "/" + strconv.FormatFloat(rwc.standbyPercent, 'f', -1, 64) + "\nNTRX_PRIMARY : " +
-		strconv.FormatInt(rwc.ntrx_primary, 10) + "\nNTRX_TOTAL : " + strconv.FormatInt(rwc.ntrx_total, 10) + "\nNTRX_STANDBY : "
+//func (g *Properties) GetBool(key string) bool {
+//	i, _ := strconv.ParseBool(g.innerProps[key])
+//	return i
+//}
+
+func (g *Properties) Set(key, value string) {
+	g.innerProps[strings.ToLower(key)] = value
+}
+
+func (g *Properties) SetIfNotExist(key, value string) {
+	if _, ok := g.innerProps[strings.ToLower(key)]; !ok {
+		g.Set(key, value)
+	}
+}
+
+// 如果p有g没有的键值对,添加进g中
+func (g *Properties) SetDiffProperties(p *Properties) {
+	if p == nil {
+		return
+	}
+	for k, v := range p.innerProps {
+		if _, ok := g.innerProps[strings.ToLower(k)]; !ok {
+			g.innerProps[strings.ToLower(k)] = v
+		}
+	}
 }

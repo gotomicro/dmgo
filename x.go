@@ -5,105 +5,188 @@
 
 package dm
 
-type DmStruct struct {
-	TypeData
-	m_strctDesc *StructDescriptor // 结构体的描述信息
+import (
+	"context"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
 
-	m_attribs []TypeData // 各属性值
+const (
+	STATUS_VALID_TIME = 20 * time.Second // ms
 
-	m_objCount int // 一个数组项中存在对象类型的个数（class、动态数组)
+	// sort 值
+	SORT_SERVER_MODE_INVALID = -1 // 不允许连接的模式
 
-	m_strCount int // 一个数组项中存在字符串类型的个数
+	SORT_SERVER_NOT_ALIVE = -2 // 站点无法连接
 
-	typeName string
+	SORT_UNKNOWN = INT32_MAX // 站点还未连接过，模式未知
 
-	elements []interface{}
+	SORT_NORMAL = 30
+
+	SORT_PRIMARY = 20
+
+	SORT_STANDBY = 10
+
+	// OPEN>MOUNT>SUSPEND
+	SORT_OPEN = 3
+
+	SORT_MOUNT = 2
+
+	SORT_SUSPEND = 1
+)
+
+type ep struct {
+	host            string
+	port            int32
+	alive           bool
+	statusRefreshTs int64 // 状态更新的时间点
+	serverMode      int32
+	serverStatus    int32
+	dscControl      bool
+	sort            int32
+	epSeqno			int32
+	epStatus		int32
+	lock            sync.Mutex
 }
 
-func newDmStruct(typeName string, elements []interface{}) *DmStruct {
-	ds := new(DmStruct)
-	ds.typeName = typeName
-	ds.elements = elements
-	return ds
+func newEP(host string, port int32) *ep {
+	ep := new(ep)
+	ep.host = host
+	ep.port = port
+	ep.serverMode = -1
+	ep.serverStatus = -1
+	ep.sort = SORT_UNKNOWN
+	return ep
 }
 
-func (ds *DmStruct) create(dc *DmConnection) (*DmStruct, error) {
-	desc, err := newStructDescriptor(ds.typeName, dc)
-	if err != nil {
-		return nil, err
+func (ep *ep) getSort(checkTime bool) int32 {
+	if checkTime {
+		if time.Now().UnixNano()-ep.statusRefreshTs < int64(STATUS_VALID_TIME) {
+			return ep.sort
+		} else {
+			return SORT_UNKNOWN
+		}
 	}
-	return ds.createByStructDescriptor(desc, dc)
+	return ep.sort
 }
 
-func newDmStructByTypeData(atData []TypeData, desc *TypeDescriptor) *DmStruct {
-	ds := new(DmStruct)
-	ds.initTypeData()
-	ds.m_strctDesc = newStructDescriptorByTypeDescriptor(desc)
-	ds.m_attribs = atData
-	return ds
-}
-
-func (dest *DmStruct) Scan(src interface{}) error {
-	switch src := src.(type) {
-	case nil:
-		*dest = *new(DmStruct)
-		return nil
-	case *DmStruct:
-		*dest = *src
-		return nil
-	default:
-		return UNSUPPORTED_SCAN
+func (ep *ep) calcSort(loginMode int32) int32 {
+	var sort int32 = 0
+	switch loginMode {
+	case LOGIN_MODE_PRIMARY_FIRST:
+		{
+			// 主机优先：PRIMARY>NORMAL>STANDBY
+			switch ep.serverMode {
+			case SERVER_MODE_NORMAL:
+				sort += SORT_NORMAL * 10
+			case SERVER_MODE_PRIMARY:
+				sort += SORT_PRIMARY * 100
+			case SERVER_MODE_STANDBY:
+				sort += SORT_STANDBY
+			}
+		}
+	case LOGIN_MODE_STANDBY_FIRST:
+		{
+			// STANDBY优先: STANDBY>PRIMARY>NORMAL
+			switch ep.serverMode {
+			case SERVER_MODE_NORMAL:
+				sort += SORT_NORMAL
+			case SERVER_MODE_PRIMARY:
+				sort += SORT_PRIMARY * 10
+			case SERVER_MODE_STANDBY:
+				sort += SORT_STANDBY * 100
+			}
+		}
+	case LOGIN_MODE_PRIMARY_ONLY:
+		if ep.serverMode != SERVER_MODE_PRIMARY {
+			return SORT_SERVER_MODE_INVALID
+		}
+		sort += SORT_PRIMARY
+	case LOGIN_MODE_STANDBY_ONLY:
+		if ep.serverMode != SERVER_MODE_STANDBY {
+			return SORT_SERVER_MODE_INVALID
+		}
+		sort += SORT_STANDBY
 	}
-}
 
-func (ds *DmStruct) getAttribsTypeData() []TypeData {
-	return ds.m_attribs
-}
-
-func (ds *DmStruct) createByStructDescriptor(desc *StructDescriptor, conn *DmConnection) (*DmStruct, error) {
-	ds.initTypeData()
-
-	if nil == desc {
-		return nil, ECGO_INVALID_PARAMETER_VALUE.throw()
+	switch ep.serverStatus {
+	case SERVER_STATUS_MOUNT:
+		sort += SORT_MOUNT
+	case SERVER_STATUS_OPEN:
+		sort += SORT_OPEN
+	case SERVER_STATUS_SUSPEND:
+		sort += SORT_SUSPEND
 	}
+	return sort
+}
 
-	ds.m_strctDesc = desc
-	if nil == ds.elements {
-		ds.m_attribs = make([]TypeData, desc.getSize())
+func (ep *ep) refreshStatus(alive bool, conn *DmConnection) {
+	ep.lock.Lock()
+	defer ep.lock.Unlock()
+	ep.alive = alive
+	ep.statusRefreshTs = time.Now().UnixNano()
+	if alive {
+		ep.serverMode = conn.SvrMode
+		ep.serverStatus = conn.SvrStat
+		ep.dscControl = conn.dscControl
+		ep.sort = ep.calcSort(int32(conn.dmConnector.loginMode))
 	} else {
-		if desc.getSize() != len(ds.elements) && desc.getObjId() != 4 {
-			return nil, ECGO_STRUCT_MEM_NOT_MATCH.throw()
-		}
-		var err error
-		ds.m_attribs, err = TypeDataSV.toStruct(ds.elements, ds.m_strctDesc.m_typeDesc)
-		if err != nil {
-			return nil, err
-		}
+		ep.serverMode = -1
+		ep.serverStatus = -1
+		ep.dscControl = false
+		ep.sort = SORT_SERVER_NOT_ALIVE
 	}
-
-	return ds, nil
 }
 
-func (ds *DmStruct) getSQLTypeName() (string, error) {
-	return ds.m_strctDesc.m_typeDesc.getFulName()
-}
-
-func (ds *DmStruct) getAttributes() ([]interface{}, error) {
-	return TypeDataSV.toJavaArrayByDmStruct(ds)
-}
-
-func (ds *DmStruct) checkCol(col int) error {
-	if col < 1 || col > len(ds.m_attribs) {
-		return ECGO_INVALID_SEQUENCE_NUMBER.throw()
-	}
-	return nil
-}
-
-// 获取指定索引的成员变量值，以TypeData的形式给出，col 1 based
-func (ds *DmStruct) getAttrValue(col int) (*TypeData, error) {
-	err := ds.checkCol(col)
+func (ep *ep) connect(connector *DmConnector) (*DmConnection, error) {
+	connector.host = ep.host
+	connector.port = ep.port
+	conn, err := connector.connectSingle(context.Background())
 	if err != nil {
+		ep.refreshStatus(false, conn)
 		return nil, err
 	}
-	return &ds.m_attribs[col-1], nil
+	ep.refreshStatus(true, conn)
+	return conn, nil
+}
+
+func (ep *ep) getServerStatusDesc(serverStatus int32) string {
+	ret := ""
+	switch ep.serverStatus {
+	case SERVER_STATUS_OPEN:
+		ret = "OPEN"
+	case SERVER_STATUS_MOUNT:
+		ret = "MOUNT"
+	case SERVER_STATUS_SUSPEND:
+		ret = "SUSPEND"
+	default:
+		ret = "UNKNOWN"
+	}
+	return ret
+}
+
+func (ep *ep) getServerModeDesc(serverMode int32) string {
+	ret := ""
+	switch ep.serverMode {
+	case SERVER_MODE_NORMAL:
+		ret = "NORMAL"
+	case SERVER_MODE_PRIMARY:
+		ret = "PRIMARY"
+	case SERVER_MODE_STANDBY:
+		ret = "STANDBY"
+	default:
+		ret = "UNKNOWN"
+	}
+	return ret
+}
+
+func (ep *ep) String() string {
+	dscControl := ")"
+	if ep.dscControl {
+		dscControl = ", DSC CONTROL)"
+	}
+	return strings.TrimSpace(ep.host) + ":" + strconv.Itoa(int(ep.port)) +
+		" (" + ep.getServerModeDesc(ep.serverMode) + ", " + ep.getServerStatusDesc(ep.serverStatus) + dscControl
 }

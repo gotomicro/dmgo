@@ -119,7 +119,7 @@ func dmdtDecodeFast(value []byte) []int {
 
 	if len(value) == 3 {
 
-		dt[OFFSET_YEAR] = int(Dm_build_599.Dm_build_696(value, 0)) & 0x7FFF
+		dt[OFFSET_YEAR] = int(Dm_build_885.Dm_build_982(value, 0)) & 0x7FFF
 		if dt[OFFSET_YEAR] > 9999 {
 			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
 		}
@@ -135,11 +135,11 @@ func dmdtDecodeFast(value []byte) []int {
 		dt[OFFSET_MILLISECOND] = ((int(value[2]) >> 1) & 0x7f) + ((int(value[3]) & 0x00ff) << 7) + ((int(value[4]) & 0x1F) << 15)
 
 		if len(value) > 5 {
-			dt[OFFSET_TIMEZONE] = int(Dm_build_599.Dm_build_696(value, 5))
+			dt[OFFSET_TIMEZONE] = int(Dm_build_885.Dm_build_982(value, 5))
 		}
 	} else {
 
-		dt[OFFSET_YEAR] = int(Dm_build_599.Dm_build_696(value, 0)) & 0x7FFF
+		dt[OFFSET_YEAR] = int(Dm_build_885.Dm_build_982(value, 0)) & 0x7FFF
 		if dt[OFFSET_YEAR] > 9999 {
 			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
 		}
@@ -157,7 +157,7 @@ func dmdtDecodeFast(value []byte) []int {
 		dt[OFFSET_MILLISECOND] = ((int(value[5]) >> 1) & 0x7f) + ((int(value[6]) & 0x00ff) << 7) + ((int(value[7]) & 0x1F) << 15)
 
 		if len(value) > 8 {
-			dt[OFFSET_TIMEZONE] = int(Dm_build_599.Dm_build_696(value, 8))
+			dt[OFFSET_TIMEZONE] = int(Dm_build_885.Dm_build_982(value, 8))
 		}
 	}
 	return dt
@@ -165,14 +165,14 @@ func dmdtDecodeFast(value []byte) []int {
 
 func dmdtDecodeBdta(value []byte) []int {
 	dt := make([]int, DT_LEN)
-	dt[OFFSET_YEAR] = int(Dm_build_599.Dm_build_696(value, 0))
+	dt[OFFSET_YEAR] = int(Dm_build_885.Dm_build_982(value, 0))
 	dt[OFFSET_MONTH] = int(value[2] & 0xFF)
 	dt[OFFSET_DAY] = int(value[3] & 0xFF)
 	dt[OFFSET_HOUR] = int(value[4] & 0xFF)
 	dt[OFFSET_MINUTE] = int(value[5] & 0xFF)
 	dt[OFFSET_SECOND] = int(value[6] & 0xFF)
 	dt[OFFSET_MILLISECOND] = int((value[7] & 0xFF) + (value[8] << 8) + (value[9] << 16))
-	dt[OFFSET_TIMEZONE] = int(Dm_build_599.Dm_build_696(value, 10))
+	dt[OFFSET_TIMEZONE] = int(Dm_build_885.Dm_build_982(value, 10))
 	return dt
 }
 
@@ -659,7 +659,7 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 
 		ret[7] = (byte)((msec >> 15) & 0xFF)
 
-		Dm_build_599.Dm_build_610(ret, 8, int16(tz))
+		Dm_build_885.Dm_build_896(ret, 8, int16(tz))
 	} else if dtype == TIME {
 		ret = make([]byte, 5)
 
@@ -685,7 +685,7 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 
 		ret[4] = (byte)((msec >> 15) & 0xFF)
 
-		Dm_build_599.Dm_build_610(ret, 5, int16(tz))
+		Dm_build_885.Dm_build_896(ret, 5, int16(tz))
 	}
 
 	return ret, nil

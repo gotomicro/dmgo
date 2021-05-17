@@ -6,188 +6,143 @@
 package dm
 
 import (
-	"strings"
+	"bytes"
+	"math/rand"
+	"sync"
 	"time"
+
+	"gitee.com/chunanyong/dm/util"
 )
 
-const (
-	Seconds_1900_1970 = 2209017600
-
-	OFFSET_YEAR = 0
-
-	OFFSET_MONTH = 1
-
-	OFFSET_DAY = 2
-
-	OFFSET_HOUR = 3
-
-	OFFSET_MINUTE = 4
-
-	OFFSET_SECOND = 5
-
-	OFFSET_MILLISECOND = 6
-
-	OFFSET_TIMEZONE = 7
-
-	DT_LEN = 8
-
-	INVALID_VALUE = int(INT32_MIN)
-)
-
-type DmTimestamp struct {
-	dt                  []int
-	dtype               int
-	scale               int
-	oracleFormatPattern string
-	oracleDateLanguage  int
+/**
+ * dm_svc.conf中配置的服务名对应的一组实例, 以及相关属性和状态信息
+ *
+ * 需求：
+ * 1. 连接均匀分布在各个节点上
+ * 2. loginMode，loginStatus匹配
+ * 3. 连接异常节点比较耗时，在DB列表中包含异常节点时异常连接尽量靠后，减少对建连接速度的影响
+ *
+ *
+ * DB 连接顺序：
+ * 1. well distribution，每次连接都从列表的下一个节点开始
+ * 2. 用DB sort值按从大到小排序，sort为一个四位数XXXX，个位--serverStatus，十位--serverMode，共 有三种模式，最优先的 *100, 次优先的*10
+ */
+type epGroup struct {
+	name       string
+	epList     []*ep
+	props      *Properties
+	epStartPos int32 // wellDistribute 起始位置
+	lock       sync.Mutex
 }
 
-func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
-	dmts := new(DmTimestamp)
-	dmts.dt = dt
-	dmts.dtype = dtype
-	dmts.scale = scale
-	return dmts
-}
-
-func newDmTimestampFromBytes(bytes []byte, column column, conn *DmConnection) *DmTimestamp {
-	dmts := new(DmTimestamp)
-	dmts.dt = decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
-
-	if isLocalTimeZone(int(column.colType), int(column.scale)) {
-		dmts.scale = getLocalTimeZoneScale(int(column.colType), int(column.scale))
+func newEPGroup(name string, serverList []*ep) *epGroup {
+	g := new(epGroup)
+	g.name = name
+	g.epList = serverList
+	if serverList == nil || len(serverList) == 0 {
+		g.epStartPos = -1
 	} else {
-		dmts.scale = int(column.scale)
+		// 保证进程间均衡，起始位置采用随机值
+		g.epStartPos = rand.Int31n(int32(len(serverList))) - 1
 	}
-
-	dmts.dtype = int(column.colType)
-	dmts.scale = int(column.scale)
-	dmts.oracleDateLanguage = int(conn.OracleDateLanguage)
-	switch column.colType {
-	case DATE:
-		dmts.oracleFormatPattern = conn.OracleDateFormat
-	case TIME:
-		dmts.oracleFormatPattern = conn.OracleTimeFormat
-	case TIME_TZ:
-		dmts.oracleFormatPattern = conn.OracleTimeTZFormat
-	case DATETIME:
-		dmts.oracleFormatPattern = conn.OracleTimestampFormat
-	case DATETIME_TZ:
-		dmts.oracleFormatPattern = conn.OracleTimestampTZFormat
-	}
-	return dmts
+	return g
 }
 
-func NewDmTimestampFromString(str string) (*DmTimestamp, error) {
-	dt := make([]int, DT_LEN)
-	dtype, err := toDTFromString(strings.TrimSpace(str), dt)
-	if err != nil {
-		return nil, err
-	}
-
-	if dtype == DATE {
-		return newDmTimestampFromDt(dt, dtype, 0), nil
-	}
-	return newDmTimestampFromDt(dt, dtype, 6), nil
-}
-
-func NewDmTimestampFromTime(time time.Time) *DmTimestamp {
-	dt := toDTFromTime(time)
-	return newDmTimestampFromDt(dt, DATETIME, 6)
-}
-
-func (dmTimestamp *DmTimestamp) ToTime() time.Time {
-	return toTimeFromDT(dmTimestamp.dt, 0)
-}
-
-// 获取年月日时分秒毫秒时区
-func (dmTimestamp *DmTimestamp) GetDt() []int {
-	return dmTimestamp.dt
-}
-
-func (dmTimestamp *DmTimestamp) CompareTo(ts DmTimestamp) int {
-	if dmTimestamp.ToTime().Equal(ts.ToTime()) {
-		return 0
-	} else if dmTimestamp.ToTime().Before(ts.ToTime()) {
-		return -1
+func (g *epGroup) connect(connector *DmConnector) (*DmConnection, error) {
+	var dbSelector = g.getEPSelector(connector)
+	var ex error = nil
+	// 如果配置了loginMode的主、备等优先策略，而未找到最高优先级的节点时持续循环switchtimes次，如果最终还是没有找到最高优先级则选择次优先级的
+	// 如果只有一个节点，一轮即可决定是否连接；多个节点时保证switchTimes轮尝试，最后一轮决定用哪个节点（由于节点已经按照模式优先级排序，最后一轮理论上就是连第一个节点）
+	var cycleCount int32
+	if len(g.epList) == 1 {
+		cycleCount = 1
 	} else {
-		return 1
+		cycleCount = connector.switchTimes + 1
 	}
+	for i := int32(0); i < cycleCount; i++ {
+		// 循环了一遍，如果没有符合要求的, 重新排序, 再尝试连接
+		conn, err := g.traverseServerList(connector, dbSelector, i == 0, i == cycleCount-1)
+		if err != nil {
+			ex = err
+			time.Sleep(time.Duration(connector.switchInterval) * time.Millisecond)
+			continue
+		}
+		return conn, nil
+	}
+	return nil, ex
 }
 
-func (dmTimestamp *DmTimestamp) String() string {
-	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
+func (g *epGroup) getEPSelector(connector *DmConnector) *epSelector {
+	if connector.epSelector == TYPE_HEAD_FIRST {
+		return newEPSelector(g.epList)
+	} else {
+		serverCount := int32(len(g.epList))
+		sortEPs := make([]*ep, serverCount)
+		g.lock.Lock()
+		defer g.lock.Unlock()
+		g.epStartPos = (g.epStartPos + 1) % serverCount
+		for i := int32(0); i < serverCount; i++ {
+			sortEPs[i] = g.epList[(i+g.epStartPos)%serverCount]
+		}
+		return newEPSelector(sortEPs)
 	}
-	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
-}
-
-func (dest *DmTimestamp) Scan(src interface{}) error {
-	if dest == nil {
-		return ECGO_STORE_IN_NIL_POINTER.throw()
-	}
-	switch src := src.(type) {
-	case nil:
-		*dest = *new(DmTimestamp)
-		return nil
-	case *DmTimestamp:
-		*dest = *src
-		return nil
-	case time.Time:
-		ret := NewDmTimestampFromTime(src)
-		*dest = *ret
-		return nil
-	default:
-		return UNSUPPORTED_SCAN
-	}
-}
-
-func (dmTimestamp *DmTimestamp) toBytes() ([]byte, error) {
-	return encode(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale, dmTimestamp.dt[OFFSET_TIMEZONE])
 }
 
 /**
- * 获取当前对象的年月日时分秒，如果原来没有decode会先decode;
+* 从指定编号开始，遍历一遍服务名中的ip列表，只连接指定类型（主机或备机）的ip
+* @param servers
+* @param checkTime
+*
+* @exception
+* DBError.ECJDBC_INVALID_SERVER_MODE 有站点的模式不匹配
+* DBError.ECJDBC_COMMUNITION_ERROR 所有站点都连不上
  */
-func (dmTimestamp *DmTimestamp) getDt() []int {
-	return dmTimestamp.dt
-}
-
-func (dmTimestamp *DmTimestamp) getTime() int64 {
-	sec := toTimeFromDT(dmTimestamp.dt, 0).Unix()
-	return sec + int64(dmTimestamp.dt[OFFSET_MILLISECOND])
-}
-
-func (dmTimestamp *DmTimestamp) setTime(time int64) {
-	timeInMillis := (time / 1000) * 1000
-	nanos := (int64)((time % 1000) * 1000000)
-	if nanos < 0 {
-		nanos = 1000000000 + nanos
-		timeInMillis = (((time / 1000) - 1) * 1000)
+func (g *epGroup) traverseServerList(connector *DmConnector, epSelector *epSelector, first bool, last bool) (*DmConnection, error) {
+	epList := epSelector.sortDBList(first)
+	errorMsg := bytes.NewBufferString("")
+	var ex error = nil // 第一个错误
+	for _, server := range epList {
+		conn, err := server.connect(connector)
+		if err != nil {
+			if ex == nil {
+				ex = err
+			}
+			errorMsg.WriteString("[")
+			errorMsg.WriteString(server.String())
+			errorMsg.WriteString("]")
+			errorMsg.WriteString(err.Error())
+			errorMsg.WriteString(util.StringUtil.LineSeparator())
+			continue
+		}
+		valid, err := epSelector.checkServerMode(conn, last)
+		if err != nil {
+			if ex == nil {
+				ex = err
+			}
+			errorMsg.WriteString("[")
+			errorMsg.WriteString(server.String())
+			errorMsg.WriteString("]")
+			errorMsg.WriteString(err.Error())
+			errorMsg.WriteString(util.StringUtil.LineSeparator())
+			continue
+		}
+		if !valid {
+			conn.close()
+			err = ECGO_INVALID_SERVER_MODE.throw()
+			if ex == nil {
+				ex = err
+			}
+			errorMsg.WriteString("[")
+			errorMsg.WriteString(server.String())
+			errorMsg.WriteString("]")
+			errorMsg.WriteString(err.Error())
+			errorMsg.WriteString(util.StringUtil.LineSeparator())
+			continue
+		}
+		return conn, nil
 	}
-	dmTimestamp.dt = toDTFromUnix(timeInMillis, nanos)
-}
-
-func (dmTimestamp *DmTimestamp) setTimezone(tz int) error {
-	// DM中合法的时区取值范围为-12:59至+14:00
-	if tz <= -13*60 || tz > 14*60 {
-		return ECGO_INVALID_DATETIME_FORMAT.throw()
+	if ex != nil {
+		return nil, ex
 	}
-	dmTimestamp.dt[OFFSET_TIMEZONE] = tz
-	return nil
-}
-
-func (dmTimestamp *DmTimestamp) getNano() int64 {
-	return int64(dmTimestamp.dt[OFFSET_MILLISECOND] * 1000)
-}
-
-func (dmTimestamp *DmTimestamp) setNano(nano int64) {
-	dmTimestamp.dt[OFFSET_MILLISECOND] = (int)(nano / 1000)
-}
-
-func (dmTimestamp *DmTimestamp) string() string {
-	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
-	}
-	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
+	return nil, ECGO_COMMUNITION_ERROR.addDetail(errorMsg.String()).throw()
 }

@@ -2,126 +2,266 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
-
 package dm
 
 import (
-	"bytes"
-	"time"
-
-	"gitee.com/chunanyong/dm/util"
+	"io"
 )
 
-/**
- * dm_svc.conf中配置的服务名对应的一组实例, 以及相关属性和状态信息
- */
-type DBGroup struct {
-	Name       string
-	ServerList []DB
-	Props      *Properties
+type DmBlob struct {
+	lob
+	data   []byte
+	offset int64
 }
 
-var curServerPos = -1
-
-func newDBGroup(name string, serverList []DB) *DBGroup {
-	g := new(DBGroup)
-	g.Name = name
-	g.ServerList = serverList
-	return g
-}
-
-func (g *DBGroup) connect(connector *DmConnector) (*DmConnection, error) {
-	serverCount := len(g.ServerList)
-	startPos := 0
-
-	curServerPos = (curServerPos + 1) % serverCount
-	startPos = curServerPos
-
-	// 指定开始序号，是为了相同状态的站点上的连接能均匀分布
-	count := len(g.ServerList)
-	orgServers := make([]DB, count)
-	for i := 0; i < count; i++ {
-		orgServers[i] = g.ServerList[(i+startPos)%count]
+func newDmBlob() *DmBlob {
+	return &DmBlob{
+		lob: lob{
+			inRow:            true,
+			groupId:          -1,
+			fileId:           -1,
+			pageNo:           -1,
+			readOver:         false,
+			local:            true,
+			updateable:       true,
+			length:           -1,
+			compatibleOracle: false,
+			fetchAll:         false,
+			freed:            false,
+			modify:           false,
+		},
+		offset: 1,
 	}
-	return g.tryConnectServerList(connector, orgServers)
 }
 
-/**
-* 按sort从大到小排序，相同sort值顺序不变
- */
-func sortServer(orgServers []DB, checkTime bool) []DB {
-	count := len(orgServers)
-	sortServers := make([]DB, count)
-	var max, tmp DB
-	for i := 0; i < count; i++ {
-		max = orgServers[i]
-		for j := i + 1; j < count; j++ {
-			if max.getSort(checkTime) < orgServers[j].getSort(checkTime) {
-				tmp = max
-				max = orgServers[j]
-				orgServers[j] = tmp
-			}
+func newBlobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmBlob {
+	var blob = newDmBlob()
+	blob.connection = conn
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.compatibleOracle = conn.CompatibleOracle()
+	blob.local = false
+	blob.updateable = !column.readonly
+	blob.tabId = column.lobTabId
+	blob.colId = column.lobColId
+
+	blob.inRow = Dm_build_885.Dm_build_978(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
+	blob.blobId = Dm_build_885.Dm_build_992(value, NBLOB_HEAD_BLOBID)
+	if !blob.inRow {
+		blob.groupId = Dm_build_885.Dm_build_982(value, NBLOB_HEAD_OUTROW_GROUPID)
+		blob.fileId = Dm_build_885.Dm_build_982(value, NBLOB_HEAD_OUTROW_FILEID)
+		blob.pageNo = Dm_build_885.Dm_build_987(value, NBLOB_HEAD_OUTROW_PAGENO)
+	}
+	if conn.NewLobFlag {
+		blob.tabId = Dm_build_885.Dm_build_987(value, NBLOB_EX_HEAD_TABLE_ID)
+		blob.colId = Dm_build_885.Dm_build_982(value, NBLOB_EX_HEAD_COL_ID)
+		blob.rowId = Dm_build_885.Dm_build_992(value, NBLOB_EX_HEAD_ROW_ID)
+		blob.exGroupId = Dm_build_885.Dm_build_982(value, NBLOB_EX_HEAD_FPA_GRPID)
+		blob.exFileId = Dm_build_885.Dm_build_982(value, NBLOB_EX_HEAD_FPA_FILEID)
+		blob.exPageNo = Dm_build_885.Dm_build_987(value, NBLOB_EX_HEAD_FPA_PAGENO)
+	}
+	blob.resetCurrentInfo()
+
+	blob.length = blob.getLengthFromHead(value)
+	if blob.inRow {
+		blob.data = make([]byte, blob.length)
+		if conn.NewLobFlag {
+			Dm_build_885.Dm_build_941(blob.data, 0, value, NBLOB_EX_HEAD_SIZE, len(blob.data))
+		} else {
+			Dm_build_885.Dm_build_941(blob.data, 0, value, NBLOB_INROW_HEAD_SIZE, len(blob.data))
 		}
-		sortServers[i] = max
+	} else if fetchAll {
+		blob.loadAllData()
 	}
-	return sortServers
+	return blob
 }
 
-/**
-* 遍历连接服务名列表中的各个站点
-*
- */
-func (g *DBGroup) tryConnectServerList(connector *DmConnector, servers []DB) (*DmConnection, error) {
-	var sortServers []DB
-	var ex error
-	for i := 0; i < connector.switchTimes; i++ {
-		// 循环了一遍，如果没有符合要求的, 重新排序, 再尝试连接
-		sortServers = sortServer(servers, i == 0)
-		conn, err := g.traverseServerList(connector, sortServers, i == 0)
+func newBlobOfLocal(value []byte, conn *DmConnection) *DmBlob {
+	var blob = newDmBlob()
+	blob.connection = conn
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.data = value
+	blob.length = int64(len(blob.data))
+	return blob
+}
+
+func NewBlob(value []byte) *DmBlob {
+	var blob = newDmBlob()
+
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.data = value
+	blob.length = int64(len(blob.data))
+	return blob
+}
+
+func (blob *DmBlob) Read(dest []byte) (n int, err error) {
+	result, err := blob.getBytes(blob.offset, int32(len(dest)))
+	if err != nil {
+		return 0, err
+	}
+	blob.offset += int64(len(result))
+	copy(dest, result)
+	if len(result) == 0 {
+		return 0, io.EOF
+	}
+	return len(result), nil
+}
+
+func (blob *DmBlob) ReadAt(pos int, dest []byte) (n int, err error) {
+	result, err := blob.getBytes(int64(pos), int32(len(dest)))
+	if err != nil {
+		return 0, err
+	}
+	if len(result) == 0 {
+		return 0, io.EOF
+	}
+	copy(dest[0:len(result)], result)
+	return len(result), nil
+}
+
+func (blob *DmBlob) Write(pos int, src []byte) (n int, err error) {
+	if err = blob.checkFreed(); err != nil {
+		return
+	}
+	if pos < 1 {
+		err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+		return
+	}
+	if !blob.updateable {
+		err = ECGO_RESULTSET_IS_READ_ONLY.throw()
+		return
+	}
+	pos -= 1
+	if blob.local || blob.fetchAll {
+		if int64(pos) > blob.length {
+			err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+			return
+		}
+		blob.setLocalData(pos, src)
+		n = len(src)
+	} else {
+		if err = blob.connection.checkClosed(); err != nil {
+			return -1, err
+		}
+		var writeLen, err = blob.connection.Access.dm_build_212(blob, pos, src)
 		if err != nil {
-			ex = err
-			time.Sleep(time.Duration(connector.switchInterval) * time.Millisecond)
-			continue
+			return -1, err
 		}
-		return conn, nil
-	}
 
-	return nil, ex
+		if blob.groupId == -1 {
+			blob.setLocalData(pos, src)
+		} else {
+			blob.inRow = false
+			blob.length = -1
+		}
+		n = writeLen
+
+	}
+	blob.modify = true
+	return
 }
 
-/**
-* 从指定编号开始，遍历一遍服务名中的ip列表，只连接指定类型（主机或备机）的ip
-* @param servers
-* @param checkTime
-*
-* @exception
-* DBError.ECJDBC_INVALID_SERVER_MODE 有站点的模式不匹配
-* DBError.ECJDBC_COMMUNITION_ERROR 所有站点都连不上
- */
-func (g *DBGroup) traverseServerList(connector *DmConnector, servers []DB, checkTime bool) (*DmConnection, error) {
-	errorMsg := bytes.NewBufferString("")
-	var invalidModeErr error
-	for _, server := range servers {
-		conn, err := server.connect(connector, checkTime)
-		if err != nil {
-			if err == ECGO_INVALID_SERVER_MODE {
-				invalidModeErr = err
-			}
-			errorMsg.WriteString("[")
-			errorMsg.WriteString(server.String())
-			errorMsg.WriteString("]")
-			errorMsg.WriteString(err.Error())
-			errorMsg.WriteString(util.StringUtil.LineSeparator())
-			continue
+func (blob *DmBlob) Truncate(length int64) error {
+	var err error
+	if err = blob.checkFreed(); err != nil {
+		return err
+	}
+	if length < 0 {
+		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	if !blob.updateable {
+		return ECGO_RESULTSET_IS_READ_ONLY.throw()
+	}
+	if blob.local || blob.fetchAll {
+		if length >= int64(len(blob.data)) {
+			return nil
 		}
-		return conn, nil
+		tmp := make([]byte, length)
+		Dm_build_885.Dm_build_941(tmp, 0, blob.data, 0, len(tmp))
+		blob.data = tmp
+		blob.length = int64(len(tmp))
+	} else {
+		if err = blob.connection.checkClosed(); err != nil {
+			return err
+		}
+		blob.length, err = blob.connection.Access.dm_build_226(&blob.lob, int(length))
+		if err != nil {
+			return err
+		}
+		if blob.groupId == -1 {
+			tmp := make([]byte, blob.length)
+			Dm_build_885.Dm_build_941(tmp, 0, blob.data, 0, int(blob.length))
+			blob.data = tmp
+		}
 	}
+	blob.modify = true
+	return nil
+}
 
-	if invalidModeErr != nil {
-		return nil, ECGO_INVALID_SERVER_MODE.addDetail("(" + errorMsg.String() + ")")
-	} else if errorMsg.Len() > 0 {
-		return nil, ECGO_COMMUNITION_ERROR.addDetail("(" + errorMsg.String() + ")")
+func (dest *DmBlob) Scan(src interface{}) error {
+	if dest == nil {
+		return ECGO_STORE_IN_NIL_POINTER.throw()
 	}
+	switch src := src.(type) {
+	case nil:
+		*dest = *new(DmBlob)
+		return nil
+	case []byte:
+		*dest = *NewBlob(src)
+		return nil
+	case *DmBlob:
+		*dest = *src
+		return nil
+	default:
+		return UNSUPPORTED_SCAN
+	}
+}
 
-	return nil, ECGO_COMMUNITION_ERROR.throw()
+func (blob *DmBlob) getBytes(pos int64, length int32) ([]byte, error) {
+	var err error
+	var leaveLength int64
+	if err = blob.checkFreed(); err != nil {
+		return nil, err
+	}
+	if pos < 1 || length < 0 {
+		return nil, ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	pos = pos - 1
+	if leaveLength, err = blob.GetLength(); err != nil {
+		return nil, err
+	}
+	leaveLength -= pos
+	if leaveLength < 0 {
+		return nil, ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	if int64(length) > leaveLength {
+		length = int32(leaveLength)
+	}
+	if blob.local || blob.inRow || blob.fetchAll {
+		return blob.data[pos : pos+int64(length)], nil
+	} else {
+
+		return blob.connection.Access.dm_build_175(blob, int32(pos), length)
+	}
+}
+
+func (blob *DmBlob) loadAllData() {
+	blob.checkFreed()
+	if blob.local || blob.inRow || blob.fetchAll {
+		return
+	}
+	len, _ := blob.GetLength()
+	blob.data, _ = blob.getBytes(1, int32(len))
+	blob.fetchAll = true
+}
+
+func (blob *DmBlob) setLocalData(pos int, p []byte) {
+	if pos+len(p) >= int(blob.length) {
+		var tmp = make([]byte, pos+len(p))
+		Dm_build_885.Dm_build_941(tmp, 0, blob.data, 0, pos)
+		Dm_build_885.Dm_build_941(tmp, pos, p, 0, len(p))
+		blob.data = tmp
+	} else {
+		Dm_build_885.Dm_build_941(blob.data, pos, p, 0, len(p))
+	}
+	blob.length = int64(len(blob.data))
 }

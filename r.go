@@ -5,82 +5,457 @@
 package dm
 
 import (
-	"context"
-	"database/sql"
-	"database/sql/driver"
-	"sync"
+	"math"
+	"strconv"
+	"strings"
 
-	"gitee.com/chunanyong/dm/i18n"
+	"gitee.com/chunanyong/dm/util"
 )
 
-// 发版标记
-var version = "8.1.1.126"
-var build_date = "2020.08.22"
-var svn = "3743"
+const (
+	QUA_Y  = 0
+	QUA_YM = 1
+	QUA_MO = 2
+)
 
-var globalDmDriver = newDmDriver()
-
-func init() {
-	sql.Register("dm", globalDmDriver)
+type DmIntervalYM struct {
+	leadScale      int
+	isLeadScaleSet bool
+	_type          byte
+	years          int
+	months         int
+	scaleForSvr    int
 }
 
-func driverInit(svcConfPath string) {
-	load(svcConfPath)
-	if GlobalProperties != nil && GlobalProperties.Len() > 0 {
-		setDriverAttributes(GlobalProperties)
-	}
-	globalDmDriver.createFilterChain(nil, GlobalProperties)
-
-	switch Locale {
-	case 0:
-		i18n.InitConfig(i18n.Messages_zh_CN)
-	case 1:
-		i18n.InitConfig(i18n.Messages_en_US)
-	case 2:
-		i18n.InitConfig(i18n.Messages_zh_TW)
-	}
-}
-
-type DmDriver struct {
-	filterable
-	readPropMutex sync.Mutex
-}
-
-func newDmDriver() *DmDriver {
-	d := new(DmDriver)
-	d.idGenerator = dmDriverIDGenerator
-	return d
-}
-
-/*************************************************************
- ** PUBLIC METHODS AND FUNCTIONS
- *************************************************************/
-func (d *DmDriver) Open(dsn string) (driver.Conn, error) {
-	return d.open(dsn)
-}
-
-func (d *DmDriver) OpenConnector(dsn string) (driver.Connector, error) {
-	return d.openConnector(dsn)
-}
-
-func (d *DmDriver) open(dsn string) (*DmConnection, error) {
-	c, err := d.openConnector(dsn)
-	if err != nil {
+func NewDmIntervalYMByString(str string) (ym *DmIntervalYM, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	}()
+	ym = new(DmIntervalYM)
+	ym.isLeadScaleSet = false
+	if err = ym.parseIntervYMString(strings.TrimSpace(str)); err != nil {
 		return nil, err
 	}
-	return c.connect(context.Background())
+	return ym, nil
 }
 
-func (d *DmDriver) openConnector(dsn string) (*DmConnector, error) {
-	connector := new(DmConnector).init()
-	connector.url = dsn
-	connector.dmDriver = d
-	d.readPropMutex.Lock()
-	err := connector.mergeConfigs(dsn)
-	d.readPropMutex.Unlock()
+func newDmIntervalYMByBytes(bytes []byte) *DmIntervalYM {
+	ym := new(DmIntervalYM)
+
+	ym.scaleForSvr = int(Dm_build_885.Dm_build_987(bytes, 8))
+	ym.leadScale = (ym.scaleForSvr >> 4) & 0x0000000F
+	ym._type = bytes[9]
+	switch ym._type {
+	case QUA_Y:
+		ym.years = int(Dm_build_885.Dm_build_987(bytes, 0))
+	case QUA_YM:
+		ym.years = int(Dm_build_885.Dm_build_987(bytes, 0))
+		ym.months = int(Dm_build_885.Dm_build_987(bytes, 4))
+	case QUA_MO:
+		ym.months = int(Dm_build_885.Dm_build_987(bytes, 4))
+	}
+	return ym
+}
+
+func (ym *DmIntervalYM) GetYear() int {
+	return ym.years
+}
+
+func (ym *DmIntervalYM) GetMonth() int {
+	return ym.months
+}
+
+func (ym *DmIntervalYM) GetYMType() byte {
+	return ym._type
+}
+
+func (ym *DmIntervalYM) String() string {
+	str := "INTERVAL "
+	var year, month string
+	var l int
+	var destLen int
+
+	switch ym._type {
+	case QUA_Y:
+		year = strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)
+		if ym.years < 0 {
+			str += "-"
+		}
+
+		if ym.leadScale > len(year) {
+			l = len(year)
+			destLen = ym.leadScale
+
+			for destLen > l {
+				year = "0" + year
+				destLen--
+			}
+		}
+
+		str += "'" + year + "' YEAR(" + strconv.FormatInt(int64(ym.leadScale), 10) + ")"
+	case QUA_YM:
+		year = strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)
+		month = strconv.FormatInt(int64(math.Abs(float64(ym.months))), 10)
+
+		if ym.years < 0 || ym.months < 0 {
+			str += "-"
+		}
+
+		if ym.leadScale > len(year) {
+			l = len(year)
+			destLen = ym.leadScale
+
+			for destLen > l {
+				year = "0" + year
+				destLen--
+			}
+		}
+
+		if len(month) < 2 {
+			month = "0" + month
+		}
+
+		str += "'" + year + "-" + month + "' YEAR(" + strconv.FormatInt(int64(ym.leadScale), 10) + ") TO MONTH"
+	case QUA_MO:
+
+		month = strconv.FormatInt(int64(math.Abs(float64(ym.months))), 10)
+		if ym.months < 0 {
+			str += "-"
+		}
+
+		if ym.leadScale > len(month) {
+			l = len(month)
+			destLen = ym.leadScale
+			for destLen > l {
+				month = "0" + month
+				destLen--
+			}
+		}
+
+		str += "'" + month + "' MONTH(" + strconv.FormatInt(int64(ym.leadScale), 10) + ")"
+	}
+	return str
+}
+
+func (dest *DmIntervalYM) Scan(src interface{}) error {
+	if dest == nil {
+		return ECGO_STORE_IN_NIL_POINTER.throw()
+	}
+	switch src := src.(type) {
+	case nil:
+		*dest = *new(DmIntervalYM)
+		return nil
+	case *DmIntervalYM:
+		*dest = *src
+		return nil
+	case string:
+		ret, err := NewDmIntervalYMByString(src)
+		if err != nil {
+			return err
+		}
+		*dest = *ret
+		return nil
+	default:
+		return UNSUPPORTED_SCAN
+	}
+}
+
+func (ym *DmIntervalYM) parseIntervYMString(str string) error {
+	str = strings.ToUpper(str)
+	ret := strings.Split(str, " ")
+	l := len(ret)
+	if l < 3 || !util.StringUtil.EqualsIgnoreCase(ret[0], "INTERVAL") || !(strings.HasPrefix(ret[2], "YEAR") || strings.HasPrefix(ret[2], "MONTH")) {
+		return ECGO_INVALID_TIME_INTERVAL.throw()
+	}
+	ym._type = QUA_YM
+	yearId := strings.Index(str, "YEAR")
+	monthId := strings.Index(str, "MONTH")
+	toId := strings.Index(str, "TO")
+	var err error
+	if toId == -1 {
+		if yearId != -1 && monthId == -1 {
+			ym._type = QUA_Y
+			ym.leadScale, err = ym.getLeadPrec(str, yearId)
+			if err != nil {
+				return err
+			}
+		} else if monthId != -1 && yearId == -1 {
+			ym._type = QUA_MO
+			ym.leadScale, err = ym.getLeadPrec(str, monthId)
+			if err != nil {
+				return err
+			}
+		} else {
+			return ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	} else {
+		if yearId == -1 || monthId == -1 {
+			return ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+		ym._type = QUA_YM
+		ym.leadScale, err = ym.getLeadPrec(str, yearId)
+		if err != nil {
+			return err
+		}
+	}
+
+	ym.scaleForSvr = (int(ym._type) << 8) + (ym.leadScale << 4)
+	timeVals, err := ym.getTimeValue(ret[1], int(ym._type))
 	if err != nil {
+		return err
+	}
+	ym.years = timeVals[0]
+	ym.months = timeVals[1]
+	return ym.checkScale(ym.leadScale)
+}
+
+func (ym *DmIntervalYM) getLeadPrec(str string, startIndex int) (int, error) {
+	if ym.isLeadScaleSet {
+		return ym.leadScale, nil
+	}
+
+	leftBtId := strings.Index(str[startIndex:], "(")
+	rightBtId := strings.Index(str[startIndex:], ")")
+	leadPrec := 0
+
+	if rightBtId == -1 && leftBtId == -1 {
+		leftBtId += startIndex
+		rightBtId += startIndex
+		l := strings.Index(str, "'")
+		var r int
+		var dataStr string
+		if l != -1 {
+			r = strings.Index(str[l+1:], "'")
+			if r != -1 {
+				r += l + 1
+			}
+		} else {
+			r = -1
+		}
+
+		if r != -1 {
+			dataStr = strings.TrimSpace(str[l+1 : r])
+		} else {
+			dataStr = ""
+		}
+
+		if dataStr != "" {
+			sign := dataStr[0]
+			if sign == '+' || sign == '-' {
+				dataStr = strings.TrimSpace(dataStr[1:])
+			}
+			end := strings.Index(dataStr, "-")
+
+			if end != -1 {
+				dataStr = dataStr[:end]
+			}
+
+			leadPrec = len(dataStr)
+		} else {
+			leadPrec = 2
+		}
+	} else if rightBtId != -1 && leftBtId != -1 && rightBtId > leftBtId+1 {
+		leftBtId += startIndex
+		rightBtId += startIndex
+		strPrec := strings.TrimSpace(str[leftBtId+1 : rightBtId])
+		temp, err := strconv.ParseInt(strPrec, 10, 32)
+		if err != nil {
+			return 0, err
+		}
+
+		leadPrec = int(temp)
+	} else {
+		return 0, ECGO_INVALID_TIME_INTERVAL.throw()
+	}
+
+	return leadPrec, nil
+}
+
+func (ym *DmIntervalYM) checkScale(prec int) error {
+	switch ym._type {
+	case QUA_Y:
+		if prec < len(strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)) {
+			return ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	case QUA_YM:
+		if prec < len(strconv.FormatInt(int64(math.Abs(float64(ym.years))), 10)) {
+			return ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+
+		if int64(math.Abs(float64(ym.months))) > 11 {
+			return ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+
+	case QUA_MO:
+		if prec < len(strconv.FormatInt(int64(math.Abs(float64(ym.months))), 10)) {
+			return ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	}
+	return nil
+}
+
+func (ym *DmIntervalYM) getTimeValue(subStr string, _type int) ([]int, error) {
+	hasQuate := false
+	if subStr[0] == '\'' && subStr[len(subStr)-1] == '\'' {
+		hasQuate = true
+		subStr = strings.TrimSpace(subStr[1 : len(subStr)-1])
+	}
+
+	negative := false
+	if strings.Index(subStr, "-") == 0 {
+		negative = true
+		subStr = subStr[1:]
+	} else if strings.Index(subStr, "+") == 0 {
+		negative = false
+		subStr = subStr[1:]
+	}
+
+	if subStr[0] == '\'' && subStr[len(subStr)-1] == '\'' {
+		hasQuate = true
+		subStr = strings.TrimSpace(subStr[1 : len(subStr)-1])
+	}
+
+	if !hasQuate {
+		return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+	}
+
+	lastSignIndex := strings.LastIndex(subStr, "-")
+
+	list := make([]string, 2)
+	if lastSignIndex == -1 || lastSignIndex == 0 {
+		list[0] = subStr
+		list[1] = ""
+	} else {
+		list[0] = subStr[0:lastSignIndex]
+		list[1] = subStr[lastSignIndex+1:]
+	}
+
+	var yearVal, monthVal int64
+	var err error
+	if ym._type == QUA_YM {
+		yearVal, err = strconv.ParseInt(list[0], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+
+		if util.StringUtil.EqualsIgnoreCase(list[1], "") {
+			monthVal = 0
+		} else {
+			monthVal, err = strconv.ParseInt(list[1], 10, 32)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if negative {
+			yearVal *= -1
+			monthVal *= -1
+		}
+
+		if yearVal > int64(math.Pow10(ym.leadScale))-1 || yearVal < 1-int64(math.Pow10(ym.leadScale)) {
+			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	} else if ym._type == QUA_Y {
+		yearVal, err = strconv.ParseInt(list[0], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		monthVal = 0
+
+		if negative {
+			yearVal *= -1
+		}
+
+		if yearVal > int64(math.Pow10(ym.leadScale))-1 || yearVal < 1-int64(math.Pow10(ym.leadScale)) {
+			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	} else {
+		yearVal = 0
+		monthVal, err = strconv.ParseInt(list[0], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		if negative {
+			monthVal *= -1
+		}
+
+		if monthVal > int64(math.Pow10(ym.leadScale))-1 || monthVal < 1-int64(math.Pow10(ym.leadScale)) {
+			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	}
+
+	ret := make([]int, 2)
+	ret[0] = int(yearVal)
+	ret[1] = int(monthVal)
+
+	return ret, nil
+}
+
+func (ym *DmIntervalYM) encode(scale int) ([]byte, error) {
+	if scale == 0 {
+		scale = ym.scaleForSvr
+	}
+	year, month := ym.years, ym.months
+	if err := ym.checkScale(ym.leadScale); err != nil {
 		return nil, err
 	}
-	connector.createFilterChain(connector, nil)
-	return connector, nil
+	if scale != ym.scaleForSvr {
+		convertYM, err := ym.convertTo(scale)
+		if err != nil {
+			return nil, err
+		}
+		year = convertYM.years
+		month = convertYM.months
+	} else {
+		if err := ym.checkScale(ym.leadScale); err != nil {
+			return nil, err
+		}
+	}
+
+	bytes := make([]byte, 12)
+	Dm_build_885.Dm_build_901(bytes, 0, int32(year))
+	Dm_build_885.Dm_build_901(bytes, 4, int32(month))
+	Dm_build_885.Dm_build_901(bytes, 8, int32(scale))
+	return bytes, nil
+}
+
+func (ym *DmIntervalYM) convertTo(scale int) (*DmIntervalYM, error) {
+	destType := (scale & 0x0000FF00) >> 8
+	leadPrec := (scale >> 4) & 0x0000000F
+	totalMonths := ym.years*12 + ym.months
+	year := 0
+	month := 0
+	switch destType {
+	case QUA_Y:
+		year = totalMonths / 12
+
+		if totalMonths%12 >= 6 {
+			year++
+		} else if totalMonths%12 <= -6 {
+			year--
+		}
+		if leadPrec < len(strconv.Itoa(int(math.Abs(float64(year))))) {
+			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	case QUA_YM:
+		year = totalMonths / 12
+		month = totalMonths % 12
+		if leadPrec < len(strconv.Itoa(int(math.Abs(float64(year))))) {
+			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	case QUA_MO:
+		month = totalMonths
+		if leadPrec < len(strconv.Itoa(int(math.Abs(float64(month))))) {
+			return nil, ECGO_INVALID_TIME_INTERVAL.throw()
+		}
+	}
+	return &DmIntervalYM{
+		_type:       byte(destType),
+		years:       year,
+		months:      month,
+		scaleForSvr: scale,
+		leadScale:   (scale >> 4) & 0x0000000F,
+	}, nil
 }
