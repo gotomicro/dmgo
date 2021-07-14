@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"gitee.com/chunanyong/dm/parser"
+
 	"gitee.com/chunanyong/dm/util"
 )
 
@@ -251,7 +252,7 @@ func (dc *DmConnection) execOpt(sql string, optParamList []OptParameter, serverE
 					nsql.WriteString("'" + util.StringUtil.ProcessSingleQuoteOfName(lval.Value) + "'")
 				} else {
 					nsql.WriteString("?")
-					optParamList = append(optParamList, newOptParameter(Dm_build_885.Dm_build_1095(lval.Value, serverEncoding, dc), VARCHAR, VARCHAR_PREC))
+					optParamList = append(optParamList, newOptParameter(Dm_build_1.Dm_build_214(lval.Value, serverEncoding, dc), VARCHAR, VARCHAR_PREC))
 				}
 			}
 		case parser.HEX_INT:
