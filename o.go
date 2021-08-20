@@ -116,7 +116,30 @@ func NewDecimalFromString(s string) (*DmDecimal, error) {
 }
 
 func (d DmDecimal) String() string {
-	return d.ToBigFloat().Text('f', 10)
+
+	if d.isZero() {
+		return "0"
+	}
+	digitsStr := d.digits
+	if d.weight > 0 {
+		digitsStr = digitsStr + strings.Repeat("0", d.weight)
+	} else if d.weight < 0 {
+		digitsStr = strings.Repeat("0", -d.weight+1) + digitsStr
+	}
+
+	if digitsStr[0] == '0' && digitsStr[1] != '.' {
+		digitsStr = digitsStr[1:]
+	}
+
+	if digitsStr[len(digitsStr)-1] == '0' && strings.IndexRune(digitsStr, '.') >= 0 {
+		digitsStr = digitsStr[0 : len(digitsStr)-1]
+	}
+
+	if d.sign < 0 {
+		digitsStr = "-" + digitsStr
+	}
+
+	return digitsStr
 }
 
 func (d DmDecimal) Sign() int {
@@ -164,6 +187,10 @@ func newDecimal(dec interface{}, prec int, scale int) (*DmDecimal, error) {
 	d := &DmDecimal{
 		prec:  prec,
 		scale: scale,
+	}
+	if isFloat(DECIMAL, scale) {
+		d.prec = getFloatPrec(prec)
+		d.scale = -1
 	}
 	switch de := dec.(type) {
 	case *big.Int:
@@ -332,7 +359,7 @@ func decodeDecimal(values []byte, prec int, scale int) (*DmDecimal, error) {
 		decimal.sign = -1
 	}
 
-	var flag = int(Dm_build_1.Dm_build_121(values, 0))
+	var flag = int(Dm_build_1219.Dm_build_1339(values, 0))
 	var exp int
 	if decimal.sign > 0 {
 		exp = flag - FLAG_POSITIVE

@@ -77,7 +77,7 @@ func (lob *lob) GetLength() (int64, error) {
 	}
 	if lob.length == -1 {
 
-		if lob.length, err = lob.connection.Access.dm_build_849(lob); err != nil {
+		if lob.length, err = lob.connection.Access.dm_build_491(lob); err != nil {
 			return -1, err
 		}
 	}
@@ -92,7 +92,7 @@ func (lob *lob) resetCurrentInfo() {
 }
 
 func (lob *lob) getLengthFromHead(head []byte) int64 {
-	return int64(Dm_build_1.Dm_build_103(head, NBLOB_HEAD_BLOB_LEN))
+	return int64(Dm_build_1219.Dm_build_1321(head, NBLOB_HEAD_BLOB_LEN))
 }
 
 func (lob *lob) canOptimized(connection *DmConnection) bool {
@@ -105,21 +105,21 @@ func (lob *lob) buildCtlData() (bytes []byte) {
 	} else {
 		bytes = make([]byte, NBLOB_OUTROW_HEAD_SIZE, NBLOB_OUTROW_HEAD_SIZE)
 	}
-	Dm_build_1.Dm_build_2(bytes, NBLOB_HEAD_IN_ROW_FLAG, LOB_OFF_ROW)
-	Dm_build_1.Dm_build_22(bytes, NBLOB_HEAD_BLOBID, lob.blobId)
-	Dm_build_1.Dm_build_17(bytes, NBLOB_HEAD_BLOB_LEN, -1)
+	Dm_build_1219.Dm_build_1220(bytes, NBLOB_HEAD_IN_ROW_FLAG, LOB_OFF_ROW)
+	Dm_build_1219.Dm_build_1240(bytes, NBLOB_HEAD_BLOBID, lob.blobId)
+	Dm_build_1219.Dm_build_1235(bytes, NBLOB_HEAD_BLOB_LEN, -1)
 
-	Dm_build_1.Dm_build_12(bytes, NBLOB_HEAD_OUTROW_GROUPID, lob.groupId)
-	Dm_build_1.Dm_build_12(bytes, NBLOB_HEAD_OUTROW_FILEID, lob.fileId)
-	Dm_build_1.Dm_build_17(bytes, NBLOB_HEAD_OUTROW_PAGENO, lob.pageNo)
+	Dm_build_1219.Dm_build_1230(bytes, NBLOB_HEAD_OUTROW_GROUPID, lob.groupId)
+	Dm_build_1219.Dm_build_1230(bytes, NBLOB_HEAD_OUTROW_FILEID, lob.fileId)
+	Dm_build_1219.Dm_build_1235(bytes, NBLOB_HEAD_OUTROW_PAGENO, lob.pageNo)
 
 	if lob.connection.NewLobFlag {
-		Dm_build_1.Dm_build_17(bytes, NBLOB_EX_HEAD_TABLE_ID, lob.tabId)
-		Dm_build_1.Dm_build_12(bytes, NBLOB_EX_HEAD_COL_ID, lob.colId)
-		Dm_build_1.Dm_build_22(bytes, NBLOB_EX_HEAD_ROW_ID, lob.rowId)
-		Dm_build_1.Dm_build_12(bytes, NBLOB_EX_HEAD_FPA_GRPID, lob.exGroupId)
-		Dm_build_1.Dm_build_12(bytes, NBLOB_EX_HEAD_FPA_FILEID, lob.exFileId)
-		Dm_build_1.Dm_build_17(bytes, NBLOB_EX_HEAD_FPA_PAGENO, lob.exPageNo)
+		Dm_build_1219.Dm_build_1235(bytes, NBLOB_EX_HEAD_TABLE_ID, lob.tabId)
+		Dm_build_1219.Dm_build_1230(bytes, NBLOB_EX_HEAD_COL_ID, lob.colId)
+		Dm_build_1219.Dm_build_1240(bytes, NBLOB_EX_HEAD_ROW_ID, lob.rowId)
+		Dm_build_1219.Dm_build_1230(bytes, NBLOB_EX_HEAD_FPA_GRPID, lob.exGroupId)
+		Dm_build_1219.Dm_build_1230(bytes, NBLOB_EX_HEAD_FPA_FILEID, lob.exFileId)
+		Dm_build_1219.Dm_build_1235(bytes, NBLOB_EX_HEAD_FPA_PAGENO, lob.exPageNo)
 	}
 	return
 }

@@ -183,6 +183,8 @@ const (
 	CURRENCY_PREC = 19
 
 	CURRENCY_SCALE = 4
+
+	FLOAT_SCALE_MASK = 0X81
 )
 
 func resetColType(stmt *DmStatement, i int, colType int32) bool {
@@ -234,6 +236,18 @@ func isLocalTimeZone(colType int, scale int) bool {
 
 func getLocalTimeZoneScale(colType int, scale int) int {
 	return scale & (^LOCAL_TIME_ZONE_SCALE_MASK)
+}
+
+func isFloat(colType int, scale int) bool {
+	return colType == DECIMAL && scale == FLOAT_SCALE_MASK
+}
+
+func getFloatPrec(prec int) int {
+	return int(math.Round(float64(prec)*0.30103)) + 1
+}
+
+func getFloatScale(scale int) int {
+	return scale & (^FLOAT_SCALE_MASK)
 }
 
 var (
@@ -390,16 +404,16 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 	case TINYINT:
 		return int8(bytes[0]), nil
 	case SMALLINT:
-		return Dm_build_1.Dm_build_98(bytes, 0), nil
+		return Dm_build_1219.Dm_build_1316(bytes, 0), nil
 	case INT:
-		return Dm_build_1.Dm_build_103(bytes, 0), nil
+		return Dm_build_1219.Dm_build_1321(bytes, 0), nil
 	case BIGINT:
-		return Dm_build_1.Dm_build_108(bytes, 0), nil
+		return Dm_build_1219.Dm_build_1326(bytes, 0), nil
 	case REAL:
-		return Dm_build_1.Dm_build_113(bytes, 0), nil
+		return Dm_build_1219.Dm_build_1331(bytes, 0), nil
 	case DOUBLE:
 
-		return Dm_build_1.Dm_build_117(bytes, 0), nil
+		return Dm_build_1219.Dm_build_1335(bytes, 0), nil
 	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ:
 		return DB2G.toTime(bytes, column, conn)
 	case INTERVAL_DT:
@@ -411,13 +425,14 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 		if err != nil {
 			return nil, err
 		}
-		return tmp.ToBigFloat().Text('f', -1), nil
+		return tmp.String(), nil
+
 	case BINARY, VARBINARY:
 		return bytes, nil
 	case BLOB:
 		return DB2G.toDmBlob(bytes, column, conn), nil
 	case CHAR, VARCHAR2, VARCHAR:
-		return Dm_build_1.Dm_build_158(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
+		return Dm_build_1219.Dm_build_1376(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
 	case CLOB:
 		return DB2G.toDmClob(bytes, conn, column), nil
 	}
