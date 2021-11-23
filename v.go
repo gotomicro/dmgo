@@ -27,7 +27,7 @@ func newDmStruct(typeName string, elements []interface{}) *DmStruct {
 	return ds
 }
 
-func (ds *DmStruct) create(dc *DmConnection) (*DmStruct, error) {
+func (ds *DmStruct) create(dc *Connection) (*DmStruct, error) {
 	desc, err := newStructDescriptor(ds.typeName, dc)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (ds *DmStruct) getAttribsTypeData() []TypeData {
 	return ds.m_attribs
 }
 
-func (ds *DmStruct) createByStructDescriptor(desc *StructDescriptor, conn *DmConnection) (*DmStruct, error) {
+func (ds *DmStruct) createByStructDescriptor(desc *StructDescriptor, conn *Connection) (*DmStruct, error) {
 	ds.initTypeData()
 
 	if nil == desc {

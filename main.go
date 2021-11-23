@@ -10,13 +10,13 @@ import (
 	"database/sql/driver"
 	"sync"
 
-	"gitee.com/chunanyong/dm/i18n"
+	"github.com/gotomicro/dmgo/i18n"
 )
 
 // 发版标记
-var version = "8.1.2.38"
-var build_date = "2021.07.14"
-var svn = "7050"
+//var version = "8.1.2.38"
+//var build_date = "2021.07.14"
+//var svn = "7050"
 
 var globalDmDriver = newDmDriver()
 
@@ -24,13 +24,7 @@ func init() {
 	sql.Register("dm", globalDmDriver)
 }
 
-func driverInit(svcConfPath string) {
-	load(svcConfPath)
-	if GlobalProperties != nil && GlobalProperties.Len() > 0 {
-		setDriverAttributes(GlobalProperties)
-	}
-	globalDmDriver.createFilterChain(nil, GlobalProperties)
-
+func driverInit() {
 	switch Locale {
 	case 0:
 		i18n.InitConfig(i18n.Messages_zh_CN)
@@ -41,29 +35,26 @@ func driverInit(svcConfPath string) {
 	}
 }
 
-type DmDriver struct {
+type Driver struct {
 	filterable
 	readPropMutex sync.Mutex
 }
 
-func newDmDriver() *DmDriver {
-	d := new(DmDriver)
+func newDmDriver() *Driver {
+	d := new(Driver)
 	d.idGenerator = dmDriverIDGenerator
 	return d
 }
 
-/*************************************************************
- ** PUBLIC METHODS AND FUNCTIONS
- *************************************************************/
-func (d *DmDriver) Open(dsn string) (driver.Conn, error) {
+func (d *Driver) Open(dsn string) (driver.Conn, error) {
 	return d.open(dsn)
 }
 
-func (d *DmDriver) OpenConnector(dsn string) (driver.Connector, error) {
+func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
 	return d.openConnector(dsn)
 }
 
-func (d *DmDriver) open(dsn string) (*DmConnection, error) {
+func (d *Driver) open(dsn string) (*Connection, error) {
 	c, err := d.openConnector(dsn)
 	if err != nil {
 		return nil, err
@@ -71,8 +62,8 @@ func (d *DmDriver) open(dsn string) (*DmConnection, error) {
 	return c.connect(context.Background())
 }
 
-func (d *DmDriver) openConnector(dsn string) (*DmConnector, error) {
-	connector := new(DmConnector).init()
+func (d *Driver) openConnector(dsn string) (*Connector, error) {
+	connector := new(Connector).init()
 	connector.url = dsn
 	connector.dmDriver = d
 	d.readPropMutex.Lock()

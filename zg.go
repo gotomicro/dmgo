@@ -15,25 +15,25 @@ type rwFilter struct {
 }
 
 //DmDriver
-func (rwf *rwFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error) {
+func (rwf *rwFilter) DmDriverOpen(filterChain *filterChain, d *Driver, dsn string) (*Connection, error) {
 	return filterChain.DmDriverOpen(d, dsn)
 }
 
-func (rwf *rwFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error) {
+func (rwf *rwFilter) DmDriverOpenConnector(filterChain *filterChain, d *Driver, dsn string) (*Connector, error) {
 	return filterChain.DmDriverOpenConnector(d, dsn)
 }
 
 //DmConnector
-func (rwf *rwFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error) {
+func (rwf *rwFilter) DmConnectorConnect(filterChain *filterChain, c *Connector, ctx context.Context) (*Connection, error) {
 	return RWUtil.connect(c, ctx)
 }
 
-func (rwf *rwFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver {
+func (rwf *rwFilter) DmConnectorDriver(filterChain *filterChain, c *Connector) *Driver {
 	return filterChain.DmConnectorDriver(c)
 }
 
 //DmConnection
-func (rwf *rwFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error) {
+func (rwf *rwFilter) DmConnectionBegin(filterChain *filterChain, c *Connection) (*Connection, error) {
 	if RWUtil.isStandbyAlive(c) {
 		_, err := c.rwInfo.connStandby.begin()
 		if err != nil {
@@ -44,7 +44,7 @@ func (rwf *rwFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection
 	return filterChain.DmConnectionBegin(c)
 }
 
-func (rwf *rwFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
+func (rwf *rwFilter) DmConnectionBeginTx(filterChain *filterChain, c *Connection, ctx context.Context, opts driver.TxOptions) (*Connection, error) {
 	if RWUtil.isStandbyAlive(c) {
 		_, err := c.rwInfo.connStandby.beginTx(ctx, opts)
 		if err != nil {
@@ -55,7 +55,7 @@ func (rwf *rwFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnecti
 	return filterChain.DmConnectionBeginTx(c, ctx, opts)
 }
 
-func (rwf *rwFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnection) error {
+func (rwf *rwFilter) DmConnectionCommit(filterChain *filterChain, c *Connection) error {
 	if RWUtil.isStandbyAlive(c) {
 		err := c.rwInfo.connStandby.commit()
 		if err != nil {
@@ -66,7 +66,7 @@ func (rwf *rwFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnectio
 	return filterChain.DmConnectionCommit(c)
 }
 
-func (rwf *rwFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnection) error {
+func (rwf *rwFilter) DmConnectionRollback(filterChain *filterChain, c *Connection) error {
 	if RWUtil.isStandbyAlive(c) {
 		err := c.rwInfo.connStandby.rollback()
 		if err != nil {
@@ -77,7 +77,7 @@ func (rwf *rwFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnect
 	return filterChain.DmConnectionRollback(c)
 }
 
-func (rwf *rwFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection) error {
+func (rwf *rwFilter) DmConnectionClose(filterChain *filterChain, c *Connection) error {
 	if RWUtil.isStandbyAlive(c) {
 		err := c.rwInfo.connStandby.close()
 		if err != nil {
@@ -88,14 +88,14 @@ func (rwf *rwFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection
 	return filterChain.DmConnectionClose(c)
 }
 
-func (rwf *rwFilter) DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
+func (rwf *rwFilter) DmConnectionPing(filterChain *filterChain, c *Connection, ctx context.Context) error {
 	return filterChain.DmConnectionPing(c, ctx)
 }
 
-func (rwf *rwFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error) {
+func (rwf *rwFilter) DmConnectionExec(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmResult, error) {
 	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
 		return c.rwInfo.connCurrent.exec(query, args)
-	}, func(otherConn *DmConnection) (interface{}, error) {
+	}, func(otherConn *Connection) (interface{}, error) {
 		return otherConn.exec(query, args)
 	})
 	if err != nil {
@@ -104,10 +104,10 @@ func (rwf *rwFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection,
 	return ret.(*DmResult), nil
 }
 
-func (rwf *rwFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
+func (rwf *rwFilter) DmConnectionExecContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
 	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
 		return c.rwInfo.connCurrent.execContext(ctx, query, args)
-	}, func(otherConn *DmConnection) (interface{}, error) {
+	}, func(otherConn *Connection) (interface{}, error) {
 		return otherConn.execContext(ctx, query, args)
 	})
 	if err != nil {
@@ -116,10 +116,10 @@ func (rwf *rwFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConn
 	return ret.(*DmResult), nil
 }
 
-func (rwf *rwFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error) {
+func (rwf *rwFilter) DmConnectionQuery(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmRows, error) {
 	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
 		return c.rwInfo.connCurrent.query(query, args)
-	}, func(otherConn *DmConnection) (interface{}, error) {
+	}, func(otherConn *Connection) (interface{}, error) {
 		return otherConn.query(query, args)
 	})
 	if err != nil {
@@ -128,10 +128,10 @@ func (rwf *rwFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection
 	return ret.(*DmRows), nil
 }
 
-func (rwf *rwFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+func (rwf *rwFilter) DmConnectionQueryContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
 	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
 		return c.rwInfo.connCurrent.queryContext(ctx, query, args)
-	}, func(otherConn *DmConnection) (interface{}, error) {
+	}, func(otherConn *Connection) (interface{}, error) {
 		return otherConn.queryContext(ctx, query, args)
 	})
 	if err != nil {
@@ -140,7 +140,7 @@ func (rwf *rwFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmCon
 	return ret.(*DmRows), nil
 }
 
-func (rwf *rwFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error) {
+func (rwf *rwFilter) DmConnectionPrepare(filterChain *filterChain, c *Connection, query string) (*DmStatement, error) {
 	stmt, err := c.prepare(query)
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (rwf *rwFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnecti
 	return stmt, nil
 }
 
-func (rwf *rwFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error) {
+func (rwf *rwFilter) DmConnectionPrepareContext(filterChain *filterChain, c *Connection, ctx context.Context, query string) (*DmStatement, error) {
 	stmt, err := c.prepareContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func (rwf *rwFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmC
 	return stmt, nil
 }
 
-func (rwf *rwFilter) DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
+func (rwf *rwFilter) DmConnectionResetSession(filterChain *filterChain, c *Connection, ctx context.Context) error {
 	if RWUtil.isStandbyAlive(c) {
 		err := c.rwInfo.connStandby.resetSession(ctx)
 		if err != nil {
@@ -187,7 +187,7 @@ func (rwf *rwFilter) DmConnectionResetSession(filterChain *filterChain, c *DmCon
 	return filterChain.DmConnectionResetSession(c, ctx)
 }
 
-func (rwf *rwFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error {
+func (rwf *rwFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *Connection, nv *driver.NamedValue) error {
 	return filterChain.DmConnectionCheckNamedValue(c, nv)
 }
 

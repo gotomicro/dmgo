@@ -33,7 +33,7 @@ func newDmClob() *DmClob {
 	}
 }
 
-func newClobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmClob {
+func newClobFromDB(value []byte, conn *Connection, column *column, fetchAll bool) *DmClob {
 	var clob = newDmClob()
 	clob.connection = conn
 	clob.lobFlag = LOB_FLAG_CHAR
@@ -74,7 +74,7 @@ func newClobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bo
 	return clob
 }
 
-func newClobOfLocal(value string, conn *DmConnection) *DmClob {
+func newClobOfLocal(value string, conn *Connection) *DmClob {
 	var clob = newDmClob()
 	clob.connection = conn
 	clob.lobFlag = LOB_FLAG_CHAR

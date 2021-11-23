@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const (
@@ -639,7 +639,7 @@ type dm_build_724 interface {
 }
 
 type dm_build_740 struct {
-	dm_build_741 *dm_build_332
+	dm_build_741 *Access
 
 	dm_build_742 int16
 
@@ -648,22 +648,22 @@ type dm_build_740 struct {
 	dm_build_744 *DmStatement
 }
 
-func (dm_build_746 *dm_build_740) dm_build_745(dm_build_747 *dm_build_332, dm_build_748 int16) *dm_build_740 {
+func (dm_build_746 *dm_build_740) dm_build_745(dm_build_747 *Access, dm_build_748 int16) *dm_build_740 {
 	dm_build_746.dm_build_741 = dm_build_747
 	dm_build_746.dm_build_742 = dm_build_748
 	return dm_build_746
 }
 
-func (dm_build_750 *dm_build_740) dm_build_749(dm_build_751 *dm_build_332, dm_build_752 int16, dm_build_753 *DmStatement) *dm_build_740 {
+func (dm_build_750 *dm_build_740) dm_build_749(dm_build_751 *Access, dm_build_752 int16, dm_build_753 *DmStatement) *dm_build_740 {
 	dm_build_750.dm_build_745(dm_build_751, dm_build_752).dm_build_744 = dm_build_753
 	return dm_build_750
 }
 
-func dm_build_754(dm_build_755 *dm_build_332, dm_build_756 int16) *dm_build_740 {
+func dm_build_754(dm_build_755 *Access, dm_build_756 int16) *dm_build_740 {
 	return new(dm_build_740).dm_build_745(dm_build_755, dm_build_756)
 }
 
-func dm_build_757(dm_build_758 *dm_build_332, dm_build_759 int16, dm_build_760 *DmStatement) *dm_build_740 {
+func dm_build_757(dm_build_758 *Access, dm_build_759 int16, dm_build_760 *DmStatement) *dm_build_740 {
 	return new(dm_build_740).dm_build_749(dm_build_758, dm_build_759, dm_build_760)
 }
 
@@ -715,7 +715,7 @@ func (dm_build_774 *dm_build_740) dm_build_773() error {
 
 func (dm_build_776 *dm_build_740) dm_build_775() string {
 
-	dm_build_777 := dm_build_776.dm_build_741.dm_build_336.getServerEncoding()
+	dm_build_777 := dm_build_776.dm_build_741.conn.getServerEncoding()
 
 	if dm_build_777 != "" && dm_build_777 == ENCODING_EUCKR && Locale != LANGUAGE_EN {
 		dm_build_777 = ENCODING_GB18030
@@ -727,7 +727,7 @@ func (dm_build_776 *dm_build_740) dm_build_775() string {
 
 	dm_build_776.dm_build_741.dm_build_335.Dm_build_25(int(dm_build_776.dm_build_741.dm_build_335.Dm_build_125()), false, true)
 
-	return dm_build_776.dm_build_741.dm_build_335.Dm_build_167(dm_build_777, dm_build_776.dm_build_741.dm_build_336)
+	return dm_build_776.dm_build_741.dm_build_335.Dm_build_167(dm_build_777, dm_build_776.dm_build_741.conn)
 }
 
 func (dm_build_779 *dm_build_740) dm_build_728(dm_build_780 dm_build_724) (dm_build_781 error) {
@@ -844,7 +844,7 @@ type dm_build_811 struct {
 	dm_build_740
 }
 
-func dm_build_812(dm_build_813 *dm_build_332) *dm_build_811 {
+func dm_build_812(dm_build_813 *Access) *dm_build_811 {
 	dm_build_814 := new(dm_build_811)
 	dm_build_814.dm_build_745(dm_build_813, Dm_build_612)
 	return dm_build_814
@@ -855,7 +855,7 @@ type dm_build_815 struct {
 	dm_build_816 string
 }
 
-func dm_build_817(dm_build_818 *dm_build_332, dm_build_819 *DmStatement, dm_build_820 string) *dm_build_815 {
+func dm_build_817(dm_build_818 *Access, dm_build_819 *DmStatement, dm_build_820 string) *dm_build_815 {
 	dm_build_821 := new(dm_build_815)
 	dm_build_821.dm_build_749(dm_build_818, Dm_build_620, dm_build_819)
 	dm_build_821.dm_build_816 = dm_build_820
@@ -864,7 +864,7 @@ func dm_build_817(dm_build_818 *dm_build_332, dm_build_819 *DmStatement, dm_buil
 }
 
 func (dm_build_823 *dm_build_815) dm_build_726() error {
-	dm_build_823.dm_build_741.dm_build_335.Dm_build_113(dm_build_823.dm_build_816, dm_build_823.dm_build_741.dm_build_336.getServerEncoding(), dm_build_823.dm_build_741.dm_build_336)
+	dm_build_823.dm_build_741.dm_build_335.Dm_build_113(dm_build_823.dm_build_816, dm_build_823.dm_build_741.conn.getServerEncoding(), dm_build_823.dm_build_741.conn)
 	dm_build_823.dm_build_741.dm_build_335.Dm_build_51(1)
 	return nil
 }
@@ -874,7 +874,7 @@ type Dm_build_824 struct {
 	dm_build_825 []OptParameter
 }
 
-func dm_build_826(dm_build_827 *dm_build_332, dm_build_828 *DmStatement, dm_build_829 []OptParameter) *Dm_build_824 {
+func dm_build_826(dm_build_827 *Access, dm_build_828 *DmStatement, dm_build_829 []OptParameter) *Dm_build_824 {
 	dm_build_830 := new(Dm_build_824)
 	dm_build_830.dm_build_749(dm_build_827, Dm_build_630, dm_build_828)
 	dm_build_830.dm_build_825 = dm_build_829
@@ -926,17 +926,17 @@ type dm_build_840 struct {
 	dm_build_843 bool
 }
 
-func dm_build_844(dm_build_845 *dm_build_332, dm_build_846 int16, dm_build_847 *DmStatement) *dm_build_840 {
+func dm_build_844(dm_build_845 *Access, dm_build_846 int16, dm_build_847 *DmStatement) *dm_build_840 {
 	dm_build_848 := new(dm_build_840)
 	dm_build_848.dm_build_749(dm_build_845, dm_build_846, dm_build_847)
 	dm_build_848.dm_build_843 = true
 	return dm_build_848
 }
 
-func dm_build_849(dm_build_850 *dm_build_332, dm_build_851 *DmStatement, dm_build_852 [][]interface{}) *dm_build_840 {
+func dm_build_849(dm_build_850 *Access, dm_build_851 *DmStatement, dm_build_852 [][]interface{}) *dm_build_840 {
 	dm_build_853 := new(dm_build_840)
 
-	if dm_build_850.dm_build_336.Execute2 {
+	if dm_build_850.conn.Execute2 {
 		dm_build_853.dm_build_749(dm_build_850, Dm_build_614, dm_build_851)
 	} else {
 		dm_build_853.dm_build_749(dm_build_850, Dm_build_610, dm_build_851)
@@ -952,7 +952,7 @@ func (dm_build_855 *dm_build_840) dm_build_854(dm_build_856 int32, dm_build_857 
 
 	dm_build_858 := Dm_build_633
 
-	if dm_build_855.dm_build_741.dm_build_336.autoCommit {
+	if dm_build_855.dm_build_741.conn.autoCommit {
 		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
 	} else {
 		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
@@ -974,7 +974,7 @@ func (dm_build_855 *dm_build_840) dm_build_854(dm_build_856 int32, dm_build_857 
 
 	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
 
-	if dm_build_855.dm_build_741.dm_build_336.dmConnector.continueBatchOnError {
+	if dm_build_855.dm_build_741.conn.dmConnector.continueBatchOnError {
 		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
 	} else {
 		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
@@ -990,7 +990,7 @@ func (dm_build_855 *dm_build_840) dm_build_854(dm_build_856 int32, dm_build_857 
 		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_191(dm_build_858, dm_build_855.dm_build_744.queryTimeout)
 	}
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_191(dm_build_858, dm_build_855.dm_build_741.dm_build_336.dmConnector.batchAllowMaxErrors)
+	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_191(dm_build_858, dm_build_855.dm_build_741.conn.dmConnector.batchAllowMaxErrors)
 
 	if dm_build_855.dm_build_744.innerExec {
 		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
@@ -1323,7 +1323,7 @@ func (dm_build_882 *dm_build_840) dm_build_881(dm_build_883 int) [][]byte {
 }
 
 func (dm_build_891 *dm_build_840) dm_build_890(dm_build_892 int, dm_build_893 bool) []column {
-	dm_build_894 := dm_build_891.dm_build_741.dm_build_336.getServerEncoding()
+	dm_build_894 := dm_build_891.dm_build_741.conn.getServerEncoding()
 	var dm_build_895, dm_build_896, dm_build_897, dm_build_898 int16
 	dm_build_899 := make([]column, dm_build_892)
 	for i := 0; i < dm_build_892; i++ {
@@ -1353,13 +1353,13 @@ func (dm_build_891 *dm_build_840) dm_build_890(dm_build_892 int, dm_build_893 bo
 		dm_build_897 = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
 
 		dm_build_898 = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-		dm_build_899[i].name = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_895), dm_build_894, dm_build_891.dm_build_741.dm_build_336)
-		dm_build_899[i].typeName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_896), dm_build_894, dm_build_891.dm_build_741.dm_build_336)
-		dm_build_899[i].tableName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_897), dm_build_894, dm_build_891.dm_build_741.dm_build_336)
-		dm_build_899[i].schemaName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_898), dm_build_894, dm_build_891.dm_build_741.dm_build_336)
+		dm_build_899[i].name = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_895), dm_build_894, dm_build_891.dm_build_741.conn)
+		dm_build_899[i].typeName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_896), dm_build_894, dm_build_891.dm_build_741.conn)
+		dm_build_899[i].tableName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_897), dm_build_894, dm_build_891.dm_build_741.conn)
+		dm_build_899[i].schemaName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_898), dm_build_894, dm_build_891.dm_build_741.conn)
 
 		if dm_build_891.dm_build_744.readBaseColName {
-			dm_build_899[i].baseName = dm_build_891.dm_build_741.dm_build_335.Dm_build_175(dm_build_894, dm_build_891.dm_build_741.dm_build_336)
+			dm_build_899[i].baseName = dm_build_891.dm_build_741.dm_build_335.Dm_build_175(dm_build_894, dm_build_891.dm_build_741.conn)
 		}
 
 		if dm_build_899[i].lob {
@@ -1372,7 +1372,7 @@ func (dm_build_891 *dm_build_840) dm_build_890(dm_build_892 int, dm_build_893 bo
 	for i := 0; i < dm_build_892; i++ {
 
 		if isComplexType(int(dm_build_899[i].colType), int(dm_build_899[i].scale)) {
-			strDesc := newTypeDescriptor(dm_build_891.dm_build_741.dm_build_336)
+			strDesc := newTypeDescriptor(dm_build_891.dm_build_741.conn)
 			strDesc.unpack(dm_build_891.dm_build_741.dm_build_335)
 			dm_build_899[i].typeDescriptor = strDesc
 		}
@@ -1447,7 +1447,7 @@ func (dm_build_907 *dm_build_840) dm_build_906(dm_build_908 []int64) error {
 
 		code := dm_build_907.dm_build_741.dm_build_335.Dm_build_125()
 
-		errStr := dm_build_907.dm_build_741.dm_build_335.Dm_build_175(dm_build_907.dm_build_741.dm_build_336.getServerEncoding(), dm_build_907.dm_build_741.dm_build_336)
+		errStr := dm_build_907.dm_build_741.dm_build_335.Dm_build_175(dm_build_907.dm_build_741.conn.getServerEncoding(), dm_build_907.dm_build_741.conn)
 
 		dm_build_910 = append(dm_build_910, "row["+strconv.Itoa(int(irow))+"]:"+strconv.Itoa(int(code))+", "+errStr)
 	}
@@ -1649,7 +1649,7 @@ type dm_build_945 struct {
 	dm_build_948 int64
 }
 
-func dm_build_949(dm_build_950 *dm_build_332, dm_build_951 *innerRows, dm_build_952 int64, dm_build_953 int64) *dm_build_945 {
+func dm_build_949(dm_build_950 *Access, dm_build_951 *innerRows, dm_build_952 int64, dm_build_953 int64) *dm_build_945 {
 	dm_build_954 := new(dm_build_945)
 	dm_build_954.dm_build_749(dm_build_950, Dm_build_611, dm_build_951.dmStmt)
 	dm_build_954.dm_build_946 = dm_build_951
@@ -1708,7 +1708,7 @@ type dm_build_963 struct {
 	dm_build_966 int
 }
 
-func dm_build_967(dm_build_968 *dm_build_332, dm_build_969 *lob, dm_build_970 int, dm_build_971 int) *dm_build_963 {
+func dm_build_967(dm_build_968 *Access, dm_build_969 *lob, dm_build_970 int, dm_build_971 int) *dm_build_963 {
 	dm_build_972 := new(dm_build_963)
 	dm_build_972.dm_build_745(dm_build_968, Dm_build_624)
 	dm_build_972.dm_build_964 = dm_build_969
@@ -1743,7 +1743,7 @@ func (dm_build_974 *dm_build_963) dm_build_726() error {
 
 	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(int32(dm_build_974.dm_build_966))
 
-	if dm_build_974.dm_build_741.dm_build_336.NewLobFlag {
+	if dm_build_974.dm_build_741.conn.NewLobFlag {
 		dm_build_974.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_974.dm_build_964.rowId))
 		dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.exGroupId)
 		dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.exFileId)
@@ -1772,7 +1772,7 @@ type dm_build_978 struct {
 	dm_build_979 *lob
 }
 
-func dm_build_980(dm_build_981 *dm_build_332, dm_build_982 *lob) *dm_build_978 {
+func dm_build_980(dm_build_981 *Access, dm_build_982 *lob) *dm_build_978 {
 	dm_build_983 := new(dm_build_978)
 	dm_build_983.dm_build_745(dm_build_981, Dm_build_621)
 	dm_build_983.dm_build_979 = dm_build_982
@@ -1791,7 +1791,7 @@ func (dm_build_985 *dm_build_978) dm_build_726() error {
 
 	dm_build_985.dm_build_741.dm_build_335.Dm_build_51(dm_build_985.dm_build_979.pageNo)
 
-	if dm_build_985.dm_build_741.dm_build_336.NewLobFlag {
+	if dm_build_985.dm_build_741.conn.NewLobFlag {
 		dm_build_985.dm_build_741.dm_build_335.Dm_build_51(dm_build_985.dm_build_979.tabId)
 		dm_build_985.dm_build_741.dm_build_335.Dm_build_47(dm_build_985.dm_build_979.colId)
 		dm_build_985.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_985.dm_build_979.rowId))
@@ -1819,7 +1819,7 @@ type dm_build_988 struct {
 	dm_build_990 int
 }
 
-func dm_build_991(dm_build_992 *dm_build_332, dm_build_993 *lob, dm_build_994 int) *dm_build_988 {
+func dm_build_991(dm_build_992 *Access, dm_build_993 *lob, dm_build_994 int) *dm_build_988 {
 	dm_build_995 := new(dm_build_988)
 	dm_build_995.dm_build_745(dm_build_992, Dm_build_623)
 	dm_build_995.dm_build_989 = dm_build_993
@@ -1844,7 +1844,7 @@ func (dm_build_997 *dm_build_988) dm_build_726() error {
 	dm_build_997.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_997.dm_build_989.rowId))
 	dm_build_997.dm_build_741.dm_build_335.Dm_build_79(Dm_build_1219.Dm_build_1421(uint32(dm_build_997.dm_build_990)))
 
-	if dm_build_997.dm_build_741.dm_build_336.NewLobFlag {
+	if dm_build_997.dm_build_741.conn.NewLobFlag {
 		dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.exGroupId)
 		dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.exFileId)
 		dm_build_997.dm_build_741.dm_build_335.Dm_build_51(dm_build_997.dm_build_989.exPageNo)
@@ -1915,15 +1915,15 @@ const (
 type dm_build_1026 struct {
 	dm_build_740
 
-	dm_build_1027 *DmConnection
+	dm_build_1027 *Connection
 
 	dm_build_1028 bool
 }
 
-func dm_build_1029(dm_build_1030 *dm_build_332) *dm_build_1026 {
+func dm_build_1029(dm_build_1030 *Access) *dm_build_1026 {
 	dm_build_1031 := new(dm_build_1026)
 	dm_build_1031.dm_build_745(dm_build_1030, Dm_build_605)
-	dm_build_1031.dm_build_1027 = dm_build_1030.dm_build_336
+	dm_build_1031.dm_build_1027 = dm_build_1030.conn
 	return dm_build_1031
 }
 
@@ -1973,8 +1973,8 @@ func (dm_build_1033 *dm_build_1026) dm_build_726() error {
 
 	}
 
-	dm_build_1035 := Dm_build_1219.Dm_build_1432(dm_build_1033.dm_build_1027.dmConnector.user, dm_build_1034, dm_build_1033.dm_build_741.dm_build_336)
-	dm_build_1036 := Dm_build_1219.Dm_build_1432(dm_build_1033.dm_build_1027.dmConnector.password, dm_build_1034, dm_build_1033.dm_build_741.dm_build_336)
+	dm_build_1035 := Dm_build_1219.Dm_build_1432(dm_build_1033.dm_build_1027.dmConnector.user, dm_build_1034, dm_build_1033.dm_build_741.conn)
+	dm_build_1036 := Dm_build_1219.Dm_build_1432(dm_build_1033.dm_build_1027.dmConnector.password, dm_build_1034, dm_build_1033.dm_build_741.conn)
 	if len(dm_build_1035) > Dm_build_641 {
 		return ECGO_USERNAME_TOO_LONG.throw()
 	}
@@ -1992,13 +1992,13 @@ func (dm_build_1033 *dm_build_1026) dm_build_726() error {
 	dm_build_1033.dm_build_741.dm_build_335.Dm_build_83(dm_build_1035)
 	dm_build_1033.dm_build_741.dm_build_335.Dm_build_83(dm_build_1036)
 
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(dm_build_1033.dm_build_1027.dmConnector.appName, dm_build_1034, dm_build_1033.dm_build_741.dm_build_336)
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(dm_build_1033.dm_build_1027.dmConnector.osName, dm_build_1034, dm_build_1033.dm_build_741.dm_build_336)
+	dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(dm_build_1033.dm_build_1027.dmConnector.appName, dm_build_1034, dm_build_1033.dm_build_741.conn)
+	dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(dm_build_1033.dm_build_1027.dmConnector.osName, dm_build_1034, dm_build_1033.dm_build_741.conn)
 
 	if hostName, err := os.Hostname(); err != nil {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(hostName, dm_build_1034, dm_build_1033.dm_build_741.dm_build_336)
+		dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(hostName, dm_build_1034, dm_build_1033.dm_build_741.conn)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_95("", dm_build_1034, dm_build_1033.dm_build_741.dm_build_336)
+		dm_build_1033.dm_build_741.dm_build_335.Dm_build_95("", dm_build_1034, dm_build_1033.dm_build_741.conn)
 	}
 
 	if dm_build_1033.dm_build_1027.dmConnector.rwStandby {
@@ -2032,25 +2032,25 @@ func (dm_build_1038 *dm_build_1026) dm_build_730() (interface{}, error) {
 
 	dm_build_1039 := dm_build_1038.dm_build_1027.getServerEncoding()
 
-	dm_build_1038.dm_build_1027.InstanceName = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+	dm_build_1038.dm_build_1027.InstanceName = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
 
 	var dm_build_1040 = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
 	if dm_build_1040 == 0 && dm_build_1038.dm_build_1027.MsgVersion > 0 {
 		dm_build_1038.dm_build_1027.Schema = strings.ToUpper(dm_build_1038.dm_build_1027.dmConnector.user)
 	} else {
-		dm_build_1038.dm_build_1027.Schema = dm_build_1038.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1040), dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		dm_build_1038.dm_build_1027.Schema = dm_build_1038.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1040), dm_build_1039, dm_build_1038.dm_build_741.conn)
 	}
 
-	dm_build_1038.dm_build_1027.LastLoginIP = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
-	dm_build_1038.dm_build_1027.LastLoginTime = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+	dm_build_1038.dm_build_1027.LastLoginIP = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
+	dm_build_1038.dm_build_1027.LastLoginTime = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
 	dm_build_1038.dm_build_1027.FailedAttempts = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
 	dm_build_1038.dm_build_1027.LoginWarningID = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
 	dm_build_1038.dm_build_1027.GraceTimeRemainder = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1038.dm_build_1027.Guid = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
-	dm_build_1038.dm_build_1027.DbName = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+	dm_build_1038.dm_build_1027.Guid = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
+	dm_build_1038.dm_build_1027.DbName = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
 
 	if dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1021) == 1 {
-		dm_build_1038.dm_build_1027.StandbyHost = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		dm_build_1038.dm_build_1027.StandbyHost = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
 		dm_build_1038.dm_build_1027.StandbyPort = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
 		dm_build_1038.dm_build_1027.StandbyCount = int32(dm_build_1038.dm_build_741.dm_build_335.Dm_build_140())
 	}
@@ -2076,23 +2076,23 @@ func (dm_build_1038 *dm_build_1026) dm_build_730() (interface{}, error) {
 
 	if dm_build_1038.dm_build_741.dm_build_335.Dm_build_22(false) > 0 {
 
-		format := dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		format := dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
 		if format != "" {
 			dm_build_1038.dm_build_1027.FormatDate = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
 		if format != "" {
 			dm_build_1038.dm_build_1027.FormatTime = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
 		if format != "" {
 			dm_build_1038.dm_build_1027.FormatTimestamp = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
 		if format != "" {
 			dm_build_1038.dm_build_1027.FormatTimestampTZ = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.dm_build_336)
+		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
 		if format != "" {
 			dm_build_1038.dm_build_1027.FormatTimeTZ = format
 		}
@@ -2110,7 +2110,7 @@ type dm_build_1042 struct {
 	dm_build_1043 int16
 }
 
-func dm_build_1044(dm_build_1045 *dm_build_332, dm_build_1046 *DmStatement, dm_build_1047 int16) *dm_build_1042 {
+func dm_build_1044(dm_build_1045 *Access, dm_build_1046 *DmStatement, dm_build_1047 int16) *dm_build_1042 {
 	dm_build_1048 := new(dm_build_1042)
 	dm_build_1048.dm_build_749(dm_build_1045, Dm_build_625, dm_build_1046)
 	dm_build_1048.dm_build_1043 = dm_build_1047
@@ -2136,7 +2136,7 @@ type dm_build_1055 struct {
 	dm_build_1056 []parameter
 }
 
-func dm_build_1057(dm_build_1058 *dm_build_332, dm_build_1059 *DmStatement, dm_build_1060 []parameter) *dm_build_1055 {
+func dm_build_1057(dm_build_1058 *Access, dm_build_1059 *DmStatement, dm_build_1060 []parameter) *dm_build_1055 {
 	dm_build_1061 := new(dm_build_1055)
 	dm_build_1061.dm_build_749(dm_build_1058, Dm_build_629, dm_build_1059)
 	dm_build_1061.dm_build_1056 = dm_build_1060
@@ -2162,7 +2162,7 @@ type dm_build_1064 struct {
 	dm_build_1066 int16
 }
 
-func dm_build_1067(dm_build_1068 *dm_build_332, dm_build_1069 *DmStatement, dm_build_1070 bool, dm_build_1071 int16) *dm_build_1064 {
+func dm_build_1067(dm_build_1068 *Access, dm_build_1069 *DmStatement, dm_build_1070 bool, dm_build_1071 int16) *dm_build_1064 {
 	dm_build_1072 := new(dm_build_1064)
 	dm_build_1072.dm_build_749(dm_build_1068, Dm_build_609, dm_build_1069)
 	dm_build_1072.dm_build_1065 = dm_build_1070
@@ -2174,7 +2174,7 @@ func (dm_build_1074 *dm_build_1064) dm_build_726() error {
 
 	dm_build_1075 := Dm_build_633
 
-	if dm_build_1074.dm_build_741.dm_build_336.autoCommit {
+	if dm_build_1074.dm_build_741.conn.autoCommit {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
 	} else {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
@@ -2190,7 +2190,7 @@ func (dm_build_1074 *dm_build_1064) dm_build_726() error {
 
 	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
 
-	if dm_build_1074.dm_build_741.dm_build_336.CompatibleOracle() {
+	if dm_build_1074.dm_build_741.conn.CompatibleOracle() {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
 	} else {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
@@ -2198,13 +2198,13 @@ func (dm_build_1074 *dm_build_1064) dm_build_726() error {
 
 	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_187(dm_build_1075, dm_build_1074.dm_build_1066)
 
-	if dm_build_1074.dm_build_744.maxRows <= 0 || dm_build_1074.dm_build_741.dm_build_336.dmConnector.enRsCache {
+	if dm_build_1074.dm_build_744.maxRows <= 0 || dm_build_1074.dm_build_741.conn.dmConnector.enRsCache {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_195(dm_build_1075, INT64_MAX)
 	} else {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_195(dm_build_1075, dm_build_1074.dm_build_744.maxRows)
 	}
 
-	if dm_build_1074.dm_build_741.dm_build_336.dmConnector.isBdtaRS {
+	if dm_build_1074.dm_build_741.conn.dmConnector.isBdtaRS {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, Dm_build_712)
 	} else {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, Dm_build_711)
@@ -2226,7 +2226,7 @@ func (dm_build_1074 *dm_build_1064) dm_build_726() error {
 		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
 	}
 
-	dm_build_1074.dm_build_741.dm_build_335.Dm_build_113(dm_build_1074.dm_build_744.nativeSql, dm_build_1074.dm_build_741.dm_build_336.getServerEncoding(), dm_build_1074.dm_build_741.dm_build_336)
+	dm_build_1074.dm_build_741.dm_build_335.Dm_build_113(dm_build_1074.dm_build_744.nativeSql, dm_build_1074.dm_build_741.conn.getServerEncoding(), dm_build_1074.dm_build_741.conn)
 
 	return nil
 }
@@ -2252,7 +2252,7 @@ func (dm_build_1077 *dm_build_1064) dm_build_730() (interface{}, error) {
 	dm_build_1077.dm_build_741.dm_build_335.Dm_build_272(dm_build_1079)
 	dm_build_1079 += DDWORD_SIZE
 
-	dm_build_1077.dm_build_741.dm_build_336.TrxStatus = dm_build_1077.dm_build_741.dm_build_335.Dm_build_269(dm_build_1079)
+	dm_build_1077.dm_build_741.conn.TrxStatus = dm_build_1077.dm_build_741.dm_build_335.Dm_build_269(dm_build_1079)
 	dm_build_1079 += ULINT_SIZE
 
 	if dm_build_1080 > 0 {
@@ -2310,10 +2310,10 @@ func (dm_build_1083 *dm_build_1064) dm_build_1082(dm_build_1084 int) []parameter
 		dm_build_1087 = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
 
 		dm_build_1088 = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
-		dm_build_1089[i].name = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1085), dm_build_1083.dm_build_741.dm_build_336.getServerEncoding(), dm_build_1083.dm_build_741.dm_build_336)
-		dm_build_1089[i].typeName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1086), dm_build_1083.dm_build_741.dm_build_336.getServerEncoding(), dm_build_1083.dm_build_741.dm_build_336)
-		dm_build_1089[i].tableName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1087), dm_build_1083.dm_build_741.dm_build_336.getServerEncoding(), dm_build_1083.dm_build_741.dm_build_336)
-		dm_build_1089[i].schemaName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1088), dm_build_1083.dm_build_741.dm_build_336.getServerEncoding(), dm_build_1083.dm_build_741.dm_build_336)
+		dm_build_1089[i].name = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1085), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
+		dm_build_1089[i].typeName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1086), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
+		dm_build_1089[i].tableName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1087), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
+		dm_build_1089[i].schemaName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1088), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
 
 		if dm_build_1089[i].lob {
 			dm_build_1089[i].lobTabId = dm_build_1083.dm_build_741.dm_build_335.Dm_build_125()
@@ -2325,7 +2325,7 @@ func (dm_build_1083 *dm_build_1064) dm_build_1082(dm_build_1084 int) []parameter
 
 		if isComplexType(int(dm_build_1089[i].colType), int(dm_build_1089[i].scale)) {
 
-			strDesc := newTypeDescriptor(dm_build_1083.dm_build_741.dm_build_336)
+			strDesc := newTypeDescriptor(dm_build_1083.dm_build_741.conn)
 			strDesc.unpack(dm_build_1083.dm_build_741.dm_build_335)
 			dm_build_1089[i].typeDescriptor = strDesc
 		}
@@ -2345,7 +2345,7 @@ type dm_build_1091 struct {
 	dm_build_1094 int32
 }
 
-func dm_build_1095(dm_build_1096 *dm_build_332, dm_build_1097 *DmStatement, dm_build_1098 int16, dm_build_1099 *Dm_build_1498, dm_build_1100 int32) *dm_build_1091 {
+func dm_build_1095(dm_build_1096 *Access, dm_build_1097 *DmStatement, dm_build_1098 int16, dm_build_1099 *Dm_build_1498, dm_build_1100 int32) *dm_build_1091 {
 	dm_build_1101 := new(dm_build_1091)
 	dm_build_1101.dm_build_749(dm_build_1096, Dm_build_615, dm_build_1097)
 	dm_build_1101.dm_build_1092 = dm_build_1098
@@ -2359,7 +2359,7 @@ func (dm_build_1103 *dm_build_1091) dm_build_726() error {
 
 	dm_build_1103.dm_build_741.dm_build_335.Dm_build_51(dm_build_1103.dm_build_1094)
 
-	if dm_build_1103.dm_build_741.dm_build_336.NewLobFlag {
+	if dm_build_1103.dm_build_741.conn.NewLobFlag {
 		dm_build_1103.dm_build_741.dm_build_335.Dm_build_51(-1)
 	}
 	dm_build_1103.dm_build_1093.Dm_build_1505(dm_build_1103.dm_build_741.dm_build_335, int(dm_build_1103.dm_build_1094))
@@ -2370,7 +2370,7 @@ type dm_build_1104 struct {
 	dm_build_740
 }
 
-func dm_build_1105(dm_build_1106 *dm_build_332) *dm_build_1104 {
+func dm_build_1105(dm_build_1106 *Access) *dm_build_1104 {
 	dm_build_1107 := new(dm_build_1104)
 	dm_build_1107.dm_build_745(dm_build_1106, Dm_build_613)
 	return dm_build_1107
@@ -2381,7 +2381,7 @@ type dm_build_1108 struct {
 	dm_build_1109 int32
 }
 
-func dm_build_1110(dm_build_1111 *dm_build_332, dm_build_1112 int32) *dm_build_1108 {
+func dm_build_1110(dm_build_1111 *Access, dm_build_1112 int32) *dm_build_1108 {
 	dm_build_1113 := new(dm_build_1108)
 	dm_build_1113.dm_build_745(dm_build_1111, Dm_build_626)
 	dm_build_1113.dm_build_1109 = dm_build_1112
@@ -2405,7 +2405,7 @@ type dm_build_1117 struct {
 	dm_build_1123 int
 }
 
-func dm_build_1124(dm_build_1125 *dm_build_332, dm_build_1126 *lob, dm_build_1127 byte, dm_build_1128 int, dm_build_1129 []byte,
+func dm_build_1124(dm_build_1125 *Access, dm_build_1126 *lob, dm_build_1127 byte, dm_build_1128 int, dm_build_1129 []byte,
 	dm_build_1130 int, dm_build_1131 int) *dm_build_1117 {
 	dm_build_1132 := new(dm_build_1117)
 	dm_build_1132.dm_build_745(dm_build_1125, Dm_build_622)
@@ -2437,7 +2437,7 @@ func (dm_build_1134 *dm_build_1117) dm_build_726() error {
 	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(int32(dm_build_1134.dm_build_1123))
 	dm_build_1134.dm_build_741.dm_build_335.Dm_build_79(dm_build_1134.dm_build_1121)
 
-	if dm_build_1134.dm_build_741.dm_build_336.NewLobFlag {
+	if dm_build_1134.dm_build_741.conn.NewLobFlag {
 		dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.exGroupId)
 		dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.exFileId)
 		dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(dm_build_1134.dm_build_1118.exPageNo)
@@ -2507,17 +2507,17 @@ const (
 
 type dm_build_1161 struct {
 	dm_build_740
-	dm_build_1162 *DmConnection
+	dm_build_1162 *Connection
 	dm_build_1163 int
 	Dm_build_1164 int32
 	Dm_build_1165 []byte
 	dm_build_1166 byte
 }
 
-func dm_build_1167(dm_build_1168 *dm_build_332) *dm_build_1161 {
+func dm_build_1167(dm_build_1168 *Access) *dm_build_1161 {
 	dm_build_1169 := new(dm_build_1161)
 	dm_build_1169.dm_build_745(dm_build_1168, Dm_build_631)
-	dm_build_1169.dm_build_1162 = dm_build_1168.dm_build_336
+	dm_build_1169.dm_build_1162 = dm_build_1168.conn
 	return dm_build_1169
 }
 
@@ -2572,7 +2572,7 @@ func (dm_build_1176 *dm_build_1161) dm_build_726() error {
 	dm_build_1176.dm_build_741.dm_build_335.Dm_build_211(Dm_build_1147, uint16(dm_build_1176.dm_build_1162.MsgVersion))
 
 	dm_build_1177 := dm_build_1176.dm_build_1162.getServerEncoding()
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_95(Dm_build_597, dm_build_1177, dm_build_1176.dm_build_741.dm_build_336)
+	dm_build_1176.dm_build_741.dm_build_335.Dm_build_95(Dm_build_597, dm_build_1177, dm_build_1176.dm_build_741.conn)
 
 	var dm_build_1178 byte
 	if dm_build_1176.dm_build_1162.dmConnector.uKeyName != "" {
@@ -2633,7 +2633,7 @@ func (dm_build_1182 *dm_build_1161) dm_build_730() (interface{}, error) {
 		return nil, dm_build_1185
 	}
 
-	dm_build_1186 := dm_build_1182.dm_build_741.dm_build_335.Dm_build_167(dm_build_1182.dm_build_1162.getServerEncoding(), dm_build_1182.dm_build_741.dm_build_336)
+	dm_build_1186 := dm_build_1182.dm_build_741.dm_build_335.Dm_build_167(dm_build_1182.dm_build_1162.getServerEncoding(), dm_build_1182.dm_build_741.conn)
 	if dm_build_1170(dm_build_1186, Dm_build_598) < 0 {
 		return nil, ECGO_ERROR_SERVER_VERSION.throw()
 	}
@@ -2643,14 +2643,14 @@ func (dm_build_1182 *dm_build_1161) dm_build_730() (interface{}, error) {
 	dm_build_1182.dm_build_1162.Execute2 = dm_build_1170(dm_build_1186, Dm_build_600) > 0
 	dm_build_1182.dm_build_1162.LobEmptyCompOrcl = dm_build_1170(dm_build_1186, Dm_build_601) > 0
 
-	if dm_build_1182.dm_build_741.dm_build_336.dmConnector.uKeyName != "" {
+	if dm_build_1182.dm_build_741.conn.dmConnector.uKeyName != "" {
 		dm_build_1182.dm_build_1166 = 1
 	} else {
 		dm_build_1182.dm_build_1166 = 0
 	}
 
 	if dm_build_1182.dm_build_1166 == 1 {
-		dm_build_1182.dm_build_741.dm_build_342 = dm_build_1182.dm_build_741.dm_build_335.Dm_build_162(16, dm_build_1182.dm_build_1162.getServerEncoding(), dm_build_1182.dm_build_741.dm_build_336)
+		dm_build_1182.dm_build_741.dm_build_342 = dm_build_1182.dm_build_741.dm_build_335.Dm_build_162(16, dm_build_1182.dm_build_1162.getServerEncoding(), dm_build_1182.dm_build_741.conn)
 	}
 
 	dm_build_1182.dm_build_1163 = -1
@@ -2685,7 +2685,7 @@ type dm_build_1189 struct {
 	dm_build_740
 }
 
-func dm_build_1190(dm_build_1191 *dm_build_332, dm_build_1192 *DmStatement) *dm_build_1189 {
+func dm_build_1190(dm_build_1191 *Access, dm_build_1192 *DmStatement) *dm_build_1189 {
 	dm_build_1193 := new(dm_build_1189)
 	dm_build_1193.dm_build_749(dm_build_1191, Dm_build_607, dm_build_1192)
 	return dm_build_1193
@@ -2710,7 +2710,7 @@ type dm_build_1198 struct {
 	dm_build_1199 int32
 }
 
-func dm_build_1200(dm_build_1201 *dm_build_332, dm_build_1202 int32) *dm_build_1198 {
+func dm_build_1200(dm_build_1201 *Access, dm_build_1202 int32) *dm_build_1198 {
 	dm_build_1203 := new(dm_build_1198)
 	dm_build_1203.dm_build_745(dm_build_1201, Dm_build_608)
 	dm_build_1203.dm_build_1199 = dm_build_1202
@@ -2727,7 +2727,7 @@ type dm_build_1206 struct {
 	dm_build_1207 []uint32
 }
 
-func dm_build_1208(dm_build_1209 *dm_build_332, dm_build_1210 []uint32) *dm_build_1206 {
+func dm_build_1208(dm_build_1209 *Access, dm_build_1210 []uint32) *dm_build_1206 {
 	dm_build_1211 := new(dm_build_1206)
 	dm_build_1211.dm_build_745(dm_build_1209, Dm_build_628)
 	dm_build_1211.dm_build_1207 = dm_build_1210

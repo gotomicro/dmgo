@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const (
@@ -31,7 +31,7 @@ var rp = newRsPool()
 type DmStatement struct {
 	filterable
 
-	dmConn    *DmConnection
+	dmConn    *Connection
 	rsMap     map[int16]*innerRows
 	inUse     bool
 	innerUsed bool
@@ -134,7 +134,7 @@ func newRsPoolValue(execInfo *execRetInfo) rsPoolValue {
 	return *rpv
 }
 
-func (rpv rsPoolValue) refreshed(conn *DmConnection) (bool, error) {
+func (rpv rsPoolValue) refreshed(conn *Connection) (bool, error) {
 
 	if conn.dmConnector.rsRefreshFreq == 0 {
 		return false, nil
@@ -443,7 +443,7 @@ func (stmt *DmStatement) queryContext(ctx context.Context, args []driver.NamedVa
 	return rows, err
 }
 
-func NewDmStmt(conn *DmConnection, sql string) (*DmStatement, error) {
+func NewDmStmt(conn *Connection, sql string) (*DmStatement, error) {
 	var s *DmStatement
 
 	if conn.stmtMap != nil && len(conn.stmtMap) > 0 {
@@ -734,7 +734,7 @@ func encodeArgs(stmt *DmStatement, args []driver.Value) ([]interface{}, error) {
 }
 
 type converter struct {
-	conn    *DmConnection
+	conn    *Connection
 	isBatch bool
 }
 type decimalDecompose interface {

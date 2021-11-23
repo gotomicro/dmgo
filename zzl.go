@@ -9,7 +9,7 @@ type StructDescriptor struct {
 	m_typeDesc *TypeDescriptor
 }
 
-func newStructDescriptor(fulName string, conn *DmConnection) (*StructDescriptor, error) {
+func newStructDescriptor(fulName string, conn *Connection) (*StructDescriptor, error) {
 	sd := new(StructDescriptor)
 	if fulName == "" {
 		return nil, ECGO_INVALID_COMPLEX_TYPE_NAME.throw()

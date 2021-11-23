@@ -184,7 +184,7 @@ const (
 
 	CURRENCY_SCALE = 4
 
-	FLOAT_SCALE_MASK = 0X81
+	FLOAT_SCALE_MASK = 0x81
 )
 
 func resetColType(stmt *DmStatement, i int, colType int32) bool {
@@ -387,7 +387,7 @@ func (column *column) PrecisionScale() (precision, scale int64, ok bool) {
 	return int64(0), int64(0), false
 }
 
-func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Value, error) {
+func (column *column) getColumnData(bytes []byte, conn *Connection) (driver.Value, error) {
 	if bytes == nil {
 		return nil, nil
 	}

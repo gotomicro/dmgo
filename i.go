@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 var DB2G db2g
@@ -25,7 +25,7 @@ func (DB2G db2g) processVarchar2(bytes []byte, prec int) []byte {
 	return rbytes
 }
 
-func (DB2G db2g) charToString(bytes []byte, column *column, conn *DmConnection) string {
+func (DB2G db2g) charToString(bytes []byte, column *column, conn *Connection) string {
 	if column.colType == VARCHAR2 {
 		bytes = DB2G.processVarchar2(bytes, int(column.prec))
 	} else if column.colType == CLOB {
@@ -37,7 +37,7 @@ func (DB2G db2g) charToString(bytes []byte, column *column, conn *DmConnection) 
 	return Dm_build_1219.Dm_build_1469(bytes, conn.serverEncoding, conn)
 }
 
-func (DB2G db2g) charToFloat64(bytes []byte, column *column, conn *DmConnection) (float64, error) {
+func (DB2G db2g) charToFloat64(bytes []byte, column *column, conn *Connection) (float64, error) {
 	str := DB2G.charToString(bytes, column, conn)
 	val, err := strconv.ParseFloat(str, 64)
 	if err != nil {
@@ -47,12 +47,12 @@ func (DB2G db2g) charToFloat64(bytes []byte, column *column, conn *DmConnection)
 	return val, nil
 }
 
-func (DB2G db2g) charToDeciaml(bytes []byte, column *column, conn *DmConnection) (*DmDecimal, error) {
+func (DB2G db2g) charToDeciaml(bytes []byte, column *column, conn *Connection) (*DmDecimal, error) {
 	str := DB2G.charToString(bytes, column, conn)
 	return NewDecimalFromString(str)
 }
 
-func (DB2G db2g) BinaryToInt64(bytes []byte, column *column, conn *DmConnection) (int64, error) {
+func (DB2G db2g) BinaryToInt64(bytes []byte, column *column, conn *Connection) (int64, error) {
 	if column.colType == BLOB {
 		blob := newBlobFromDB(bytes, conn, column, true)
 		blobLen, err := blob.GetLength()
@@ -99,7 +99,7 @@ func (DB2G db2g) decToDecimal(bytes []byte, prec int, scale int, compatibleOracl
 	return newDecimal(bytes, prec, scale)
 }
 
-func (DB2G db2g) toBytes(bytes []byte, column *column, conn *DmConnection) ([]byte, error) {
+func (DB2G db2g) toBytes(bytes []byte, column *column, conn *Connection) ([]byte, error) {
 	retBytes := Dm_build_1219.Dm_build_1370(bytes, 0, len(bytes))
 	switch column.colType {
 	case CLOB:
@@ -122,7 +122,7 @@ func (DB2G db2g) toBytes(bytes []byte, column *column, conn *DmConnection) ([]by
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toString(bytes []byte, column *column, conn *DmConnection) string {
+func (DB2G db2g) toString(bytes []byte, column *column, conn *Connection) string {
 	switch column.colType {
 	case CHAR, VARCHAR, VARCHAR2:
 		return DB2G.charToString(bytes, column, conn)
@@ -187,7 +187,7 @@ func (DB2G db2g) toString(bytes []byte, column *column, conn *DmConnection) stri
 	return ""
 }
 
-func (DB2G db2g) toBool(bytes []byte, column *column, conn *DmConnection) (bool, error) {
+func (DB2G db2g) toBool(bytes []byte, column *column, conn *Connection) (bool, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		return bytes[0] != 0, nil
@@ -210,7 +210,7 @@ func (DB2G db2g) toBool(bytes []byte, column *column, conn *DmConnection) (bool,
 	return false, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toByte(bytes []byte, column *column, conn *DmConnection) (byte, error) {
+func (DB2G db2g) toByte(bytes []byte, column *column, conn *Connection) (byte, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 
@@ -278,7 +278,7 @@ func (DB2G db2g) toByte(bytes []byte, column *column, conn *DmConnection) (byte,
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt8(bytes []byte, column *column, conn *DmConnection) (int8, error) {
+func (DB2G db2g) toInt8(bytes []byte, column *column, conn *Connection) (int8, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -346,7 +346,7 @@ func (DB2G db2g) toInt8(bytes []byte, column *column, conn *DmConnection) (int8,
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt16(bytes []byte, column *column, conn *DmConnection) (int16, error) {
+func (DB2G db2g) toInt16(bytes []byte, column *column, conn *Connection) (int16, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -410,7 +410,7 @@ func (DB2G db2g) toInt16(bytes []byte, column *column, conn *DmConnection) (int1
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *DmConnection) (uint16, error) {
+func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *Connection) (uint16, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -473,7 +473,7 @@ func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *DmConnection) (uin
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt32(bytes []byte, column *column, conn *DmConnection) (int32, error) {
+func (DB2G db2g) toInt32(bytes []byte, column *column, conn *Connection) (int32, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -532,7 +532,7 @@ func (DB2G db2g) toInt32(bytes []byte, column *column, conn *DmConnection) (int3
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *DmConnection) (uint32, error) {
+func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *Connection) (uint32, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -591,7 +591,7 @@ func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *DmConnection) (uin
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt64(bytes []byte, column *column, conn *DmConnection) (int64, error) {
+func (DB2G db2g) toInt64(bytes []byte, column *column, conn *Connection) (int64, error) {
 	switch column.colType {
 	case BOOLEAN, BIT, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -631,7 +631,7 @@ func (DB2G db2g) toInt64(bytes []byte, column *column, conn *DmConnection) (int6
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *DmConnection) (uint64, error) {
+func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *Connection) (uint64, error) {
 	switch column.colType {
 	case BOOLEAN, BIT, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -671,7 +671,7 @@ func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *DmConnection) (uin
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt(bytes []byte, column *column, conn *DmConnection) (int, error) {
+func (DB2G db2g) toInt(bytes []byte, column *column, conn *Connection) (int, error) {
 	if strconv.IntSize == 32 {
 		tmp, err := DB2G.toInt32(bytes, column, conn)
 		return int(tmp), err
@@ -681,7 +681,7 @@ func (DB2G db2g) toInt(bytes []byte, column *column, conn *DmConnection) (int, e
 	}
 }
 
-func (DB2G db2g) toUInt(bytes []byte, column *column, conn *DmConnection) (uint, error) {
+func (DB2G db2g) toUInt(bytes []byte, column *column, conn *Connection) (uint, error) {
 	if strconv.IntSize == 32 {
 		tmp, err := DB2G.toUInt32(bytes, column, conn)
 		return uint(tmp), err
@@ -691,7 +691,7 @@ func (DB2G db2g) toUInt(bytes []byte, column *column, conn *DmConnection) (uint,
 	}
 }
 
-func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *DmConnection) (float32, error) {
+func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *Connection) (float32, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -725,7 +725,7 @@ func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *DmConnection) (fl
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *DmConnection) (float64, error) {
+func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *Connection) (float64, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -759,7 +759,7 @@ func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *DmConnection) (fl
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toDmBlob(value []byte, column *column, conn *DmConnection) *DmBlob {
+func (DB2G db2g) toDmBlob(value []byte, column *column, conn *Connection) *DmBlob {
 
 	switch column.colType {
 	case BLOB:
@@ -769,7 +769,7 @@ func (DB2G db2g) toDmBlob(value []byte, column *column, conn *DmConnection) *DmB
 	return nil
 }
 
-func (DB2G db2g) toDmClob(value []byte, conn *DmConnection, column *column) *DmClob {
+func (DB2G db2g) toDmClob(value []byte, conn *Connection, column *column) *DmClob {
 
 	switch column.colType {
 	case CLOB:
@@ -779,7 +779,7 @@ func (DB2G db2g) toDmClob(value []byte, conn *DmConnection, column *column) *DmC
 	return nil
 }
 
-func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *DmConnection) (*DmDecimal, error) {
+func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *Connection) (*DmDecimal, error) {
 
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
@@ -807,7 +807,7 @@ func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *DmConnection) (
 	return nil, ECGO_DATA_CONVERTION_ERROR
 }
 
-func (DB2G db2g) toTime(bytes []byte, column *column, conn *DmConnection) (time.Time, error) {
+func (DB2G db2g) toTime(bytes []byte, column *column, conn *Connection) (time.Time, error) {
 	switch column.colType {
 	case DATE, TIME, TIME_TZ, DATETIME_TZ, DATETIME:
 		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
@@ -818,7 +818,7 @@ func (DB2G db2g) toTime(bytes []byte, column *column, conn *DmConnection) (time.
 	return time.Now(), ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toObject(bytes []byte, column *column, conn *DmConnection) (interface{}, error) {
+func (DB2G db2g) toObject(bytes []byte, column *column, conn *Connection) (interface{}, error) {
 
 	switch column.colType {
 	case BIT, BOOLEAN:

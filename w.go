@@ -50,7 +50,7 @@ func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
 	return dmts
 }
 
-func newDmTimestampFromBytes(bytes []byte, column column, conn *DmConnection) *DmTimestamp {
+func newDmTimestampFromBytes(bytes []byte, column column, conn *Connection) *DmTimestamp {
 	dmts := new(DmTimestamp)
 	dmts.dt = decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 

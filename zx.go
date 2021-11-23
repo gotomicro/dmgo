@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const (
@@ -37,7 +37,7 @@ type rwUtil struct {
 
 var RWUtil = rwUtil{}
 
-func (RWUtil rwUtil) connect(c *DmConnector, ctx context.Context) (*DmConnection, error) {
+func (RWUtil rwUtil) connect(c *Connector, ctx context.Context) (*Connection, error) {
 	c.loginMode = LOGIN_MODE_PRIMARY_ONLY
 	connection, err := c.connect(ctx)
 	if err != nil {
@@ -50,7 +50,7 @@ func (RWUtil rwUtil) connect(c *DmConnector, ctx context.Context) (*DmConnection
 	return connection, err
 }
 
-func (RWUtil rwUtil) reconnect(connection *DmConnection) error {
+func (RWUtil rwUtil) reconnect(connection *Connection) error {
 	if connection.rwInfo == nil {
 		return nil
 	}
@@ -69,7 +69,7 @@ func (RWUtil rwUtil) reconnect(connection *DmConnection) error {
 	return err
 }
 
-func (RWUtil rwUtil) recoverStandby(connection *DmConnection) error {
+func (RWUtil rwUtil) recoverStandby(connection *Connection) error {
 	if connection.closed.IsSet() || RWUtil.isStandbyAlive(connection) {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (RWUtil rwUtil) recoverStandby(connection *DmConnection) error {
 	return err
 }
 
-func (RWUtil rwUtil) connectStandby(connection *DmConnection) error {
+func (RWUtil rwUtil) connectStandby(connection *Connection) error {
 	var err error
 	db, err := RWUtil.chooseValidStandby(connection)
 	if err != nil {
@@ -116,7 +116,7 @@ func (RWUtil rwUtil) connectStandby(connection *DmConnection) error {
 	return nil
 }
 
-func (RWUtil rwUtil) chooseValidStandby(connection *DmConnection) (*ep, error) {
+func (RWUtil rwUtil) chooseValidStandby(connection *Connection) (*ep, error) {
 	stmt, rs, err := connection.driverQuery(SQL_SELECT_STANDBY2)
 	if err != nil {
 		stmt, rs, err = connection.driverQuery(SQL_SELECT_STANDBY)
@@ -151,13 +151,13 @@ func (RWUtil rwUtil) chooseValidStandby(connection *DmConnection) (*ep, error) {
 	return nil, nil
 }
 
-func (RWUtil rwUtil) afterExceptionOnStandby(connection *DmConnection, e error) {
+func (RWUtil rwUtil) afterExceptionOnStandby(connection *Connection, e error) {
 	if e.(*DmError).ErrCode == ECGO_COMMUNITION_ERROR.ErrCode {
 		RWUtil.removeStandby(connection)
 	}
 }
 
-func (RWUtil rwUtil) removeStandby(connection *DmConnection) {
+func (RWUtil rwUtil) removeStandby(connection *Connection) {
 	if connection.rwInfo.connStandby != nil {
 		connection.rwInfo.connStandby.close()
 		connection.rwInfo.connStandby = nil
@@ -168,7 +168,7 @@ func (RWUtil rwUtil) isCreateStandbyStmt(stmt *DmStatement) bool {
 	return stmt != nil && stmt.rwInfo.readOnly && RWUtil.isStandbyAlive(stmt.dmConn)
 }
 
-func (RWUtil rwUtil) executeByConn(conn *DmConnection, query string, execute1 func() (interface{}, error), execute2 func(otherConn *DmConnection) (interface{}, error)) (interface{}, error) {
+func (RWUtil rwUtil) executeByConn(conn *Connection, query string, execute1 func() (interface{}, error), execute2 func(otherConn *Connection) (interface{}, error)) (interface{}, error) {
 
 	if err := RWUtil.recoverStandby(conn); err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (RWUtil rwUtil) executeByConn(conn *DmConnection, query string, execute1 fu
 	}
 
 	curConn := conn.rwInfo.connCurrent
-	var otherConn *DmConnection
+	var otherConn *Connection
 	if curConn != conn {
 		otherConn = conn
 	} else {
@@ -317,7 +317,7 @@ func (RWUtil rwUtil) executeByStmt(stmt *DmStatement, execute1 func() (interface
 	return ret, nil
 }
 
-func (RWUtil rwUtil) checkReadonlyByConn(conn *DmConnection, sql string) bool {
+func (RWUtil rwUtil) checkReadonlyByConn(conn *Connection, sql string) bool {
 	readonly := true
 
 	if sql != "" && !conn.dmConnector.rwIgnoreSql {
@@ -342,7 +342,7 @@ func (RWUtil rwUtil) checkReadonlyByStmt(stmt *DmStatement) bool {
 	return RWUtil.checkReadonlyByConn(stmt.dmConn, stmt.nativeSql)
 }
 
-func (RWUtil rwUtil) distributeSqlByConn(conn *DmConnection, query string) RWSiteEnum {
+func (RWUtil rwUtil) distributeSqlByConn(conn *Connection, query string) RWSiteEnum {
 	var dest RWSiteEnum
 	if !RWUtil.isStandbyAlive(conn) {
 
@@ -405,7 +405,7 @@ func (RWUtil rwUtil) distributeSqlByStmt(stmt *DmStatement) RWSiteEnum {
 	return dest
 }
 
-func (RWUtil rwUtil) isStandbyAlive(connection *DmConnection) bool {
+func (RWUtil rwUtil) isStandbyAlive(connection *Connection) bool {
 	return connection.rwInfo.connStandby != nil && !connection.rwInfo.connStandby.closed.IsSet()
 }
 

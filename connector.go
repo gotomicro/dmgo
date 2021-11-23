@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const (
@@ -254,10 +254,10 @@ const (
 	localTimezoneDef = TIME_ZONE_DEFAULT
 )
 
-type DmConnector struct {
+type Connector struct {
 	filterable
 
-	dmDriver *DmDriver
+	dmDriver *Driver
 
 	compress int
 
@@ -391,7 +391,7 @@ type DmConnector struct {
 
 	schema string
 
-	reConnection *DmConnection
+	reConnection *Connection
 
 	logLevel int
 
@@ -418,7 +418,7 @@ type DmConnector struct {
 	statSqlRemoveMode int
 }
 
-func (c *DmConnector) init() *DmConnector {
+func (c *Connector) init() *Connector {
 	c.compress = compressDef
 	c.compressID = compressIDDef
 	c.charCode = charCodeDef
@@ -494,7 +494,7 @@ func (c *DmConnector) init() *DmConnector {
 	return c
 }
 
-func (c *DmConnector) setAttributes(props *Properties) error {
+func (c *Connector) setAttributes(props *Properties) error {
 	if props == nil || props.Len() == 0 {
 		return nil
 	}
@@ -624,7 +624,7 @@ func (c *DmConnector) setAttributes(props *Properties) error {
 	return nil
 }
 
-func (c *DmConnector) parseOsAuthType(props *Properties) error {
+func (c *Connector) parseOsAuthType(props *Properties) error {
 	value := props.GetString(OsAuthTypeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase(value, "ON") {
@@ -654,7 +654,7 @@ func (c *DmConnector) parseOsAuthType(props *Properties) error {
 	return nil
 }
 
-func (c *DmConnector) parseCompatibleMode(props *Properties) {
+func (c *Connector) parseCompatibleMode(props *Properties) {
 	value := props.GetString(CompatibleModeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase(value, "oracle") {
@@ -667,7 +667,7 @@ func (c *DmConnector) parseCompatibleMode(props *Properties) {
 	}
 }
 
-func (c *DmConnector) parseStatSqlRemoveMode(props *Properties) {
+func (c *Connector) parseStatSqlRemoveMode(props *Properties) {
 	value := props.GetString(StatSqlRemoveModeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase("oldest", value) || util.StringUtil.EqualsIgnoreCase("eldest", value) {
@@ -680,7 +680,7 @@ func (c *DmConnector) parseStatSqlRemoveMode(props *Properties) {
 	}
 }
 
-func (c *DmConnector) parseCluster(props *Properties) {
+func (c *Connector) parseCluster(props *Properties) {
 	value := props.GetTrimString(ClusterKey, "")
 	if util.StringUtil.EqualsIgnoreCase(value, "DSC") {
 		c.cluster = CLUSTER_TYPE_DSC
@@ -695,7 +695,7 @@ func (c *DmConnector) parseCluster(props *Properties) {
 	}
 }
 
-func (c *DmConnector) parseDSN(dsn string) (*Properties, string, error) {
+func (c *Connector) parseDSN(dsn string) (*Properties, string, error) {
 	var dsnProps = NewProperties()
 	url, err := url.Parse(dsn)
 	if err != nil {
@@ -718,7 +718,7 @@ func (c *DmConnector) parseDSN(dsn string) (*Properties, string, error) {
 	return dsnProps, url.Host, nil
 }
 
-func (c *DmConnector) BuildDSN() string {
+func (c *Connector) BuildDSN() string {
 	var buf bytes.Buffer
 
 	buf.WriteString("dm://")
@@ -753,22 +753,15 @@ func (c *DmConnector) BuildDSN() string {
 	return buf.String()
 }
 
-func (c *DmConnector) mergeConfigs(dsn string) error {
+func (c *Connector) mergeConfigs(dsn string) error {
 	props, host, err := c.parseDSN(dsn)
 	if err != nil {
 		return err
 	}
 
-	driverInit(props.GetString("svcConfPath", ""))
-
+	driverInit()
 	addressRemapStr := props.GetTrimString(AddressRemapKey, "")
 	userRemapStr := props.GetTrimString(UserRemapKey, "")
-	if addressRemapStr == "" {
-		addressRemapStr = GlobalProperties.GetTrimString(AddressRemapKey, "")
-	}
-	if userRemapStr == "" {
-		userRemapStr = GlobalProperties.GetTrimString(UserRemapKey, "")
-	}
 
 	host = c.remap(host, addressRemapStr)
 
@@ -795,8 +788,6 @@ func (c *DmConnector) mergeConfigs(dsn string) error {
 
 	props.SetDiffProperties(c.group.props)
 
-	props.SetDiffProperties(GlobalProperties)
-
 	if props.GetBool(RwSeparateKey, false) {
 		props.SetIfNotExist(LoginModeKey, strconv.Itoa(int(LOGIN_MODE_PRIMARY_ONLY)))
 		props.SetIfNotExist(LoginStatusKey, strconv.Itoa(int(SERVER_STATUS_OPEN)))
@@ -810,7 +801,7 @@ func (c *DmConnector) mergeConfigs(dsn string) error {
 	return nil
 }
 
-func (c *DmConnector) remap(origin string, cfgStr string) string {
+func (c *Connector) remap(origin string, cfgStr string) string {
 	if cfgStr == "" || origin == "" {
 		return origin
 	}
@@ -825,15 +816,15 @@ func (c *DmConnector) remap(origin string, cfgStr string) string {
 	return origin
 }
 
-func (c *DmConnector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	return c.filterChain.reset().DmConnectorConnect(c, ctx)
 }
 
-func (c *DmConnector) Driver() driver.Driver {
+func (c *Connector) Driver() driver.Driver {
 	return c.filterChain.reset().DmConnectorDriver(c)
 }
 
-func (c *DmConnector) connect(ctx context.Context) (*DmConnection, error) {
+func (c *Connector) connect(ctx context.Context) (*Connection, error) {
 	if c.group != nil && len(c.group.epList) > 0 {
 		return c.group.connect(c)
 	} else {
@@ -841,15 +832,15 @@ func (c *DmConnector) connect(ctx context.Context) (*DmConnection, error) {
 	}
 }
 
-func (c *DmConnector) driver() *DmDriver {
+func (c *Connector) driver() *Driver {
 	return c.dmDriver
 }
 
-func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) {
+func (c *Connector) connectSingle(ctx context.Context) (*Connection, error) {
 	var err error
-	var dc *DmConnection
+	var dc *Connection
 	if c.reConnection == nil {
-		dc = &DmConnection{
+		dc = &Connection{
 			closech: make(chan struct{}),
 		}
 		dc.dmConnector = c
@@ -869,12 +860,12 @@ func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) 
 		dc.reset()
 	}
 
-	dc.Access, err = dm_build_344(dc)
+	dc.Access, err = buildAccess(dc)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = dc.Access.dm_build_385(); err != nil {
+	if err = dc.Access.initialize(); err != nil {
 
 		if !dc.closed.IsSet() {
 			close(dc.closech)

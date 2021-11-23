@@ -52,7 +52,7 @@ type lob struct {
 	totalOffset   int32
 	readOver      bool
 
-	connection       *DmConnection
+	connection       *Connection
 	local            bool
 	updateable       bool
 	lobFlag          int8
@@ -95,7 +95,7 @@ func (lob *lob) getLengthFromHead(head []byte) int64 {
 	return int64(Dm_build_1219.Dm_build_1321(head, NBLOB_HEAD_BLOB_LEN))
 }
 
-func (lob *lob) canOptimized(connection *DmConnection) bool {
+func (lob *lob) canOptimized(connection *Connection) bool {
 	return !(lob.inRow || lob.fetchAll || lob.local || connection != lob.connection)
 }
 

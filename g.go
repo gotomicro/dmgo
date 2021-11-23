@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 type ExecuteTypeEnum int
@@ -1248,7 +1248,7 @@ func newGoStat(maxConnSize int) *GoStat {
 	return gs
 }
 
-func (gs *GoStat) createConnStat(conn *DmConnection) *connectionStat {
+func (gs *GoStat) createConnStat(conn *Connection) *connectionStat {
 	url := conn.dmConnector.host + ":" + strconv.Itoa(int(conn.dmConnector.port))
 	gs.lock.Lock()
 	defer gs.lock.Unlock()

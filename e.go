@@ -131,13 +131,13 @@ func (Dm_build_1290 *dm_build_1218) Dm_build_1289(dm_build_1291 []byte, dm_build
 	return 2 + Dm_build_1290.Dm_build_1275(dm_build_1291, dm_build_1292, dm_build_1293, dm_build_1294, dm_build_1295)
 }
 
-func (Dm_build_1297 *dm_build_1218) Dm_build_1296(dm_build_1298 []byte, dm_build_1299 int, dm_build_1300 string, dm_build_1301 string, dm_build_1302 *DmConnection) int {
+func (Dm_build_1297 *dm_build_1218) Dm_build_1296(dm_build_1298 []byte, dm_build_1299 int, dm_build_1300 string, dm_build_1301 string, dm_build_1302 *Connection) int {
 	dm_build_1303 := Dm_build_1297.Dm_build_1432(dm_build_1300, dm_build_1301, dm_build_1302)
 	dm_build_1299 += Dm_build_1297.Dm_build_1265(dm_build_1298, dm_build_1299, uint32(len(dm_build_1303)))
 	return 4 + Dm_build_1297.Dm_build_1275(dm_build_1298, dm_build_1299, dm_build_1303, 0, len(dm_build_1303))
 }
 
-func (Dm_build_1305 *dm_build_1218) Dm_build_1304(dm_build_1306 []byte, dm_build_1307 int, dm_build_1308 string, dm_build_1309 string, dm_build_1310 *DmConnection) int {
+func (Dm_build_1305 *dm_build_1218) Dm_build_1304(dm_build_1306 []byte, dm_build_1307 int, dm_build_1308 string, dm_build_1309 string, dm_build_1310 *Connection) int {
 	dm_build_1311 := Dm_build_1305.Dm_build_1432(dm_build_1308, dm_build_1309, dm_build_1310)
 
 	dm_build_1307 += Dm_build_1305.Dm_build_1260(dm_build_1306, dm_build_1307, uint16(len(dm_build_1311)))
@@ -263,17 +263,17 @@ func (Dm_build_1371 *dm_build_1218) Dm_build_1370(dm_build_1372 []byte, dm_build
 	return dm_build_1375
 }
 
-func (Dm_build_1377 *dm_build_1218) Dm_build_1376(dm_build_1378 []byte, dm_build_1379 int, dm_build_1380 int, dm_build_1381 string, dm_build_1382 *DmConnection) string {
+func (Dm_build_1377 *dm_build_1218) Dm_build_1376(dm_build_1378 []byte, dm_build_1379 int, dm_build_1380 int, dm_build_1381 string, dm_build_1382 *Connection) string {
 	return Dm_build_1377.Dm_build_1469(dm_build_1378[dm_build_1379:dm_build_1379+dm_build_1380], dm_build_1381, dm_build_1382)
 }
 
-func (Dm_build_1384 *dm_build_1218) Dm_build_1383(dm_build_1385 []byte, dm_build_1386 int, dm_build_1387 string, dm_build_1388 *DmConnection) string {
+func (Dm_build_1384 *dm_build_1218) Dm_build_1383(dm_build_1385 []byte, dm_build_1386 int, dm_build_1387 string, dm_build_1388 *Connection) string {
 	dm_build_1389 := Dm_build_1384.Dm_build_1348(dm_build_1385, dm_build_1386)
 	dm_build_1386 += 4
 	return Dm_build_1384.Dm_build_1376(dm_build_1385, dm_build_1386, int(dm_build_1389), dm_build_1387, dm_build_1388)
 }
 
-func (Dm_build_1391 *dm_build_1218) Dm_build_1390(dm_build_1392 []byte, dm_build_1393 int, dm_build_1394 string, dm_build_1395 *DmConnection) string {
+func (Dm_build_1391 *dm_build_1218) Dm_build_1390(dm_build_1392 []byte, dm_build_1393 int, dm_build_1394 string, dm_build_1395 *Connection) string {
 	dm_build_1396 := Dm_build_1391.Dm_build_1343(dm_build_1392, dm_build_1393)
 	dm_build_1393 += 2
 	return Dm_build_1391.Dm_build_1376(dm_build_1392, dm_build_1393, int(dm_build_1396), dm_build_1394, dm_build_1395)
@@ -320,7 +320,7 @@ func (Dm_build_1425 *dm_build_1218) Dm_build_1424(dm_build_1426 uint64) []byte {
 	return []byte{byte(dm_build_1426), byte(dm_build_1426 >> 8), byte(dm_build_1426 >> 16), byte(dm_build_1426 >> 24), byte(dm_build_1426 >> 32), byte(dm_build_1426 >> 40), byte(dm_build_1426 >> 48), byte(dm_build_1426 >> 56)}
 }
 
-func (Dm_build_1428 *dm_build_1218) Dm_build_1427(dm_build_1429 []byte, dm_build_1430 string, dm_build_1431 *DmConnection) []byte {
+func (Dm_build_1428 *dm_build_1218) Dm_build_1427(dm_build_1429 []byte, dm_build_1430 string, dm_build_1431 *Connection) []byte {
 	if dm_build_1430 == "UTF-8" {
 		return dm_build_1429
 	}
@@ -367,7 +367,7 @@ func (Dm_build_1428 *dm_build_1218) Dm_build_1427(dm_build_1429 []byte, dm_build
 	panic("Unsupported Charset!")
 }
 
-func (Dm_build_1433 *dm_build_1218) Dm_build_1432(dm_build_1434 string, dm_build_1435 string, dm_build_1436 *DmConnection) []byte {
+func (Dm_build_1433 *dm_build_1218) Dm_build_1432(dm_build_1434 string, dm_build_1435 string, dm_build_1436 *Connection) []byte {
 	return Dm_build_1433.Dm_build_1427([]byte(dm_build_1434), dm_build_1435, dm_build_1436)
 }
 
@@ -407,7 +407,7 @@ func (Dm_build_1462 *dm_build_1218) Dm_build_1461(dm_build_1463 []byte) uint32 {
 	return Dm_build_1462.Dm_build_1348(dm_build_1463, 0)
 }
 
-func (Dm_build_1465 *dm_build_1218) Dm_build_1464(dm_build_1466 []byte, dm_build_1467 string, dm_build_1468 *DmConnection) []byte {
+func (Dm_build_1465 *dm_build_1218) Dm_build_1464(dm_build_1466 []byte, dm_build_1467 string, dm_build_1468 *Connection) []byte {
 	if dm_build_1467 == "UTF-8" {
 		return dm_build_1466
 	}
@@ -454,7 +454,7 @@ func (Dm_build_1465 *dm_build_1218) Dm_build_1464(dm_build_1466 []byte, dm_build
 	panic("Unsupported Charset!")
 }
 
-func (Dm_build_1470 *dm_build_1218) Dm_build_1469(dm_build_1471 []byte, dm_build_1472 string, dm_build_1473 *DmConnection) string {
+func (Dm_build_1470 *dm_build_1218) Dm_build_1469(dm_build_1471 []byte, dm_build_1472 string, dm_build_1473 *Connection) string {
 	return string(Dm_build_1470.Dm_build_1464(dm_build_1471, dm_build_1472, dm_build_1473))
 }
 

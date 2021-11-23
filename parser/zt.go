@@ -27,9 +27,10 @@ type LVal struct {
 	Position int
 }
 
-func newLValNoParams() *LVal {
-	return new(LVal).reset()
-}
+//
+//func newLValNoParams() *LVal {
+//	return new(LVal).reset()
+//}
 
 func newLVal(value string, tp int) *LVal {
 	return &LVal{Value: value, Tp: tp}

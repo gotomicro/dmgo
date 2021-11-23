@@ -14,26 +14,26 @@ import (
 )
 
 type filter interface {
-	DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error)
-	DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error)
+	DmDriverOpen(filterChain *filterChain, d *Driver, dsn string) (*Connection, error)
+	DmDriverOpenConnector(filterChain *filterChain, d *Driver, dsn string) (*Connector, error)
 
-	DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error)
-	DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver
+	DmConnectorConnect(filterChain *filterChain, c *Connector, ctx context.Context) (*Connection, error)
+	DmConnectorDriver(filterChain *filterChain, c *Connector) *Driver
 
-	DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error)
-	DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error)
-	DmConnectionCommit(filterChain *filterChain, c *DmConnection) error
-	DmConnectionRollback(filterChain *filterChain, c *DmConnection) error
-	DmConnectionClose(filterChain *filterChain, c *DmConnection) error
-	DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error
-	DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error)
-	DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error)
-	DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error)
-	DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error)
-	DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error)
-	DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error)
-	DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error
-	DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error
+	DmConnectionBegin(filterChain *filterChain, c *Connection) (*Connection, error)
+	DmConnectionBeginTx(filterChain *filterChain, c *Connection, ctx context.Context, opts driver.TxOptions) (*Connection, error)
+	DmConnectionCommit(filterChain *filterChain, c *Connection) error
+	DmConnectionRollback(filterChain *filterChain, c *Connection) error
+	DmConnectionClose(filterChain *filterChain, c *Connection) error
+	DmConnectionPing(filterChain *filterChain, c *Connection, ctx context.Context) error
+	DmConnectionExec(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmResult, error)
+	DmConnectionExecContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error)
+	DmConnectionQuery(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmRows, error)
+	DmConnectionQueryContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error)
+	DmConnectionPrepare(filterChain *filterChain, c *Connection, query string) (*DmStatement, error)
+	DmConnectionPrepareContext(filterChain *filterChain, c *Connection, ctx context.Context, query string) (*DmStatement, error)
+	DmConnectionResetSession(filterChain *filterChain, c *Connection, ctx context.Context) error
+	DmConnectionCheckNamedValue(filterChain *filterChain, c *Connection, nv *driver.NamedValue) error
 
 	DmStatementClose(filterChain *filterChain, s *DmStatement) error
 	DmStatementNumInput(filterChain *filterChain, s *DmStatement) int
@@ -122,7 +122,7 @@ func runStat() {
 	goMapMu.Unlock()
 }
 
-func (f *filterable) createFilterChain(bc *DmConnector, props *Properties) {
+func (f *filterable) createFilterChain(bc *Connector, props *Properties) {
 	var filters = make([]filter, 0, 5)
 
 	if bc != nil {
@@ -207,9 +207,9 @@ type rwInfo struct {
 
 	rwCounter *rwCounter
 
-	connStandby *DmConnection
+	connStandby *Connection
 
-	connCurrent *DmConnection
+	connCurrent *Connection
 
 	tryRecoverTs int64
 
@@ -302,7 +302,7 @@ func newStatInfo() *statInfo {
 	si := new(statInfo)
 	return si
 }
-func (si *statInfo) init(conn *DmConnection) {
+func (si *statInfo) init(conn *Connection) {
 	si.connStat = goStat.createConnStat(conn)
 }
 

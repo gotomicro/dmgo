@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 var rwMap = make(map[string]*rwCounter)
@@ -66,7 +66,7 @@ func (rwc *rwCounter) reset(primaryPercent int32, standbyCount int32) {
 }
 
 // 连接创建成功后调用，需要服务器返回standbyCount
-func getRwCounterInstance(conn *DmConnection, standbyCount int32) *rwCounter {
+func getRwCounterInstance(conn *Connection, standbyCount int32) *rwCounter {
 	key := conn.dmConnector.host + "_" + strconv.Itoa(int(conn.dmConnector.port)) + "_" + strconv.Itoa(int(conn.dmConnector.rwPercent))
 
 	rwc, ok := rwMap[key]
@@ -92,7 +92,7 @@ func (rwc *rwCounter) countPrimary() RWSiteEnum {
 * @param dest 主机; 备机; any;
 * @return 主机; 备机
  */
-func (rwc *rwCounter) count(dest RWSiteEnum, standby *DmConnection) RWSiteEnum {
+func (rwc *rwCounter) count(dest RWSiteEnum, standby *Connection) RWSiteEnum {
 	rwc.adjustNtrx()
 	switch dest {
 	case ANYSITE:
@@ -164,7 +164,7 @@ func (rwc *rwCounter) increasePrimaryNtrx() {
 //	return ret
 //}
 
-func (rwc *rwCounter) getStandbyId(standby *DmConnection) int32 {
+func (rwc *rwCounter) getStandbyId(standby *Connection) int32 {
 	key := standby.dmConnector.host + ":" + strconv.Itoa(int(standby.dmConnector.port))
 	sid, ok := rwc.standbyIdMap[key]
 	if !ok {
@@ -178,7 +178,7 @@ func (rwc *rwCounter) getStandbyId(standby *DmConnection) int32 {
 	return sid
 }
 
-func (rwc *rwCounter) getStandbyFlag(standby *DmConnection) int32 {
+func (rwc *rwCounter) getStandbyFlag(standby *Connection) int32 {
 	sid := rwc.getStandbyId(standby)
 	if sid > 0 && sid < int32(len(rwc.flag)) {
 		// 保证备库有效
@@ -187,7 +187,7 @@ func (rwc *rwCounter) getStandbyFlag(standby *DmConnection) int32 {
 	return 0
 }
 
-func (rwc *rwCounter) increaseStandbyNtrx(standby *DmConnection) {
+func (rwc *rwCounter) increaseStandbyNtrx(standby *Connection) {
 	key := standby.dmConnector.host + ":" + strconv.Itoa(int(standby.dmConnector.port))
 	ret, ok := rwc.standbyNTrxMap[key]
 	if ok {

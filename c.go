@@ -205,22 +205,22 @@ func (dm_build_93 *Dm_build_0) Dm_build_92(dm_build_94 []byte) int {
 	return dm_build_93.Dm_build_79(dm_build_94) + dm_build_93.Dm_build_43(0)
 }
 
-func (dm_build_96 *Dm_build_0) Dm_build_95(dm_build_97 string, dm_build_98 string, dm_build_99 *DmConnection) int {
+func (dm_build_96 *Dm_build_0) Dm_build_95(dm_build_97 string, dm_build_98 string, dm_build_99 *Connection) int {
 	dm_build_100 := Dm_build_1219.Dm_build_1432(dm_build_97, dm_build_98, dm_build_99)
 	return dm_build_96.Dm_build_83(dm_build_100)
 }
 
-func (dm_build_102 *Dm_build_0) Dm_build_101(dm_build_103 string, dm_build_104 string, dm_build_105 *DmConnection) int {
+func (dm_build_102 *Dm_build_0) Dm_build_101(dm_build_103 string, dm_build_104 string, dm_build_105 *Connection) int {
 	dm_build_106 := Dm_build_1219.Dm_build_1432(dm_build_103, dm_build_104, dm_build_105)
 	return dm_build_102.Dm_build_86(dm_build_106)
 }
 
-func (dm_build_108 *Dm_build_0) Dm_build_107(dm_build_109 string, dm_build_110 string, dm_build_111 *DmConnection) int {
+func (dm_build_108 *Dm_build_0) Dm_build_107(dm_build_109 string, dm_build_110 string, dm_build_111 *Connection) int {
 	dm_build_112 := Dm_build_1219.Dm_build_1432(dm_build_109, dm_build_110, dm_build_111)
 	return dm_build_108.Dm_build_89(dm_build_112)
 }
 
-func (dm_build_114 *Dm_build_0) Dm_build_113(dm_build_115 string, dm_build_116 string, dm_build_117 *DmConnection) int {
+func (dm_build_114 *Dm_build_0) Dm_build_113(dm_build_115 string, dm_build_116 string, dm_build_117 *Connection) int {
 	dm_build_118 := Dm_build_1219.Dm_build_1432(dm_build_115, dm_build_116, dm_build_117)
 	return dm_build_114.Dm_build_92(dm_build_118)
 }
@@ -310,23 +310,23 @@ func (dm_build_160 *Dm_build_0) Dm_build_159() []byte {
 	return dm_build_160.Dm_build_146(dm_build_161)
 }
 
-func (dm_build_163 *Dm_build_0) Dm_build_162(dm_build_164 int, dm_build_165 string, dm_build_166 *DmConnection) string {
+func (dm_build_163 *Dm_build_0) Dm_build_162(dm_build_164 int, dm_build_165 string, dm_build_166 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_163.Dm_build_146(dm_build_164), dm_build_165, dm_build_166)
 }
 
-func (dm_build_168 *Dm_build_0) Dm_build_167(dm_build_169 string, dm_build_170 *DmConnection) string {
+func (dm_build_168 *Dm_build_0) Dm_build_167(dm_build_169 string, dm_build_170 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_168.Dm_build_150(), dm_build_169, dm_build_170)
 }
 
-func (dm_build_172 *Dm_build_0) Dm_build_171(dm_build_173 string, dm_build_174 *DmConnection) string {
+func (dm_build_172 *Dm_build_0) Dm_build_171(dm_build_173 string, dm_build_174 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_172.Dm_build_152(), dm_build_173, dm_build_174)
 }
 
-func (dm_build_176 *Dm_build_0) Dm_build_175(dm_build_177 string, dm_build_178 *DmConnection) string {
+func (dm_build_176 *Dm_build_0) Dm_build_175(dm_build_177 string, dm_build_178 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_176.Dm_build_154(), dm_build_177, dm_build_178)
 }
 
-func (dm_build_180 *Dm_build_0) Dm_build_179(dm_build_181 string, dm_build_182 *DmConnection) string {
+func (dm_build_180 *Dm_build_0) Dm_build_179(dm_build_181 string, dm_build_182 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_180.Dm_build_159(), dm_build_181, dm_build_182)
 }
 
@@ -386,19 +386,19 @@ func (dm_build_236 *Dm_build_0) Dm_build_235(dm_build_237 int, dm_build_238 []by
 	return dm_build_236.Dm_build_219(dm_build_237, dm_build_238) + dm_build_236.Dm_build_183(dm_build_237+len(dm_build_238), 0)
 }
 
-func (dm_build_240 *Dm_build_0) Dm_build_239(dm_build_241 int, dm_build_242 string, dm_build_243 string, dm_build_244 *DmConnection) int {
+func (dm_build_240 *Dm_build_0) Dm_build_239(dm_build_241 int, dm_build_242 string, dm_build_243 string, dm_build_244 *Connection) int {
 	return dm_build_240.Dm_build_223(dm_build_241, Dm_build_1219.Dm_build_1432(dm_build_242, dm_build_243, dm_build_244))
 }
 
-func (dm_build_246 *Dm_build_0) Dm_build_245(dm_build_247 int, dm_build_248 string, dm_build_249 string, dm_build_250 *DmConnection) int {
+func (dm_build_246 *Dm_build_0) Dm_build_245(dm_build_247 int, dm_build_248 string, dm_build_249 string, dm_build_250 *Connection) int {
 	return dm_build_246.Dm_build_227(dm_build_247, Dm_build_1219.Dm_build_1432(dm_build_248, dm_build_249, dm_build_250))
 }
 
-func (dm_build_252 *Dm_build_0) Dm_build_251(dm_build_253 int, dm_build_254 string, dm_build_255 string, dm_build_256 *DmConnection) int {
+func (dm_build_252 *Dm_build_0) Dm_build_251(dm_build_253 int, dm_build_254 string, dm_build_255 string, dm_build_256 *Connection) int {
 	return dm_build_252.Dm_build_231(dm_build_253, Dm_build_1219.Dm_build_1432(dm_build_254, dm_build_255, dm_build_256))
 }
 
-func (dm_build_258 *Dm_build_0) Dm_build_257(dm_build_259 int, dm_build_260 string, dm_build_261 string, dm_build_262 *DmConnection) int {
+func (dm_build_258 *Dm_build_0) Dm_build_257(dm_build_259 int, dm_build_260 string, dm_build_261 string, dm_build_262 *Connection) int {
 	return dm_build_258.Dm_build_235(dm_build_259, Dm_build_1219.Dm_build_1432(dm_build_260, dm_build_261, dm_build_262))
 }
 
@@ -467,18 +467,18 @@ func (dm_build_307 *Dm_build_0) Dm_build_306(dm_build_308 int) []byte {
 	return dm_build_307.Dm_build_290(dm_build_308-dm_build_309, int(dm_build_309))
 }
 
-func (dm_build_311 *Dm_build_0) Dm_build_310(dm_build_312 int, dm_build_313 string, dm_build_314 *DmConnection) string {
+func (dm_build_311 *Dm_build_0) Dm_build_310(dm_build_312 int, dm_build_313 string, dm_build_314 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_311.Dm_build_294(dm_build_312), dm_build_313, dm_build_314)
 }
 
-func (dm_build_316 *Dm_build_0) Dm_build_315(dm_build_317 int, dm_build_318 string, dm_build_319 *DmConnection) string {
+func (dm_build_316 *Dm_build_0) Dm_build_315(dm_build_317 int, dm_build_318 string, dm_build_319 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_316.Dm_build_298(dm_build_317), dm_build_318, dm_build_319)
 }
 
-func (dm_build_321 *Dm_build_0) Dm_build_320(dm_build_322 int, dm_build_323 string, dm_build_324 *DmConnection) string {
+func (dm_build_321 *Dm_build_0) Dm_build_320(dm_build_322 int, dm_build_323 string, dm_build_324 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_321.Dm_build_302(dm_build_322), dm_build_323, dm_build_324)
 }
 
-func (dm_build_326 *Dm_build_0) Dm_build_325(dm_build_327 int, dm_build_328 string, dm_build_329 *DmConnection) string {
+func (dm_build_326 *Dm_build_0) Dm_build_325(dm_build_327 int, dm_build_328 string, dm_build_329 *Connection) string {
 	return Dm_build_1219.Dm_build_1469(dm_build_326.Dm_build_306(dm_build_327), dm_build_328, dm_build_329)
 }

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 var G2DB g2db
@@ -95,7 +95,7 @@ func (G2DB g2db) checkReal(val interface{}) error {
 	return nil
 }
 
-func (G2DB g2db) fromBool(val bool, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromBool(val bool, param parameter, conn *Connection) ([]byte, error) {
 	switch param.colType {
 	case BOOLEAN, BIT, TINYINT, SMALLINT, INT, BIGINT, REAL, DOUBLE, DECIMAL, CHAR,
 		VARCHAR2, VARCHAR, CLOB:
@@ -114,7 +114,7 @@ func (G2DB g2db) fromBool(val bool, param parameter, conn *DmConnection) ([]byte
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromInt64(val int64, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte, error) {
 
 	switch param.colType {
 	case BOOLEAN, BIT:
@@ -204,7 +204,7 @@ func (G2DB g2db) ToBinary(x int64, prec int) []byte {
 	return b
 }
 
-func (G2DB g2db) fromFloat32(val float32, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromFloat32(val float32, param parameter, conn *Connection) ([]byte, error) {
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val == 0.0 {
@@ -250,7 +250,7 @@ func (G2DB g2db) fromFloat32(val float32, param parameter, conn *DmConnection) (
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromFloat64(val float64, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]byte, error) {
 
 	switch param.colType {
 	case BOOLEAN, BIT:
@@ -313,7 +313,7 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *DmConnection) (
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromBytes(val []byte, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromBytes(val []byte, param parameter, conn *Connection) (interface{}, error) {
 	switch param.colType {
 	case CHAR, VARCHAR2, VARCHAR:
 		return G2DB.toVarchar(val)
@@ -384,7 +384,7 @@ func (G2DB g2db) getCharByNumVal(val byte) (byte, error) {
 	return 0, ECGO_INVALID_HEX.throw()
 }
 
-func (G2DB g2db) fromString(val string, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (interface{}, error) {
 	switch param.colType {
 	case BOOLEAN, BIT:
 		ret, err := G2DB.toBool(val)
@@ -512,7 +512,7 @@ func (G2DB g2db) toBool(str string) (bool, error) {
 	return strings.ToLower(str) == "true", nil
 }
 
-func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]byte, error) {
 	var ret []byte
 	switch param.colType {
 	case BOOLEAN, BIT:
@@ -580,7 +580,7 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *DmConnection) (
 	return ret, nil
 }
 
-func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection) ([]byte, error) {
 	var ret []byte
 	switch param.colType {
 	case BOOLEAN, BIT:
@@ -659,7 +659,7 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *DmConnectio
 	return ret, nil
 }
 
-func (G2DB g2db) fromDecimal(val DmDecimal, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromDecimal(val DmDecimal, param parameter, conn *Connection) ([]byte, error) {
 	var ret []byte
 	switch param.colType {
 	case BOOLEAN, BIT:
@@ -711,7 +711,7 @@ func (G2DB g2db) fromDecimal(val DmDecimal, param parameter, conn *DmConnection)
 	return ret, nil
 }
 
-func (G2DB g2db) fromTime(val time.Time, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromTime(val time.Time, param parameter, conn *Connection) ([]byte, error) {
 
 	switch param.colType {
 	case DATE, DATETIME, DATETIME_TZ, TIME, TIME_TZ:
@@ -723,7 +723,7 @@ func (G2DB g2db) fromTime(val time.Time, param parameter, conn *DmConnection) ([
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromDmIntervalDT(val DmIntervalDT, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromDmIntervalDT(val DmIntervalDT, param parameter, conn *Connection) ([]byte, error) {
 	switch param.colType {
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
 		return Dm_build_1219.Dm_build_1432(val.String(), conn.getServerEncoding(), conn), nil
@@ -734,7 +734,7 @@ func (G2DB g2db) fromDmIntervalDT(val DmIntervalDT, param parameter, conn *DmCon
 	}
 }
 
-func (G2DB g2db) fromDmdbIntervalYM(val DmIntervalYM, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromDmdbIntervalYM(val DmIntervalYM, param parameter, conn *Connection) ([]byte, error) {
 
 	switch param.colType {
 	case CHAR, VARCHAR, VARCHAR2, CLOB:
@@ -746,7 +746,7 @@ func (G2DB g2db) fromDmdbIntervalYM(val DmIntervalYM, param parameter, conn *DmC
 	}
 }
 
-func (G2DB g2db) fromBlob(val DmBlob, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromBlob(val DmBlob, param parameter, conn *Connection) (interface{}, error) {
 	var ret interface{}
 	switch param.colType {
 	case BINARY, VARBINARY:
@@ -772,7 +772,7 @@ func (G2DB g2db) fromBlob(val DmBlob, param parameter, conn *DmConnection) (inte
 	return ret, nil
 }
 
-func (G2DB g2db) fromClob(val DmClob, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromClob(val DmClob, param parameter, conn *Connection) (interface{}, error) {
 	var ret interface{}
 	switch param.colType {
 	case CHAR, VARCHAR, VARCHAR2:
@@ -800,7 +800,7 @@ func (G2DB g2db) fromClob(val DmClob, param parameter, conn *DmConnection) (inte
 	return ret, nil
 }
 
-func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *Connection) (interface{}, error) {
 	var ret interface{}
 	switch param.colType {
 	case CHAR, VARCHAR2, VARCHAR:
@@ -828,15 +828,15 @@ func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *DmConnection) 
 	return ret, nil
 }
 
-func (G2DB g2db) string2Clob(val string, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) string2Clob(val string, param parameter, conn *Connection) (interface{}, error) {
 	return G2DB.changeOffRowData(param, Dm_build_1219.Dm_build_1432(val, conn.getServerEncoding(), conn), conn.getServerEncoding())
 }
 
-func (G2DB g2db) bytes2Blob(val []byte, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) bytes2Blob(val []byte, param parameter, conn *Connection) (interface{}, error) {
 	return G2DB.changeOffRowData(param, val, conn.getServerEncoding())
 }
 
-func (G2DB g2db) clob2Clob(val DmClob, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) clob2Clob(val DmClob, param parameter, conn *Connection) (interface{}, error) {
 	var clobLen int64
 	var err error
 	if clobLen, err = val.GetLength(); err != nil {
@@ -857,7 +857,7 @@ func (G2DB g2db) clob2Clob(val DmClob, param parameter, conn *DmConnection) (int
 	}
 }
 
-func (G2DB g2db) blob2Blob(val DmBlob, param parameter, conn *DmConnection) (interface{}, error) {
+func (G2DB g2db) blob2Blob(val DmBlob, param parameter, conn *Connection) (interface{}, error) {
 	var clobLen int64
 	var err error
 	if clobLen, err = val.GetLength(); err != nil {
@@ -886,7 +886,7 @@ func (G2DB g2db) isOffRow(dtype int32, length int64) bool {
 	return (dtype == BLOB || dtype == CLOB) && length > Dm_build_713
 }
 
-func (G2DB g2db) fromObject(mem interface{}, param parameter, conn *DmConnection) ([]byte, error) {
+func (G2DB g2db) fromObject(mem interface{}, param parameter, conn *Connection) ([]byte, error) {
 	switch v := mem.(type) {
 	case bool:
 		return G2DB.fromBool(v, param, conn)
@@ -964,7 +964,7 @@ func (G2DB g2db) toDecimal(val string, prec int, scale int) ([]byte, error) {
 	return d.encodeDecimal()
 }
 
-func (G2DB g2db) fromArray(x *DmArray, param parameter, connection *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromArray(x *DmArray, param parameter, connection *Connection) (interface{}, error) {
 	var ret interface{}
 	var err error
 	switch param.colType {
@@ -983,7 +983,7 @@ func (G2DB g2db) fromArray(x *DmArray, param parameter, connection *DmConnection
 	return ret, err
 }
 
-func (G2DB g2db) fromStruct(x *DmStruct, param parameter, connection *DmConnection) (interface{}, error) {
+func (G2DB g2db) fromStruct(x *DmStruct, param parameter, connection *Connection) (interface{}, error) {
 	var ret interface{}
 	var err error
 	switch param.colType {

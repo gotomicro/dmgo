@@ -46,8 +46,8 @@ type ep struct {
 	serverStatus    int32
 	dscControl      bool
 	sort            int32
-	epSeqno			int32
-	epStatus		int32
+	epSeqno         int32
+	epStatus        int32
 	lock            sync.Mutex
 }
 
@@ -122,7 +122,7 @@ func (ep *ep) calcSort(loginMode int32) int32 {
 	return sort
 }
 
-func (ep *ep) refreshStatus(alive bool, conn *DmConnection) {
+func (ep *ep) refreshStatus(alive bool, conn *Connection) {
 	ep.lock.Lock()
 	defer ep.lock.Unlock()
 	ep.alive = alive
@@ -140,7 +140,7 @@ func (ep *ep) refreshStatus(alive bool, conn *DmConnection) {
 	}
 }
 
-func (ep *ep) connect(connector *DmConnector) (*DmConnection, error) {
+func (ep *ep) connect(connector *Connector) (*Connection, error) {
 	connector.host = ep.host
 	connector.port = ep.port
 	conn, err := connector.connectSingle(context.Background())

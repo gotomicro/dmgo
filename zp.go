@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const (

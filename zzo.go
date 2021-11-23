@@ -7,7 +7,7 @@ package dm
 import (
 	"strconv"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const (

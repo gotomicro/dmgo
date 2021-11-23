@@ -18,7 +18,7 @@ type statFilter struct {
 }
 
 //DmDriver
-func (sf *statFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error) {
+func (sf *statFilter) DmDriverOpen(filterChain *filterChain, d *Driver, dsn string) (*Connection, error) {
 	conn, err := filterChain.DmDriverOpen(d, dsn)
 	if err != nil {
 		return nil, err
@@ -29,12 +29,12 @@ func (sf *statFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn st
 	return conn, nil
 }
 
-func (sf *statFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error) {
+func (sf *statFilter) DmDriverOpenConnector(filterChain *filterChain, d *Driver, dsn string) (*Connector, error) {
 	return filterChain.DmDriverOpenConnector(d, dsn)
 }
 
 //DmConnector
-func (sf *statFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error) {
+func (sf *statFilter) DmConnectorConnect(filterChain *filterChain, c *Connector, ctx context.Context) (*Connection, error) {
 	conn, err := filterChain.DmConnectorConnect(c, ctx)
 	if err != nil {
 		return nil, err
@@ -45,20 +45,20 @@ func (sf *statFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnecto
 	return conn, nil
 }
 
-func (sf *statFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver {
+func (sf *statFilter) DmConnectorDriver(filterChain *filterChain, c *Connector) *Driver {
 	return filterChain.DmConnectorDriver(c)
 }
 
 //DmConnection
-func (sf *statFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error) {
+func (sf *statFilter) DmConnectionBegin(filterChain *filterChain, c *Connection) (*Connection, error) {
 	return filterChain.DmConnectionBegin(c)
 }
 
-func (sf *statFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
+func (sf *statFilter) DmConnectionBeginTx(filterChain *filterChain, c *Connection, ctx context.Context, opts driver.TxOptions) (*Connection, error) {
 	return filterChain.DmConnectionBeginTx(c, ctx, opts)
 }
 
-func (sf *statFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnection) error {
+func (sf *statFilter) DmConnectionCommit(filterChain *filterChain, c *Connection) error {
 	err := filterChain.DmConnectionCommit(c)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (sf *statFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnecti
 	return nil
 }
 
-func (sf *statFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnection) error {
+func (sf *statFilter) DmConnectionRollback(filterChain *filterChain, c *Connection) error {
 	err := filterChain.DmConnectionRollback(c)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (sf *statFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnec
 	return nil
 }
 
-func (sf *statFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection) error {
+func (sf *statFilter) DmConnectionClose(filterChain *filterChain, c *Connection) error {
 	if !c.closed.IsSet() {
 		c.statInfo.getConnStat().decrementStmtByActiveStmtCount(int64(getActiveStmtCount(c)))
 		c.statInfo.getConnStat().decrementConn()
@@ -85,11 +85,11 @@ func (sf *statFilter) DmConnectionClose(filterChain *filterChain, c *DmConnectio
 	return filterChain.DmConnectionClose(c)
 }
 
-func (sf *statFilter) DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
+func (sf *statFilter) DmConnectionPing(filterChain *filterChain, c *Connection, ctx context.Context) error {
 	return c.ping(ctx)
 }
 
-func (sf *statFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error) {
+func (sf *statFilter) DmConnectionExec(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmResult, error) {
 	connExecBefore(c, query)
 	dr, err := filterChain.DmConnectionExec(c, query, args)
 	if err != nil {
@@ -100,7 +100,7 @@ func (sf *statFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection
 	return dr, nil
 }
 
-func (sf *statFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
+func (sf *statFilter) DmConnectionExecContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
 	connExecBefore(c, query)
 	dr, err := filterChain.DmConnectionExecContext(c, ctx, query, args)
 	if err != nil {
@@ -111,7 +111,7 @@ func (sf *statFilter) DmConnectionExecContext(filterChain *filterChain, c *DmCon
 	return dr, nil
 }
 
-func (sf *statFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error) {
+func (sf *statFilter) DmConnectionQuery(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmRows, error) {
 	connQueryBefore(c, query)
 	dr, err := filterChain.DmConnectionQuery(c, query, args)
 	if err != nil {
@@ -122,7 +122,7 @@ func (sf *statFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnectio
 	return dr, nil
 }
 
-func (sf *statFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+func (sf *statFilter) DmConnectionQueryContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
 	connQueryBefore(c, query)
 	dr, err := filterChain.DmConnectionQueryContext(c, ctx, query, args)
 	if err != nil {
@@ -133,7 +133,7 @@ func (sf *statFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmCo
 	return dr, nil
 }
 
-func (sf *statFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error) {
+func (sf *statFilter) DmConnectionPrepare(filterChain *filterChain, c *Connection, query string) (*DmStatement, error) {
 	stmt, err := filterChain.DmConnectionPrepare(c, query)
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (sf *statFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnect
 	return stmt, nil
 }
 
-func (sf *statFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error) {
+func (sf *statFilter) DmConnectionPrepareContext(filterChain *filterChain, c *Connection, ctx context.Context, query string) (*DmStatement, error) {
 	stmt, err := filterChain.DmConnectionPrepareContext(c, ctx, query)
 	if err != nil {
 		return nil, err
@@ -151,11 +151,11 @@ func (sf *statFilter) DmConnectionPrepareContext(filterChain *filterChain, c *Dm
 	return stmt, nil
 }
 
-func (sf *statFilter) DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
+func (sf *statFilter) DmConnectionResetSession(filterChain *filterChain, c *Connection, ctx context.Context) error {
 	return filterChain.DmConnectionResetSession(c, ctx)
 }
 
-func (sf *statFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error {
+func (sf *statFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *Connection, nv *driver.NamedValue) error {
 	return filterChain.DmConnectionCheckNamedValue(c, nv)
 }
 
@@ -272,7 +272,7 @@ func (sf *statFilter) DmRowsColumnTypePrecisionScale(filterChain *filterChain, r
 	return filterChain.DmRowsColumnTypePrecisionScale(r, index)
 }
 
-func getActiveStmtCount(conn *DmConnection) int {
+func getActiveStmtCount(conn *Connection) int {
 	if conn.stmtMap == nil {
 		return 0
 	} else {
@@ -280,30 +280,30 @@ func getActiveStmtCount(conn *DmConnection) int {
 	}
 }
 
-func statementCreateAfter(conn *DmConnection, stmt *DmStatement) {
+func statementCreateAfter(conn *Connection, stmt *DmStatement) {
 	stmt.statInfo.setConstructNano()
 	conn.statInfo.getConnStat().incrementStmt()
 }
 
-func connExecBefore(conn *DmConnection, sql string) {
+func connExecBefore(conn *Connection, sql string) {
 	conn.statInfo.setLastExecuteSql(sql)
 	conn.statInfo.setFirstResultSet(false)
 	conn.statInfo.setLastExecuteType(ExecuteUpdate)
 	internalBeforeConnExecute(conn, sql)
 }
 
-func connExecAfter(conn *DmConnection, sql string, args interface{}, updateCount int) {
+func connExecAfter(conn *Connection, sql string, args interface{}, updateCount int) {
 	internalAfterConnExecute(conn, args, updateCount)
 }
 
-func connQueryBefore(conn *DmConnection, sql string) {
+func connQueryBefore(conn *Connection, sql string) {
 	conn.statInfo.setLastExecuteSql(sql)
 	conn.statInfo.setFirstResultSet(true)
 	conn.statInfo.setLastExecuteType(ExecuteQuery)
 	internalBeforeConnExecute(conn, sql)
 }
 
-func connQueryAfter(conn *DmConnection, sql string, args interface{}, resultSet *DmRows) {
+func connQueryAfter(conn *Connection, sql string, args interface{}, resultSet *DmRows) {
 	if resultSet != nil {
 		connResultSetCreateAfter(resultSet, conn)
 	}
@@ -335,7 +335,7 @@ func stmtQueryAfter(stmt *DmStatement, args interface{}, resultSet *DmRows) {
 	internalAfterStatementExecute(stmt, args, 0)
 }
 
-func internalBeforeConnExecute(conn *DmConnection, sql string) {
+func internalBeforeConnExecute(conn *Connection, sql string) {
 	connStat := conn.statInfo.getConnStat()
 	connStat.incrementExecuteCount()
 	conn.statInfo.beforeExecute()
@@ -359,7 +359,7 @@ func internalBeforeConnExecute(conn *DmConnection, sql string) {
 	}
 }
 
-func internalAfterConnExecute(conn *DmConnection, args interface{}, updateCount int) {
+func internalAfterConnExecute(conn *Connection, args interface{}, updateCount int) {
 	nowNano := time.Now().UnixNano()
 	nanos := nowNano - conn.statInfo.getLastExecuteStartNano()
 
@@ -520,7 +520,7 @@ func buildStmtSlowParameters(stmt *DmStatement, args interface{}) string {
 	}
 }
 
-func connExecuteErrorAfter(conn *DmConnection, args interface{}, err error) {
+func connExecuteErrorAfter(conn *Connection, args interface{}, err error) {
 	nanos := time.Now().UnixNano() - conn.statInfo.getLastExecuteStartNano()
 	conn.statInfo.getConnStat().incrementErrorCount()
 	conn.statInfo.afterExecute(nanos)
@@ -561,7 +561,7 @@ func statementCloseBefore(stmt *DmStatement) {
 	stmt.dmConn.statInfo.getConnStat().decrementStmt()
 }
 
-func connResultSetCreateAfter(dmdbResultSet *DmRows, conn *DmConnection) {
+func connResultSetCreateAfter(dmdbResultSet *DmRows, conn *Connection) {
 	dmdbResultSet.statInfo.setSql(conn.statInfo.getLastExecuteSql())
 	dmdbResultSet.statInfo.setSqlStat(conn.statInfo.getSqlStat())
 	dmdbResultSet.statInfo.setConstructNano()

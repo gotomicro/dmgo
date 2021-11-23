@@ -41,7 +41,7 @@ type TypeDescriptor struct {
 
 	m_size int
 
-	m_conn *DmConnection
+	m_conn *Connection
 
 	m_serverEncoding string
 
@@ -52,7 +52,7 @@ type TypeDescriptor struct {
 	m_descBuf []byte
 }
 
-func newTypeDescriptorWithFulName(fulName string, conn *DmConnection) *TypeDescriptor {
+func newTypeDescriptorWithFulName(fulName string, conn *Connection) *TypeDescriptor {
 	td := new(TypeDescriptor)
 	td.init()
 	td.m_sqlName = newSqlNameByFulName(fulName)
@@ -60,7 +60,7 @@ func newTypeDescriptorWithFulName(fulName string, conn *DmConnection) *TypeDescr
 	return td
 }
 
-func newTypeDescriptor(conn *DmConnection) *TypeDescriptor {
+func newTypeDescriptor(conn *Connection) *TypeDescriptor {
 	td := new(TypeDescriptor)
 	td.init()
 	td.m_sqlName = newSqlNameByConn(conn)

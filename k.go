@@ -34,7 +34,7 @@ func newDmBlob() *DmBlob {
 	}
 }
 
-func newBlobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmBlob {
+func newBlobFromDB(value []byte, conn *Connection, column *column, fetchAll bool) *DmBlob {
 	var blob = newDmBlob()
 	blob.connection = conn
 	blob.lobFlag = LOB_FLAG_BYTE
@@ -75,7 +75,7 @@ func newBlobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bo
 	return blob
 }
 
-func newBlobOfLocal(value []byte, conn *DmConnection) *DmBlob {
+func newBlobOfLocal(value []byte, conn *Connection) *DmBlob {
 	var blob = newDmBlob()
 	blob.connection = conn
 	blob.lobFlag = LOB_FLAG_BYTE

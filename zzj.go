@@ -25,7 +25,7 @@ type sqlName struct {
 
 	m_packId int // 保存包的id,包名无法传出，用于查找包名
 
-	m_conn *DmConnection
+	m_conn *Connection
 }
 
 func (SqlName *sqlName) init() {
@@ -45,7 +45,7 @@ func newSqlNameByFulName(fulName string) *sqlName {
 	return o
 }
 
-func newSqlNameByConn(conn *DmConnection) *sqlName {
+func newSqlNameByConn(conn *Connection) *sqlName {
 	o := new(sqlName)
 	o.init()
 	o.m_conn = conn
