@@ -5,6 +5,8 @@
 
 package dm
 
+import "database/sql/driver"
+
 type DmStruct struct {
 	TypeData
 	m_strctDesc *StructDescriptor // 结构体的描述信息
@@ -18,12 +20,16 @@ type DmStruct struct {
 	typeName string
 
 	elements []interface{}
+
+	// Valid为false代表DmArray数据在数据库中为NULL
+	Valid bool
 }
 
 func newDmStruct(typeName string, elements []interface{}) *DmStruct {
 	ds := new(DmStruct)
 	ds.typeName = typeName
 	ds.elements = elements
+	ds.Valid = true
 	return ds
 }
 
@@ -37,6 +43,7 @@ func (ds *DmStruct) create(dc *DmConnection) (*DmStruct, error) {
 
 func newDmStructByTypeData(atData []TypeData, desc *TypeDescriptor) *DmStruct {
 	ds := new(DmStruct)
+	ds.Valid = true
 	ds.initTypeData()
 	ds.m_strctDesc = newStructDescriptorByTypeDescriptor(desc)
 	ds.m_attribs = atData
@@ -47,6 +54,8 @@ func (dest *DmStruct) Scan(src interface{}) error {
 	switch src := src.(type) {
 	case nil:
 		*dest = *new(DmStruct)
+		// 将Valid标志置false表示数据库中该列为NULL
+		(*dest).Valid = false
 		return nil
 	case *DmStruct:
 		*dest = *src
@@ -54,6 +63,13 @@ func (dest *DmStruct) Scan(src interface{}) error {
 	default:
 		return UNSUPPORTED_SCAN
 	}
+}
+
+func (dt DmStruct) Value() (driver.Value, error) {
+	if !dt.Valid {
+		return nil, nil
+	}
+	return dt, nil
 }
 
 func (ds *DmStruct) getAttribsTypeData() []TypeData {
@@ -106,4 +122,11 @@ func (ds *DmStruct) getAttrValue(col int) (*TypeData, error) {
 		return nil, err
 	}
 	return &ds.m_attribs[col-1], nil
+}
+
+func (ds *DmStruct) checkValid() error {
+	if !ds.Valid {
+		return ECGO_IS_NULL.throw()
+	}
+	return nil
 }

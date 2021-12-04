@@ -215,6 +215,14 @@ const Messages_en_US = `{
 	{
       "id": "error.invalidDateTimeValue",
 	  "translation": "Invalid datetime value"
+	},
+	{
+      "id": "error.msgTooLong",
+	  "translation": "Message too long, limit 512M"
+	},
+	{
+      "id": "error.isNull",
+	  "translation": "Data is NULL"
 	}
   ]
 }`

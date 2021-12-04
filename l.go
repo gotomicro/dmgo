@@ -5,6 +5,7 @@
 package dm
 
 import (
+	"database/sql/driver"
 	"io"
 )
 
@@ -29,6 +30,7 @@ func newDmClob() *DmClob {
 			fetchAll:         false,
 			freed:            false,
 			modify:           false,
+			Valid:            true,
 		},
 	}
 }
@@ -43,29 +45,29 @@ func newClobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bo
 	clob.tabId = column.lobTabId
 	clob.colId = column.lobColId
 
-	clob.inRow = Dm_build_1219.Dm_build_1312(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
-	clob.blobId = Dm_build_1219.Dm_build_1326(value, NBLOB_HEAD_BLOBID)
+	clob.inRow = Dm_build_623.Dm_build_716(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
+	clob.blobId = Dm_build_623.Dm_build_730(value, NBLOB_HEAD_BLOBID)
 	if !clob.inRow {
-		clob.groupId = Dm_build_1219.Dm_build_1316(value, NBLOB_HEAD_OUTROW_GROUPID)
-		clob.fileId = Dm_build_1219.Dm_build_1316(value, NBLOB_HEAD_OUTROW_FILEID)
-		clob.pageNo = Dm_build_1219.Dm_build_1321(value, NBLOB_HEAD_OUTROW_PAGENO)
+		clob.groupId = Dm_build_623.Dm_build_720(value, NBLOB_HEAD_OUTROW_GROUPID)
+		clob.fileId = Dm_build_623.Dm_build_720(value, NBLOB_HEAD_OUTROW_FILEID)
+		clob.pageNo = Dm_build_623.Dm_build_725(value, NBLOB_HEAD_OUTROW_PAGENO)
 	}
 	if conn.NewLobFlag {
-		clob.tabId = Dm_build_1219.Dm_build_1321(value, NBLOB_EX_HEAD_TABLE_ID)
-		clob.colId = Dm_build_1219.Dm_build_1316(value, NBLOB_EX_HEAD_COL_ID)
-		clob.rowId = Dm_build_1219.Dm_build_1326(value, NBLOB_EX_HEAD_ROW_ID)
-		clob.exGroupId = Dm_build_1219.Dm_build_1316(value, NBLOB_EX_HEAD_FPA_GRPID)
-		clob.exFileId = Dm_build_1219.Dm_build_1316(value, NBLOB_EX_HEAD_FPA_FILEID)
-		clob.exPageNo = Dm_build_1219.Dm_build_1321(value, NBLOB_EX_HEAD_FPA_PAGENO)
+		clob.tabId = Dm_build_623.Dm_build_725(value, NBLOB_EX_HEAD_TABLE_ID)
+		clob.colId = Dm_build_623.Dm_build_720(value, NBLOB_EX_HEAD_COL_ID)
+		clob.rowId = Dm_build_623.Dm_build_730(value, NBLOB_EX_HEAD_ROW_ID)
+		clob.exGroupId = Dm_build_623.Dm_build_720(value, NBLOB_EX_HEAD_FPA_GRPID)
+		clob.exFileId = Dm_build_623.Dm_build_720(value, NBLOB_EX_HEAD_FPA_FILEID)
+		clob.exPageNo = Dm_build_623.Dm_build_725(value, NBLOB_EX_HEAD_FPA_PAGENO)
 	}
 	clob.resetCurrentInfo()
 
 	clob.serverEncoding = conn.getServerEncoding()
 	if clob.inRow {
 		if conn.NewLobFlag {
-			clob.data = []rune(Dm_build_1219.Dm_build_1376(value, NBLOB_EX_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
+			clob.data = []rune(Dm_build_623.Dm_build_780(value, NBLOB_EX_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
 		} else {
-			clob.data = []rune(Dm_build_1219.Dm_build_1376(value, NBLOB_INROW_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
+			clob.data = []rune(Dm_build_623.Dm_build_780(value, NBLOB_INROW_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
 		}
 		clob.length = int64(len(clob.data))
 	} else if fetchAll {
@@ -93,6 +95,9 @@ func NewClob(value string) *DmClob {
 }
 
 func (clob *DmClob) ReadString(pos int, length int) (result string, err error) {
+	if err = clob.checkValid(); err != nil {
+		return
+	}
 	result, err = clob.getSubString(int64(pos), int32(length))
 	if err != nil {
 		return
@@ -105,6 +110,9 @@ func (clob *DmClob) ReadString(pos int, length int) (result string, err error) {
 }
 
 func (clob *DmClob) WriteString(pos int, s string) (n int, err error) {
+	if err = clob.checkValid(); err != nil {
+		return
+	}
 	if err = clob.checkFreed(); err != nil {
 		return
 	}
@@ -128,7 +136,7 @@ func (clob *DmClob) WriteString(pos int, s string) (n int, err error) {
 		if err = clob.connection.checkClosed(); err != nil {
 			return -1, err
 		}
-		var writeLen, err = clob.connection.Access.dm_build_526(clob, pos, s, clob.serverEncoding)
+		var writeLen, err = clob.connection.Access.dm_build_1506(clob, pos, s, clob.serverEncoding)
 		if err != nil {
 			return -1, err
 		}
@@ -147,6 +155,9 @@ func (clob *DmClob) WriteString(pos int, s string) (n int, err error) {
 
 func (clob *DmClob) Truncate(length int64) error {
 	var err error
+	if err = clob.checkValid(); err != nil {
+		return err
+	}
 	if err = clob.checkFreed(); err != nil {
 		return err
 	}
@@ -166,7 +177,7 @@ func (clob *DmClob) Truncate(length int64) error {
 		if err = clob.connection.checkClosed(); err != nil {
 			return err
 		}
-		clob.length, err = clob.connection.Access.dm_build_556(&clob.lob, int(length))
+		clob.length, err = clob.connection.Access.dm_build_1536(&clob.lob, int(length))
 		if err != nil {
 			return err
 		}
@@ -185,6 +196,8 @@ func (dest *DmClob) Scan(src interface{}) error {
 	switch src := src.(type) {
 	case nil:
 		*dest = *new(DmClob)
+
+		(*dest).Valid = false
 		return nil
 	case string:
 		*dest = *NewClob(src)
@@ -193,8 +206,15 @@ func (dest *DmClob) Scan(src interface{}) error {
 		*dest = *src
 		return nil
 	default:
-		return UNSUPPORTED_SCAN
+		return UNSUPPORTED_SCAN.throw()
 	}
+}
+
+func (clob DmClob) Value() (driver.Value, error) {
+	if !clob.Valid {
+		return nil, nil
+	}
+	return clob, nil
 }
 
 func (clob *DmClob) getSubString(pos int64, len int32) (string, error) {
@@ -227,7 +247,7 @@ func (clob *DmClob) getSubString(pos int64, len int32) (string, error) {
 		return string(clob.data[pos : pos+int64(len)]), nil
 	} else {
 
-		return clob.connection.Access.dm_build_515(clob, int32(pos), len)
+		return clob.connection.Access.dm_build_1495(clob, int32(pos), len)
 	}
 }
 

@@ -5,6 +5,8 @@
 
 package dm
 
+import "database/sql/driver"
+
 type DmArray struct {
 	TypeData
 	m_arrDesc *ArrayDescriptor // 数组的描述信息
@@ -26,6 +28,9 @@ type DmArray struct {
 	typeName string
 
 	elements []interface{}
+
+	// Valid为false代表DmArray数据在数据库中为NULL
+	Valid bool
 }
 
 func (da *DmArray) init() *DmArray {
@@ -39,6 +44,7 @@ func (da *DmArray) init() *DmArray {
 	da.m_offset = 0
 
 	da.m_objArray = nil
+	da.Valid = true
 	return da
 }
 
@@ -46,6 +52,7 @@ func NewDmArray(typeName string, elements []interface{}) *DmArray {
 	da := new(DmArray)
 	da.typeName = typeName
 	da.elements = elements
+	da.Valid = true
 	return da
 }
 
@@ -94,7 +101,7 @@ func newDmArrayByTypeData(atData []TypeData, desc *TypeDescriptor) *DmArray {
 }
 
 func (da *DmArray) checkIndex(index int64) error {
-	if index < 1 || index > int64(len(da.m_arrData)) {
+	if index < 0 || index > int64(len(da.m_arrData) - 1) {
 		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
 	return nil
@@ -106,24 +113,40 @@ func (da *DmArray) checkIndexAndCount(index int64, count int) error {
 		return err
 	}
 
-	if count <= 0 || index-int64(1)+int64(count) > int64(len(da.m_arrData)) {
+	if count <= 0 || index+int64(count) > int64(len(da.m_arrData)) {
 		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
 	return nil
 }
 
 func (da *DmArray) GetBaseTypeName() (string, error) {
+	if err := da.checkValid(); err != nil {
+		return "", err
+	}
 	return da.m_arrDesc.m_typeDesc.getFulName()
 }
 
 func (da *DmArray) GetObjArray(index int64, count int) (interface{}, error) {
-	da.checkIndexAndCount(index, count)
+	var err error
+	if err = da.checkValid(); err != nil {
+		return nil, err
+	}
+	if err = da.checkIndexAndCount(index, count); err != nil {
+		return nil, err
+	}
 
 	return TypeDataSV.toJavaArray(da, index, count, da.m_arrDesc.getItemDesc().getDType())
 }
 
 func (da *DmArray) GetIntArray(index int64, count int) ([]int, error) {
-	da.checkIndexAndCount(index, count)
+	var err error
+	if err = da.checkValid(); err != nil {
+		return nil, err
+	}
+	if err = da.checkIndexAndCount(index, count); err != nil {
+		return nil, err
+	}
+
 	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_INTEGER)
 	if err != nil {
 		return nil, err
@@ -132,7 +155,13 @@ func (da *DmArray) GetIntArray(index int64, count int) ([]int, error) {
 }
 
 func (da *DmArray) GetInt16Array(index int64, count int) ([]int16, error) {
-	da.checkIndexAndCount(index, count)
+	var err error
+	if err = da.checkValid(); err != nil {
+		return nil, err
+	}
+	if err = da.checkIndexAndCount(index, count); err != nil {
+		return nil, err
+	}
 
 	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_SHORT)
 	if err != nil {
@@ -142,7 +171,13 @@ func (da *DmArray) GetInt16Array(index int64, count int) ([]int16, error) {
 }
 
 func (da *DmArray) GetInt64Array(index int64, count int) ([]int64, error) {
-	da.checkIndexAndCount(index, count)
+	var err error
+	if err = da.checkValid(); err != nil {
+		return nil, err
+	}
+	if err = da.checkIndexAndCount(index, count); err != nil {
+		return nil, err
+	}
 
 	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_LONG)
 	if err != nil {
@@ -153,7 +188,13 @@ func (da *DmArray) GetInt64Array(index int64, count int) ([]int64, error) {
 }
 
 func (da *DmArray) GetFloatArray(index int64, count int) ([]float32, error) {
-	da.checkIndexAndCount(index, count)
+	var err error
+	if err = da.checkValid(); err != nil {
+		return nil, err
+	}
+	if err = da.checkIndexAndCount(index, count); err != nil {
+		return nil, err
+	}
 
 	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_FLOAT)
 	if err != nil {
@@ -164,7 +205,13 @@ func (da *DmArray) GetFloatArray(index int64, count int) ([]float32, error) {
 }
 
 func (da *DmArray) GetDoubleArray(index int64, count int) ([]float64, error) {
-	da.checkIndexAndCount(index, count)
+	var err error
+	if err = da.checkValid(); err != nil {
+		return nil, err
+	}
+	if err = da.checkIndexAndCount(index, count); err != nil {
+		return nil, err
+	}
 
 	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_DOUBLE)
 	if err != nil {
@@ -181,11 +228,27 @@ func (dest *DmArray) Scan(src interface{}) error {
 	switch src := src.(type) {
 	case nil:
 		*dest = *new(DmArray)
+		// 将Valid标志置false表示数据库中该列为NULL
+		(*dest).Valid = false
 		return nil
 	case *DmArray:
 		*dest = *src
 		return nil
 	default:
-		return UNSUPPORTED_SCAN
+		return UNSUPPORTED_SCAN.throw()
 	}
+}
+
+func (array DmArray) Value() (driver.Value, error) {
+	if !array.Valid {
+		return nil, nil
+	}
+	return array, nil
+}
+
+func (array *DmArray) checkValid() error {
+	if !array.Valid {
+		return ECGO_IS_NULL.throw()
+	}
+	return nil
 }

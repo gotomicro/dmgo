@@ -6,6 +6,7 @@
 package dm
 
 import (
+	"database/sql/driver"
 	"strings"
 	"time"
 )
@@ -40,10 +41,14 @@ type DmTimestamp struct {
 	scale               int
 	oracleFormatPattern string
 	oracleDateLanguage  int
+
+	// Valid为false代表DmArray数据在数据库中为NULL
+	Valid bool
 }
 
 func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
 	dmts := new(DmTimestamp)
+	dmts.Valid = true
 	dmts.dt = dt
 	dmts.dtype = dtype
 	dmts.scale = scale
@@ -52,6 +57,7 @@ func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
 
 func newDmTimestampFromBytes(bytes []byte, column column, conn *DmConnection) *DmTimestamp {
 	dmts := new(DmTimestamp)
+	dmts.Valid = true
 	dmts.dt = decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 
 	if isLocalTimeZone(int(column.colType), int(column.scale)) {
@@ -129,6 +135,8 @@ func (dest *DmTimestamp) Scan(src interface{}) error {
 	switch src := src.(type) {
 	case nil:
 		*dest = *new(DmTimestamp)
+		// 将Valid标志置false表示数据库中该列为NULL
+		(*dest).Valid = false
 		return nil
 	case *DmTimestamp:
 		*dest = *src
@@ -140,6 +148,13 @@ func (dest *DmTimestamp) Scan(src interface{}) error {
 	default:
 		return UNSUPPORTED_SCAN
 	}
+}
+
+func (dmTimestamp DmTimestamp) Value() (driver.Value, error) {
+	if !dmTimestamp.Valid {
+		return nil, nil
+	}
+	return dmTimestamp, nil
 }
 
 func (dmTimestamp *DmTimestamp) toBytes() ([]byte, error) {
@@ -190,4 +205,11 @@ func (dmTimestamp *DmTimestamp) string() string {
 		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
 	}
 	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
+}
+
+func (dmTimestamp *DmTimestamp) checkValid() error {
+	if !dmTimestamp.Valid {
+		return ECGO_IS_NULL.throw()
+	}
+	return nil
 }

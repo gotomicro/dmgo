@@ -111,7 +111,7 @@ var (
 	/*---------------------------------------------------------------*/
 	ServerGroupMap = make(map[string]*epGroup)
 
-	GlobalProperties *Properties
+	GlobalProperties = NewProperties()
 )
 
 // filePath: dm_svc.conf 文件路径
@@ -133,7 +133,7 @@ func load(filePath string) {
 	}
 	fileReader := bufio.NewReader(file)
 
-	GlobalProperties = NewProperties()
+	// GlobalProperties = NewProperties()
 	var groupProps *Properties
 	var line string //dm_svc.conf读取到的一行
 

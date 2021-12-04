@@ -26,6 +26,7 @@ var (
 	ECGO_UNSUPPORTED_INPARAM_TYPE  = newDmError(9009, "error.unsupportedInparamType")
 	ECGO_UNSUPPORTED_OUTPARAM_TYPE = newDmError(9010, "error.unsupportedOutparamType")
 	ECGO_STORE_IN_NIL_POINTER      = newDmError(9011, "error.storeInNilPointer")
+	ECGO_IS_NULL                   = newDmError(9012, "error.isNull")
 )
 
 var (
@@ -63,6 +64,7 @@ var (
 	ECGO_INVALID_SERVER_MODE         = newDmError(6091, "error.invalidServerMode")
 	ECGO_DATA_TOO_LONG               = newDmError(6092, "error.dataTooLong")
 	ECGO_BATCH_ERROR                 = newDmError(6093, "error.batchError")
+	ECGO_MSG_TOO_LONG                = newDmError(6101, "error.msgTooLong")
 	ECGO_INVALID_DATETIME_VALUE      = newDmError(6103, "error.invalidDateTimeValue")
 
 	ECGO_INIT_SSL_FAILED = newDmError(20002, "error.SSLInitFailed")

@@ -20,7 +20,7 @@ type DmConnection struct {
 	filterable
 
 	dmConnector        *DmConnector
-	Access             *dm_build_332
+	Access             *dm_build_1312
 	stmtMap            map[int32]*DmStatement
 	stmtPool           []stmtPoolInfo
 	lastExecInfo       *execRetInfo
@@ -85,8 +85,8 @@ type DmConnection struct {
 }
 
 func (conn *DmConnection) setTrxFinish(status int32) {
-	switch status & Dm_build_721 {
-	case Dm_build_718, Dm_build_719, Dm_build_720:
+	switch status & Dm_build_125 {
+	case Dm_build_122, Dm_build_123, Dm_build_124:
 		conn.trxFinish = true
 	default:
 		conn.trxFinish = false
@@ -112,10 +112,10 @@ func (dmConn *DmConnection) init() {
 	dmConn.NewLobFlag = true
 	dmConn.Execute2 = true
 	dmConn.serverEncoding = ENCODING_GB18030
-	dmConn.TrxStatus = Dm_build_669
+	dmConn.TrxStatus = Dm_build_73
 	dmConn.OracleDateLanguage = byte(Locale)
 	dmConn.lastExecInfo = NewExceInfo()
-	dmConn.MsgVersion = Dm_build_603
+	dmConn.MsgVersion = Dm_build_6
 
 	dmConn.idGenerator = dmConnIDGenerator
 }
@@ -134,7 +134,7 @@ func (dmConn *DmConnection) reset() {
 	dmConn.NewLobFlag = true
 	dmConn.Execute2 = true
 	dmConn.serverEncoding = ENCODING_GB18030
-	dmConn.TrxStatus = Dm_build_669
+	dmConn.TrxStatus = Dm_build_73
 }
 
 func (dc *DmConnection) checkClosed() error {
@@ -153,7 +153,7 @@ func (dc *DmConnection) executeInner(query string, execType int16) (interface{},
 		return nil, err
 	}
 
-	if execType == Dm_build_686 {
+	if execType == Dm_build_90 {
 		defer stmt.close()
 	}
 
@@ -177,7 +177,7 @@ func (dc *DmConnection) executeInner(query string, execType int16) (interface{},
 		}
 	}
 
-	if execType == Dm_build_685 && dc.dmConnector.enRsCache {
+	if execType == Dm_build_89 && dc.dmConnector.enRsCache {
 		rpv, err := rp.get(stmt, query)
 		if err != nil {
 			return nil, err
@@ -193,13 +193,13 @@ func (dc *DmConnection) executeInner(query string, execType int16) (interface{},
 	var info *execRetInfo
 
 	if optParamList != nil && len(optParamList) > 0 {
-		info, err = dc.Access.Dm_build_411(stmt, optParamList)
+		info, err = dc.Access.Dm_build_1391(stmt, optParamList)
 		if err != nil {
 			stmt.nativeSql = query
-			info, err = dc.Access.Dm_build_417(stmt, execType)
+			info, err = dc.Access.Dm_build_1397(stmt, execType)
 		}
 	} else {
-		info, err = dc.Access.Dm_build_417(stmt, execType)
+		info, err = dc.Access.Dm_build_1397(stmt, execType)
 	}
 
 	if err != nil {
@@ -218,13 +218,13 @@ func (dc *DmConnection) executeInner(query string, execType int16) (interface{},
 func g2dbIsoLevel(isoLevel int32) int32 {
 	switch isoLevel {
 	case 1:
-		return Dm_build_673
+		return Dm_build_77
 	case 2:
-		return Dm_build_674
+		return Dm_build_78
 	case 4:
-		return Dm_build_675
+		return Dm_build_79
 	case 6:
-		return Dm_build_676
+		return Dm_build_80
 	default:
 		return -1
 	}
@@ -338,15 +338,17 @@ func (dc *DmConnection) begin() (*DmConnection, error) {
 }
 
 func (dc *DmConnection) beginTx(ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
+	if err := dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
+
 	err := dc.checkClosed()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
+	dc.autoCommit = false
 
 	if sql.IsolationLevel(opts.Isolation) == sql.LevelDefault {
 		opts.Isolation = driver.IsolationLevel(sql.LevelReadCommitted)
@@ -359,9 +361,9 @@ func (dc *DmConnection) beginTx(ctx context.Context, opts driver.TxOptions) (*Dm
 	}
 
 	switch sql.IsolationLevel(opts.Isolation) {
-	case sql.LevelDefault:
+	case sql.LevelDefault, sql.LevelReadUncommitted:
 		return dc, nil
-	case sql.LevelReadUncommitted, sql.LevelReadCommitted, sql.LevelSerializable:
+	case sql.LevelReadCommitted, sql.LevelSerializable:
 		dc.IsoLevel = int32(opts.Isolation)
 	case sql.LevelRepeatableRead:
 		if dc.CompatibleMysql() {
@@ -373,7 +375,7 @@ func (dc *DmConnection) beginTx(ctx context.Context, opts driver.TxOptions) (*Dm
 		return nil, ECGO_INVALID_TRAN_ISOLATION.throw()
 	}
 
-	err = dc.Access.Dm_build_471(dc)
+	err = dc.Access.Dm_build_1451(dc)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +459,7 @@ func (dc *DmConnection) reconnect() error {
 	}
 
 	for _, stmt := range dc.stmtMap {
-		err = dc.Access.Dm_build_389(stmt)
+		err = dc.Access.Dm_build_1369(stmt)
 		if err != nil {
 			return err
 		}
@@ -473,8 +475,12 @@ func (dc *DmConnection) reconnect() error {
 	return nil
 }
 
+func (dc *DmConnection) cleanup() {
+	dc.close()
+}
+
 func (dc *DmConnection) close() error {
-	if dc.closed.IsSet() {
+	if !dc.closed.TrySet(true) {
 		return nil
 	}
 
@@ -483,38 +489,30 @@ func (dc *DmConnection) close() error {
 		return nil
 	}
 
-	err := dc.rollback()
-	if err != nil {
-		return err
-	}
+	dc.rollback()
 
 	for _, stmt := range dc.stmtMap {
-		err = stmt.free()
-		if err != nil {
-			return err
-		}
+		stmt.free()
 	}
 
 	if dc.stmtPool != nil {
 		for _, spi := range dc.stmtPool {
-			err = dc.Access.Dm_build_394(spi.id)
-			if err != nil {
-				return err
-			}
+			dc.Access.Dm_build_1374(spi.id)
 		}
 		dc.stmtPool = nil
 	}
 
-	err = dc.Access.Close()
-	if err != nil {
-		return err
-	}
+	dc.Access.Close()
 
-	dc.closed.Set(true)
 	return nil
 }
 
 func (dc *DmConnection) ping(ctx context.Context) error {
+	if err := dc.watchCancel(ctx); err != nil {
+		return err
+	}
+	defer dc.finish()
+
 	rows, err := dc.query("select 1", nil)
 	if err != nil {
 		return err
@@ -538,7 +536,7 @@ func (dc *DmConnection) exec(query string, args []driver.Value) (*DmResult, erro
 
 		return stmt.exec(args)
 	} else {
-		r1, err := dc.executeInner(query, Dm_build_686)
+		r1, err := dc.executeInner(query, Dm_build_90)
 		if err != nil {
 			return nil, err
 		}
@@ -553,15 +551,15 @@ func (dc *DmConnection) exec(query string, args []driver.Value) (*DmResult, erro
 
 func (dc *DmConnection) execContext(ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
 
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
 	if err := dc.watchCancel(ctx); err != nil {
 		return nil, err
 	}
 	defer dc.finish()
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
 
 	if args != nil && len(args) > 0 {
 		stmt, err := dc.prepare(query)
@@ -573,7 +571,7 @@ func (dc *DmConnection) execContext(ctx context.Context, query string, args []dr
 
 		return stmt.execContext(ctx, args)
 	} else {
-		r1, err := dc.executeInner(query, Dm_build_686)
+		r1, err := dc.executeInner(query, Dm_build_90)
 		if err != nil {
 			return nil, err
 		}
@@ -605,7 +603,7 @@ func (dc *DmConnection) query(query string, args []driver.Value) (*DmRows, error
 		return stmt.query(args)
 
 	} else {
-		r1, err := dc.executeInner(query, Dm_build_685)
+		r1, err := dc.executeInner(query, Dm_build_89)
 		if err != nil {
 			return nil, err
 		}
@@ -619,16 +617,15 @@ func (dc *DmConnection) query(query string, args []driver.Value) (*DmRows, error
 }
 
 func (dc *DmConnection) queryContext(ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+	if err := dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
 
 	err := dc.checkClosed()
 	if err != nil {
 		return nil, err
 	}
-
-	if err := dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
 
 	if args != nil && len(args) > 0 {
 		stmt, err := dc.prepare(query)
@@ -642,7 +639,7 @@ func (dc *DmConnection) queryContext(ctx context.Context, query string, args []d
 		return stmt.queryContext(ctx, args)
 
 	} else {
-		r1, err := dc.executeInner(query, Dm_build_685)
+		r1, err := dc.executeInner(query, Dm_build_89)
 		if err != nil {
 			return nil, err
 		}
@@ -672,15 +669,15 @@ func (dc *DmConnection) prepare(query string) (*DmStatement, error) {
 }
 
 func (dc *DmConnection) prepareContext(ctx context.Context, query string) (*DmStatement, error) {
-	err := dc.checkClosed()
-	if err != nil {
-		return nil, err
-	}
-
 	if err := dc.watchCancel(ctx); err != nil {
 		return nil, err
 	}
 	defer dc.finish()
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt, err := dc.prepare(query)
 	if err != nil {
@@ -718,7 +715,7 @@ func (dc *DmConnection) driverQuery(query string) (*DmStatement, *DmRows, error)
 	}
 	stmt.innerUsed = true
 	stmt.innerExec = true
-	info, err := dc.Access.Dm_build_417(stmt, Dm_build_685)
+	info, err := dc.Access.Dm_build_1397(stmt, Dm_build_89)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -786,6 +783,7 @@ func (conn *DmConnection) startWatcher() {
 			select {
 			case ctx = <-watcher:
 			case <-conn.closech:
+				println("---------------------------------------------")
 				return
 			}
 
@@ -794,6 +792,7 @@ func (conn *DmConnection) startWatcher() {
 				conn.cancel(ctx.Err())
 			case <-finished:
 			case <-conn.closech:
+				println("++++++++++++++++++++++++++++++++++++++++++++++++")
 				return
 			}
 		}
@@ -803,7 +802,8 @@ func (conn *DmConnection) startWatcher() {
 func (conn *DmConnection) watchCancel(ctx context.Context) error {
 	if conn.watching {
 
-		return conn.close()
+		conn.cleanup()
+		return nil
 	}
 
 	if err := ctx.Err(); err != nil {
