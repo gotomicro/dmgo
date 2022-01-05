@@ -134,7 +134,11 @@ func (d DmDecimal) String() string {
 	if d.weight > 0 {
 		digitsStr = digitsStr + strings.Repeat("0", d.weight)
 	} else if d.weight < 0 {
-		digitsStr = strings.Repeat("0", -d.weight+1) + digitsStr
+		if len(digitsStr) < -d.weight {
+			digitsStr = strings.Repeat("0", -d.weight-len(digitsStr)+1) + digitsStr
+		}
+		indexOfDot := len(digitsStr) + d.weight
+		digitsStr = digitsStr[:indexOfDot] + "." + digitsStr[indexOfDot:]
 	}
 
 	if digitsStr[0] == '0' && digitsStr[1] != '.' {
@@ -380,7 +384,7 @@ func decodeDecimal(values []byte, prec int, scale int) (*DmDecimal, error) {
 		decimal.sign = -1
 	}
 
-	var flag = int(Dm_build_623.Dm_build_743(values, 0))
+	var flag = int(Dm_build_1220.Dm_build_1340(values, 0))
 	var exp int
 	if decimal.sign > 0 {
 		exp = flag - FLAG_POSITIVE
