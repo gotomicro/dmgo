@@ -6,7 +6,9 @@ go get gitee.com/chunanyong/dm
 ```  
 达梦数据库官方golang驱动,本项目和官方驱动版本同步,方便go mod 使用.  
 安装达梦数据库(版本>=8.1.1.126),安装目录下 drivers/go/dm-go-driver.zip    
-达梦官方文档:https://eco.dameng.com/docs/zh-cn/app-dev/go-go.html  
+达梦官方文档:https://eco.dameng.com/docs/zh-cn/app-dev/go-go.html    
+资源下载:https://eco.dameng.com/download/    
+达梦官方golang驱动包:https://package.dameng.com/eco/adapter/resource/go/dm-go-driver.zip    
 
 golang轻量ORM https://gitee.com/chunanyong/zorm 原生支持达梦数据库  
 
