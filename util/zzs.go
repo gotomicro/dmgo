@@ -2,46 +2,74 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
+
 package util
 
-const (
-	LINE_SEPARATOR = "\n"
+import (
+	"go/build"
+	"os"
+	"runtime"
+	"strings"
 )
 
-func SliceEquals(src []byte, dest []byte) bool {
-	if len(src) != len(dest) {
-		return false
+const (
+	PathSeparator     = string(os.PathSeparator)
+	PathListSeparator = string(os.PathListSeparator)
+)
+
+var (
+	goRoot = build.Default.GOROOT
+	goPath = build.Default.GOPATH   //获取实际编译时的GOPATH值
+)
+
+type fileUtil struct {
+}
+
+var FileUtil = &fileUtil{}
+
+func (fileUtil *fileUtil) Exists(path string) bool {
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		return true
+	}
+	return false
+}
+
+func (fileUtil *fileUtil) Search(relativePath string) (path string) {
+	if strings.Contains(runtime.GOOS, "windows") {
+		relativePath = strings.ReplaceAll(relativePath, "/", "\\")
 	}
 
-	for i, _ := range src {
-		if src[i] != dest[i] {
-			return false
+	if fileUtil.Exists(goPath) {
+		for _, s := range strings.Split(goPath, PathListSeparator) {
+			path = s + PathSeparator + "src" + PathSeparator + relativePath
+			if fileUtil.Exists(path) {
+				return path
+			}
 		}
 	}
 
-	return true
-}
+	if fileUtil.Exists(goPath) {
+		for _, s := range strings.Split(goPath, PathListSeparator) {
+			path = s + PathSeparator + "pkg" + PathSeparator + relativePath
+			if fileUtil.Exists(path) {
+				return path
+			}
+		}
+	}
 
-// 获取两个数的最大公约数，由调用者确保m、n>=0；如果m或n为0，返回1
-func GCD(m int32, n int32) int32 {
-	if m == 0 || n == 0 {
-		return 1
-	}
-	r := m % n
-	m = n
-	n = r
-	if r == 0 {
-		return m
-	} else {
-		return GCD(m, n)
-	}
-}
+	//if workDir, _ := os.Getwd(); fileUtil.Exists(workDir) {
+	//	path = workDir + PathSeparator + "src" + PathSeparator + relativePath
+	//	if fileUtil.Exists(path) {
+	//		return path
+	//	}
+	//}
 
-// 返回切片中所有数的累加值
-func Sum(arr []int32) int32 {
-	var sum int32 = 0
-	for _, i := range arr {
-		sum += i
-	}
-	return sum
+	//if fileUtil.Exists(goRoot) {
+	//	path = goRoot + PathSeparator + "src" + PathSeparator + relativePath
+	//	if fileUtil.Exists(path) {
+	//		return path
+	//	}
+	//}
+
+	return ""
 }

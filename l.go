@@ -9,14 +9,14 @@ import (
 	"io"
 )
 
-type DmClob struct {
+type DmBlob struct {
 	lob
-	data           []rune
-	serverEncoding string
+	data   []byte
+	offset int64
 }
 
-func newDmClob() *DmClob {
-	return &DmClob{
+func newDmBlob() *DmBlob {
+	return &DmBlob{
 		lob: lob{
 			inRow:            true,
 			groupId:          -1,
@@ -32,177 +32,199 @@ func newDmClob() *DmClob {
 			modify:           false,
 			Valid:            true,
 		},
+		offset: 1,
 	}
 }
 
-func newClobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmClob {
-	var clob = newDmClob()
-	clob.connection = conn
-	clob.lobFlag = LOB_FLAG_CHAR
-	clob.compatibleOracle = conn.CompatibleOracle()
-	clob.local = false
-	clob.updateable = !column.readonly
-	clob.tabId = column.lobTabId
-	clob.colId = column.lobColId
+func newBlobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmBlob {
+	var blob = newDmBlob()
+	blob.connection = conn
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.compatibleOracle = conn.CompatibleOracle()
+	blob.local = false
+	blob.updateable = !column.readonly
+	blob.tabId = column.lobTabId
+	blob.colId = column.lobColId
 
-	clob.inRow = Dm_build_1220.Dm_build_1313(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
-	clob.blobId = Dm_build_1220.Dm_build_1327(value, NBLOB_HEAD_BLOBID)
-	if !clob.inRow {
-		clob.groupId = Dm_build_1220.Dm_build_1317(value, NBLOB_HEAD_OUTROW_GROUPID)
-		clob.fileId = Dm_build_1220.Dm_build_1317(value, NBLOB_HEAD_OUTROW_FILEID)
-		clob.pageNo = Dm_build_1220.Dm_build_1322(value, NBLOB_HEAD_OUTROW_PAGENO)
+	blob.inRow = Dm_build_1.Dm_build_94(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
+	blob.blobId = Dm_build_1.Dm_build_108(value, NBLOB_HEAD_BLOBID)
+	if !blob.inRow {
+		blob.groupId = Dm_build_1.Dm_build_98(value, NBLOB_HEAD_OUTROW_GROUPID)
+		blob.fileId = Dm_build_1.Dm_build_98(value, NBLOB_HEAD_OUTROW_FILEID)
+		blob.pageNo = Dm_build_1.Dm_build_103(value, NBLOB_HEAD_OUTROW_PAGENO)
 	}
 	if conn.NewLobFlag {
-		clob.tabId = Dm_build_1220.Dm_build_1322(value, NBLOB_EX_HEAD_TABLE_ID)
-		clob.colId = Dm_build_1220.Dm_build_1317(value, NBLOB_EX_HEAD_COL_ID)
-		clob.rowId = Dm_build_1220.Dm_build_1327(value, NBLOB_EX_HEAD_ROW_ID)
-		clob.exGroupId = Dm_build_1220.Dm_build_1317(value, NBLOB_EX_HEAD_FPA_GRPID)
-		clob.exFileId = Dm_build_1220.Dm_build_1317(value, NBLOB_EX_HEAD_FPA_FILEID)
-		clob.exPageNo = Dm_build_1220.Dm_build_1322(value, NBLOB_EX_HEAD_FPA_PAGENO)
+		blob.tabId = Dm_build_1.Dm_build_103(value, NBLOB_EX_HEAD_TABLE_ID)
+		blob.colId = Dm_build_1.Dm_build_98(value, NBLOB_EX_HEAD_COL_ID)
+		blob.rowId = Dm_build_1.Dm_build_108(value, NBLOB_EX_HEAD_ROW_ID)
+		blob.exGroupId = Dm_build_1.Dm_build_98(value, NBLOB_EX_HEAD_FPA_GRPID)
+		blob.exFileId = Dm_build_1.Dm_build_98(value, NBLOB_EX_HEAD_FPA_FILEID)
+		blob.exPageNo = Dm_build_1.Dm_build_103(value, NBLOB_EX_HEAD_FPA_PAGENO)
 	}
-	clob.resetCurrentInfo()
+	blob.resetCurrentInfo()
 
-	clob.serverEncoding = conn.getServerEncoding()
-	if clob.inRow {
+	blob.length = blob.getLengthFromHead(value)
+	if blob.inRow {
+		blob.data = make([]byte, blob.length)
 		if conn.NewLobFlag {
-			clob.data = []rune(Dm_build_1220.Dm_build_1377(value, NBLOB_EX_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
+			Dm_build_1.Dm_build_57(blob.data, 0, value, NBLOB_EX_HEAD_SIZE, len(blob.data))
 		} else {
-			clob.data = []rune(Dm_build_1220.Dm_build_1377(value, NBLOB_INROW_HEAD_SIZE, int(clob.getLengthFromHead(value)), clob.serverEncoding, conn))
+			Dm_build_1.Dm_build_57(blob.data, 0, value, NBLOB_INROW_HEAD_SIZE, len(blob.data))
 		}
-		clob.length = int64(len(clob.data))
 	} else if fetchAll {
-		clob.loadAllData()
+		blob.loadAllData()
 	}
-	return clob
+	return blob
 }
 
-func newClobOfLocal(value string, conn *DmConnection) *DmClob {
-	var clob = newDmClob()
-	clob.connection = conn
-	clob.lobFlag = LOB_FLAG_CHAR
-	clob.data = []rune(value)
-	clob.length = int64(len(clob.data))
-	return clob
+func newBlobOfLocal(value []byte, conn *DmConnection) *DmBlob {
+	var blob = newDmBlob()
+	blob.connection = conn
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.data = value
+	blob.length = int64(len(blob.data))
+	return blob
 }
 
-func NewClob(value string) *DmClob {
-	var clob = newDmClob()
+func NewBlob(value []byte) *DmBlob {
+	var blob = newDmBlob()
 
-	clob.lobFlag = LOB_FLAG_CHAR
-	clob.data = []rune(value)
-	clob.length = int64(len(clob.data))
-	return clob
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.data = value
+	blob.length = int64(len(blob.data))
+	return blob
 }
 
-func (clob *DmClob) ReadString(pos int, length int) (result string, err error) {
-	if err = clob.checkValid(); err != nil {
+func (blob *DmBlob) Read(dest []byte) (n int, err error) {
+	if err = blob.checkValid(); err != nil {
 		return
 	}
-	result, err = clob.getSubString(int64(pos), int32(length))
+	result, err := blob.getBytes(blob.offset, int32(len(dest)))
 	if err != nil {
+		return 0, err
+	}
+	blob.offset += int64(len(result))
+	copy(dest, result)
+	if len(result) == 0 {
+		return 0, io.EOF
+	}
+	return len(result), nil
+}
+
+func (blob *DmBlob) ReadAt(pos int, dest []byte) (n int, err error) {
+	if err = blob.checkValid(); err != nil {
 		return
+	}
+	result, err := blob.getBytes(int64(pos), int32(len(dest)))
+	if err != nil {
+		return 0, err
 	}
 	if len(result) == 0 {
-		err = io.EOF
-		return
+		return 0, io.EOF
 	}
-	return
+	copy(dest[0:len(result)], result)
+	return len(result), nil
 }
 
-func (clob *DmClob) WriteString(pos int, s string) (n int, err error) {
-	if err = clob.checkValid(); err != nil {
+func (blob *DmBlob) Write(pos int, src []byte) (n int, err error) {
+	if err = blob.checkValid(); err != nil {
 		return
 	}
-	if err = clob.checkFreed(); err != nil {
+	if err = blob.checkFreed(); err != nil {
 		return
 	}
 	if pos < 1 {
 		err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 		return
 	}
-	if !clob.updateable {
+	if !blob.updateable {
 		err = ECGO_RESULTSET_IS_READ_ONLY.throw()
 		return
 	}
 	pos -= 1
-	if clob.local || clob.fetchAll {
-		if int64(pos) > clob.length {
+	if blob.local || blob.fetchAll {
+		if int64(pos) > blob.length {
 			err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 			return
 		}
-		clob.setLocalData(pos, s)
-		n = len(s)
+		blob.setLocalData(pos, src)
+		n = len(src)
 	} else {
-		if err = clob.connection.checkClosed(); err != nil {
+		if err = blob.connection.checkClosed(); err != nil {
 			return -1, err
 		}
-		var writeLen, err = clob.connection.Access.dm_build_526(clob, pos, s, clob.serverEncoding)
+		var writeLen, err = blob.connection.Access.dm_build_900(blob, pos, src)
 		if err != nil {
 			return -1, err
 		}
 
-		if clob.groupId == -1 {
-			clob.setLocalData(pos, s)
+		if blob.groupId == -1 {
+			blob.setLocalData(pos, src)
 		} else {
-			clob.inRow = false
-			clob.length = -1
+			blob.inRow = false
+			blob.length = -1
 		}
 		n = writeLen
+
 	}
-	clob.modify = true
+	blob.modify = true
 	return
 }
 
-func (clob *DmClob) Truncate(length int64) error {
+func (blob *DmBlob) Truncate(length int64) error {
 	var err error
-	if err = clob.checkValid(); err != nil {
+	if err = blob.checkValid(); err != nil {
 		return err
 	}
-	if err = clob.checkFreed(); err != nil {
+	if err = blob.checkFreed(); err != nil {
 		return err
 	}
 	if length < 0 {
 		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
-	if !clob.updateable {
+	if !blob.updateable {
 		return ECGO_RESULTSET_IS_READ_ONLY.throw()
 	}
-	if clob.local || clob.fetchAll {
-		if length >= int64(len(clob.data)) {
+	if blob.local || blob.fetchAll {
+		if length >= int64(len(blob.data)) {
 			return nil
 		}
-		clob.data = clob.data[0:length]
-		clob.length = int64(len(clob.data))
+		tmp := make([]byte, length)
+		Dm_build_1.Dm_build_57(tmp, 0, blob.data, 0, len(tmp))
+		blob.data = tmp
+		blob.length = int64(len(tmp))
 	} else {
-		if err = clob.connection.checkClosed(); err != nil {
+		if err = blob.connection.checkClosed(); err != nil {
 			return err
 		}
-		clob.length, err = clob.connection.Access.dm_build_556(&clob.lob, int(length))
+		blob.length, err = blob.connection.Access.dm_build_914(&blob.lob, int(length))
 		if err != nil {
 			return err
 		}
-		if clob.groupId == -1 {
-			clob.data = clob.data[0:clob.length]
+		if blob.groupId == -1 {
+			tmp := make([]byte, blob.length)
+			Dm_build_1.Dm_build_57(tmp, 0, blob.data, 0, int(blob.length))
+			blob.data = tmp
 		}
 	}
-	clob.modify = true
+	blob.modify = true
 	return nil
 }
 
-func (dest *DmClob) Scan(src interface{}) error {
+func (dest *DmBlob) Scan(src interface{}) error {
 	if dest == nil {
 		return ECGO_STORE_IN_NIL_POINTER.throw()
 	}
 	switch src := src.(type) {
 	case nil:
-		*dest = *new(DmClob)
+		*dest = *new(DmBlob)
 
 		(*dest).Valid = false
 		return nil
-	case string:
-		*dest = *NewClob(src)
+	case []byte:
+		*dest = *NewBlob(src)
 		return nil
-	case *DmClob:
+	case *DmBlob:
 		*dest = *src
 		return nil
 	default:
@@ -210,63 +232,59 @@ func (dest *DmClob) Scan(src interface{}) error {
 	}
 }
 
-func (clob DmClob) Value() (driver.Value, error) {
-	if !clob.Valid {
+func (blob DmBlob) Value() (driver.Value, error) {
+	if !blob.Valid {
 		return nil, nil
 	}
-	return clob, nil
+	return blob, nil
 }
 
-func (clob *DmClob) getSubString(pos int64, len int32) (string, error) {
+func (blob *DmBlob) getBytes(pos int64, length int32) ([]byte, error) {
 	var err error
 	var leaveLength int64
-	if err = clob.checkFreed(); err != nil {
-		return "", err
+	if err = blob.checkFreed(); err != nil {
+		return nil, err
 	}
-	if pos < 1 || len < 0 {
-		return "", ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	if pos < 1 || length < 0 {
+		return nil, ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
 	pos = pos - 1
-	if leaveLength, err = clob.GetLength(); err != nil {
-		return "", err
-	}
-	if pos > leaveLength {
-		pos = leaveLength
+	if leaveLength, err = blob.GetLength(); err != nil {
+		return nil, err
 	}
 	leaveLength -= pos
 	if leaveLength < 0 {
-		return "", ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+		return nil, ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
-	if int64(len) > leaveLength {
-		len = int32(leaveLength)
+	if int64(length) > leaveLength {
+		length = int32(leaveLength)
 	}
-	if clob.local || clob.inRow || clob.fetchAll {
-		if pos > clob.length {
-			return "", ECGO_INVALID_LENGTH_OR_OFFSET.throw()
-		}
-		return string(clob.data[pos : pos+int64(len)]), nil
+	if blob.local || blob.inRow || blob.fetchAll {
+		return blob.data[pos : pos+int64(length)], nil
 	} else {
 
-		return clob.connection.Access.dm_build_515(clob, int32(pos), len)
+		return blob.connection.Access.dm_build_863(blob, int32(pos), length)
 	}
 }
 
-func (clob *DmClob) loadAllData() {
-	clob.checkFreed()
-	if clob.local || clob.inRow || clob.fetchAll {
+func (blob *DmBlob) loadAllData() {
+	blob.checkFreed()
+	if blob.local || blob.inRow || blob.fetchAll {
 		return
 	}
-	len, _ := clob.GetLength()
-	s, _ := clob.getSubString(1, int32(len))
-	clob.data = []rune(s)
-	clob.fetchAll = true
+	len, _ := blob.GetLength()
+	blob.data, _ = blob.getBytes(1, int32(len))
+	blob.fetchAll = true
 }
 
-func (clob *DmClob) setLocalData(pos int, str string) {
-	if pos+len(str) >= int(clob.length) {
-		clob.data = []rune(string(clob.data[0:pos]) + str)
+func (blob *DmBlob) setLocalData(pos int, p []byte) {
+	if pos+len(p) >= int(blob.length) {
+		var tmp = make([]byte, pos+len(p))
+		Dm_build_1.Dm_build_57(tmp, 0, blob.data, 0, pos)
+		Dm_build_1.Dm_build_57(tmp, pos, p, 0, len(p))
+		blob.data = tmp
 	} else {
-		clob.data = []rune(string(clob.data[0:pos]) + str + string(clob.data[pos+len(str):len(clob.data)]))
+		Dm_build_1.Dm_build_57(blob.data, pos, p, 0, len(p))
 	}
-	clob.length = int64(len(clob.data))
+	blob.length = int64(len(blob.data))
 }

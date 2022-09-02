@@ -7,891 +7,861 @@ package dm
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"database/sql/driver"
-	"net"
-	"net/url"
-	"os"
-	"path/filepath"
-	"regexp"
-	"runtime"
-	"strconv"
-	"strings"
+	"fmt"
+	"sync/atomic"
 
-	"gitee.com/chunanyong/dm/util"
+	"gitee.com/chunanyong/dm/parser"
+	"golang.org/x/text/encoding"
 )
 
-const (
-	TimeZoneKey              = "timeZone"
-	EnRsCacheKey             = "enRsCache"
-	RsCacheSizeKey           = "rsCacheSize"
-	RsRefreshFreqKey         = "rsRefreshFreq"
-	LoginPrimary             = "loginPrimary"
-	LoginModeKey             = "loginMode"
-	LoginStatusKey           = "loginStatus"
-	LoginDscCtrlKey          = "loginDscCtrl"
-	SwitchTimesKey           = "switchTimes"
-	SwitchIntervalKey        = "switchInterval"
-	EpSelectorKey            = "epSelector"
-	PrimaryKey               = "primaryKey"
-	KeywordsKey              = "keywords"
-	CompressKey              = "compress"
-	CompressIdKey            = "compressId"
-	LoginEncryptKey          = "loginEncrypt"
-	CommunicationEncryptKey  = "communicationEncrypt"
-	DirectKey                = "direct"
-	Dec2DoubleKey            = "dec2double"
-	RwSeparateKey            = "rwSeparate"
-	RwPercentKey             = "rwPercent"
-	RwAutoDistributeKey      = "rwAutoDistribute"
-	CompatibleModeKey        = "compatibleMode"
-	CompatibleOraKey         = "comOra"
-	CipherPathKey            = "cipherPath"
-	DoSwitchKey              = "doSwitch"
-	ClusterKey               = "cluster"
-	LanguageKey              = "language"
-	DbAliveCheckFreqKey      = "dbAliveCheckFreq"
-	RwStandbyRecoverTimeKey  = "rwStandbyRecoverTime"
-	LogLevelKey              = "logLevel"
-	LogDirKey                = "logDir"
-	LogBufferPoolSizeKey     = "logBufferPoolSize"
-	LogBufferSizeKey         = "logBufferSize"
-	LogFlusherQueueSizeKey   = "logFlusherQueueSize"
-	LogFlushFreqKey          = "logFlushFreq"
-	StatEnableKey            = "statEnable"
-	StatDirKey               = "statDir"
-	StatFlushFreqKey         = "statFlushFreq"
-	StatHighFreqSqlCountKey  = "statHighFreqSqlCount"
-	StatSlowSqlCountKey      = "statSlowSqlCount"
-	StatSqlMaxCountKey       = "statSqlMaxCount"
-	StatSqlRemoveModeKey     = "statSqlRemoveMode"
-	AddressRemapKey          = "addressRemap"
-	UserRemapKey             = "userRemap"
-	ConnectTimeoutKey        = "connectTimeout"
-	LoginCertificateKey      = "loginCertificate"
-	UrlKey                   = "url"
-	HostKey                  = "host"
-	PortKey                  = "port"
-	UserKey                  = "user"
-	PasswordKey              = "password"
-	RwStandbyKey             = "rwStandby"
-	IsCompressKey            = "isCompress"
-	RwHAKey                  = "rwHA"
-	RwIgnoreSqlKey           = "rwIgnoreSql"
-	AppNameKey               = "appName"
-	OsNameKey                = "osName"
-	MppLocalKey              = "mppLocal"
-	SocketTimeoutKey         = "socketTimeout"
-	SessionTimeoutKey        = "sessionTimeout"
-	ContinueBatchOnErrorKey  = "continueBatchOnError"
-	BatchAllowMaxErrorsKey   = "batchAllowMaxErrors"
-	EscapeProcessKey         = "escapeProcess"
-	AutoCommitKey            = "autoCommit"
-	MaxRowsKey               = "maxRows"
-	RowPrefetchKey           = "rowPrefetch"
-	BufPrefetchKey           = "bufPrefetch"
-	LobModeKey               = "LobMode"
-	StmtPoolSizeKey          = "StmtPoolSize"
-	IgnoreCaseKey            = "ignoreCase"
-	AlwayseAllowCommitKey    = "AlwayseAllowCommit"
-	BatchTypeKey             = "batchType"
-	BatchNotOnCallKey        = "batchNotOnCall"
-	IsBdtaRSKey              = "isBdtaRS"
-	ClobAsStringKey          = "clobAsString"
-	SslCertPathKey           = "sslCertPath"
-	SslKeyPathKey            = "sslKeyPath"
-	SslFilesPathKey          = "sslFilesPath"
-	KerberosLoginConfPathKey = "kerberosLoginConfPath"
-	UKeyNameKey              = "uKeyName"
-	UKeyPinKey               = "uKeyPin"
-	ColumnNameUpperCaseKey   = "columnNameUpperCase"
-	ColumnNameCaseKey        = "columnNameCase"
-	DatabaseProductNameKey   = "databaseProductName"
-	OsAuthTypeKey            = "osAuthType"
-	SchemaKey                = "schema"
-
-	TIME_ZONE_DEFAULT int16 = 480
-
-	DO_SWITCH_OFF             int32 = 0
-	DO_SWITCH_WHEN_CONN_ERROR int32 = 1
-	DO_SWITCH_WHEN_EP_RECOVER int32 = 2
-
-	CLUSTER_TYPE_NORMAL int32 = 0
-	CLUSTER_TYPE_RW     int32 = 1
-	CLUSTER_TYPE_DW     int32 = 2
-	CLUSTER_TYPE_DSC    int32 = 3
-	CLUSTER_TYPE_MPP    int32 = 4
-
-	EP_STATUS_OK    int32 = 1
-	EP_STATUS_ERROR int32 = 2
-
-	LOGIN_MODE_PRIMARY_FIRST int32 = 0
-
-	LOGIN_MODE_PRIMARY_ONLY int32 = 1
-
-	LOGIN_MODE_STANDBY_ONLY int32 = 2
-
-	LOGIN_MODE_STANDBY_FIRST int32 = 3
-
-	LOGIN_MODE_NORMAL_FIRST int32 = 4
-
-	SERVER_MODE_NORMAL int32 = 0
-
-	SERVER_MODE_PRIMARY int32 = 1
-
-	SERVER_MODE_STANDBY int32 = 2
-
-	SERVER_STATUS_MOUNT int32 = 3
-
-	SERVER_STATUS_OPEN int32 = 4
-
-	SERVER_STATUS_SUSPEND int32 = 5
-
-	COMPATIBLE_MODE_ORACLE int = 1
-
-	COMPATIBLE_MODE_MYSQL int = 2
-
-	LANGUAGE_CN int = 0
-
-	LANGUAGE_EN int = 1
-
-	COLUMN_NAME_NATURAL_CASE = 0
-
-	COLUMN_NAME_UPPER_CASE = 1
-
-	COLUMN_NAME_LOWER_CASE = 2
-
-	compressDef   = Dm_build_681
-	compressIDDef = Dm_build_682
-
-	charCodeDef = ""
-
-	enRsCacheDef = false
-
-	rsCacheSizeDef = 20
-
-	rsRefreshFreqDef = 10
-
-	loginModeDef = LOGIN_MODE_NORMAL_FIRST
-
-	loginStatusDef = 0
-
-	loginEncryptDef = true
-
-	loginCertificateDef = ""
-
-	dec2DoubleDef = false
-
-	rwHADef = false
-
-	rwStandbyDef = false
-
-	rwSeparateDef = false
-
-	rwPercentDef = 25
-
-	rwAutoDistributeDef = true
-
-	rwStandbyRecoverTimeDef = 1000
-
-	cipherPathDef = ""
-
-	urlDef = ""
-
-	userDef = "SYSDBA"
-
-	passwordDef = "SYSDBA"
-
-	hostDef = "localhost"
-
-	portDef = DEFAULT_PORT
-
-	appNameDef = ""
-
-	mppLocalDef = false
-
-	socketTimeoutDef = 0
-
-	connectTimeoutDef = 5000
-
-	sessionTimeoutDef = 0
-
-	osAuthTypeDef = Dm_build_664
-
-	continueBatchOnErrorDef = false
-
-	escapeProcessDef = false
-
-	autoCommitDef = true
-
-	maxRowsDef = 0
-
-	rowPrefetchDef = Dm_build_665
-
-	bufPrefetchDef = 0
-
-	lobModeDef = 1
-
-	stmtPoolMaxSizeDef = 15
-
-	ignoreCaseDef = true
-
-	alwayseAllowCommitDef = true
-
-	isBdtaRSDef = false
-
-	kerberosLoginConfPathDef = ""
-
-	uKeyNameDef = ""
-
-	uKeyPinDef = ""
-
-	databaseProductNameDef = ""
-
-	caseSensitiveDef = true
-
-	compatibleModeDef = 0
-
-	localTimezoneDef = TIME_ZONE_DEFAULT
-)
-
-type DmConnector struct {
+type DmConnection struct {
 	filterable
 
-	dmDriver *DmDriver
-
-	compress int
-
-	compressID int8
-
-	newClientType bool
-
-	charCode string
-
-	enRsCache bool
-
-	rsCacheSize int
-
-	rsRefreshFreq int
-
-	loginMode int32
-
-	loginStatus int
-
-	loginDscCtrl bool
-
-	switchTimes int32
-
-	switchInterval int
-
-	epSelector int32
-
-	keyWords []string
-
-	loginEncrypt bool
-
-	loginCertificate string
-
-	dec2Double bool
-
-	rwHA bool
-
-	rwStandby bool
-
-	rwSeparate bool
-
-	rwPercent int32
-
-	rwAutoDistribute bool
-
-	rwStandbyRecoverTime int
-
-	rwIgnoreSql bool
-
-	doSwitch int32
-
-	cluster int32
-
-	cipherPath string
-
-	url string
-
-	user string
-
-	password string
-
-	host string
-
-	group *epGroup
-
-	port int32
-
-	appName string
-
-	osName string
-
-	mppLocal bool
-
-	socketTimeout int
-
-	connectTimeout int
-
-	sessionTimeout int
-
-	osAuthType byte
-
-	continueBatchOnError bool
-
-	batchAllowMaxErrors int32
-
-	escapeProcess bool
-
-	autoCommit bool
-
-	maxRows int
-
-	rowPrefetch int
-
-	bufPrefetch int
-
-	lobMode int
-
-	stmtPoolMaxSize int
-
-	ignoreCase bool
-
-	alwayseAllowCommit bool
-
-	batchType int
-
-	batchNotOnCall bool
-
-	isBdtaRS bool
-
-	sslCertPath string
-
-	sslKeyPath string
-
-	sslFilesPath string
-
-	kerberosLoginConfPath string
-
-	uKeyName string
-
-	uKeyPin string
-
-	svcConfPath string
-
-	columnNameCase int
-
-	caseSensitive bool
-
-	compatibleMode int
-
-	localTimezone int16
-
-	schema string
-
-	reConnection *DmConnection
-
-	logLevel int
-
-	logDir string
-
-	logFlushFreq int
-
-	logFlushQueueSize int
-
-	logBufferSize int
-
-	statEnable bool
-
-	statDir string
-
-	statFlushFreq int
-
-	statSlowSqlCount int
-
-	statHighFreqSqlCount int
-
-	statSqlMaxCount int
-
-	statSqlRemoveMode int
+	dmConnector        *DmConnector
+	Access             *dm_build_690
+	stmtMap            map[int32]*DmStatement
+	stmtPool           []stmtPoolInfo
+	lastExecInfo       *execRetInfo
+	lexer              *parser.Lexer
+	encode             encoding.Encoding
+	encodeBuffer       *bytes.Buffer
+	transformReaderDst []byte
+	transformReaderSrc []byte
+
+	serverEncoding     string
+	GlobalServerSeries int
+	ServerVersion      string
+	Malini2            bool
+	Execute2           bool
+	LobEmptyCompOrcl   bool
+	IsoLevel           int32
+	ReadOnly           bool
+	NewLobFlag         bool
+	sslEncrypt         int
+	MaxRowSize         int32
+	DDLAutoCommit      bool
+	BackslashEscape    bool
+	SvrStat            int32
+	SvrMode            int32
+	ConstParaOpt       bool
+	DbTimezone         int16
+	LifeTimeRemainder  int16
+	InstanceName       string
+	Schema             string
+	LastLoginIP        string
+	LastLoginTime      string
+	FailedAttempts     int32
+	LoginWarningID     int32
+	GraceTimeRemainder int32
+	Guid               string
+	DbName             string
+	StandbyHost        string
+	StandbyPort        int32
+	StandbyCount       int32
+	SessionID          int64
+	OracleDateLanguage byte
+	FormatDate         string
+	FormatTimestamp    string
+	FormatTimestampTZ  string
+	FormatTime         string
+	FormatTimeTZ       string
+	Local              bool
+	MsgVersion         int32
+	TrxStatus          int32
+	dscControl         bool
+	trxFinish          bool
+	sessionID          int64
+	autoCommit         bool
+	isBatch            bool
+
+	watching bool
+	watcher  chan<- context.Context
+	closech  chan struct{}
+	finished chan<- struct{}
+	canceled atomicError
+	closed   atomicBool
 }
 
-func (c *DmConnector) init() *DmConnector {
-	c.compress = compressDef
-	c.compressID = compressIDDef
-	c.charCode = charCodeDef
-	c.enRsCache = enRsCacheDef
-	c.rsCacheSize = rsCacheSizeDef
-	c.rsRefreshFreq = rsRefreshFreqDef
-	c.loginMode = loginModeDef
-	c.loginStatus = loginStatusDef
-	c.loginDscCtrl = false
-	c.switchTimes = 1
-	c.switchInterval = 1000
-	c.epSelector = 0
-	c.keyWords = nil
-	c.loginEncrypt = loginEncryptDef
-	c.loginCertificate = loginCertificateDef
-	c.dec2Double = dec2DoubleDef
-	c.rwHA = rwHADef
-	c.rwStandby = rwStandbyDef
-	c.rwSeparate = rwSeparateDef
-	c.rwPercent = rwPercentDef
-	c.rwAutoDistribute = rwAutoDistributeDef
-	c.rwStandbyRecoverTime = rwStandbyRecoverTimeDef
-	c.rwIgnoreSql = false
-	c.doSwitch = DO_SWITCH_OFF
-	c.cluster = CLUSTER_TYPE_NORMAL
-	c.cipherPath = cipherPathDef
-	c.url = urlDef
-	c.user = userDef
-	c.password = passwordDef
-	c.host = hostDef
-	c.port = portDef
-	c.appName = appNameDef
-	c.osName = runtime.GOOS
-	c.mppLocal = mppLocalDef
-	c.socketTimeout = socketTimeoutDef
-	c.connectTimeout = connectTimeoutDef
-	c.sessionTimeout = sessionTimeoutDef
-	c.osAuthType = osAuthTypeDef
-	c.continueBatchOnError = continueBatchOnErrorDef
-	c.batchAllowMaxErrors = 0
-	c.escapeProcess = escapeProcessDef
-	c.autoCommit = autoCommitDef
-	c.maxRows = maxRowsDef
-	c.rowPrefetch = rowPrefetchDef
-	c.bufPrefetch = bufPrefetchDef
-	c.lobMode = lobModeDef
-	c.stmtPoolMaxSize = stmtPoolMaxSizeDef
-	c.ignoreCase = ignoreCaseDef
-	c.alwayseAllowCommit = alwayseAllowCommitDef
-	c.batchType = 1
-	c.batchNotOnCall = false
-	c.isBdtaRS = isBdtaRSDef
-	c.kerberosLoginConfPath = kerberosLoginConfPathDef
-	c.uKeyName = uKeyNameDef
-	c.uKeyPin = uKeyPinDef
-	c.columnNameCase = COLUMN_NAME_NATURAL_CASE
-	c.caseSensitive = caseSensitiveDef
-	c.compatibleMode = compatibleModeDef
-	c.localTimezone = localTimezoneDef
-	c.idGenerator = dmConntorIDGenerator
-
-	c.logDir = LogDirDef
-	c.logFlushFreq = LogFlushFreqDef
-	c.logFlushQueueSize = LogFlushQueueSizeDef
-	c.logBufferSize = LogBufferSizeDef
-	c.statEnable = StatEnableDef
-	c.statDir = StatDirDef
-	c.statFlushFreq = StatFlushFreqDef
-	c.statSlowSqlCount = StatSlowSqlCountDef
-	c.statHighFreqSqlCount = StatHighFreqSqlCountDef
-	c.statSqlMaxCount = StatSqlMaxCountDef
-	c.statSqlRemoveMode = StatSqlRemoveModeDef
-	return c
+func (conn *DmConnection) setTrxFinish(status int32) {
+	switch status & Dm_build_1080 {
+	case Dm_build_1077, Dm_build_1078, Dm_build_1079:
+		conn.trxFinish = true
+	default:
+		conn.trxFinish = false
+	}
 }
 
-func (c *DmConnector) setAttributes(props *Properties) error {
-	if props == nil || props.Len() == 0 {
-		return nil
+func (dmConn *DmConnection) init() {
+	if dmConn.dmConnector.stmtPoolMaxSize > 0 {
+		dmConn.stmtPool = make([]stmtPoolInfo, 0, dmConn.dmConnector.stmtPoolMaxSize)
 	}
 
-	c.url = props.GetTrimString(UrlKey, c.url)
-	c.host = props.GetTrimString(HostKey, c.host)
-	c.port = int32(props.GetInt(PortKey, int(c.port), 0, 65535))
-	c.user = props.GetString(UserKey, c.user)
-	c.password = props.GetString(PasswordKey, c.password)
-	c.rwStandby = props.GetBool(RwStandbyKey, c.rwStandby)
+	dmConn.stmtMap = make(map[int32]*DmStatement)
+	dmConn.DbTimezone = 0
+	dmConn.GlobalServerSeries = 0
+	dmConn.MaxRowSize = 0
+	dmConn.LobEmptyCompOrcl = false
+	dmConn.ReadOnly = false
+	dmConn.DDLAutoCommit = false
+	dmConn.ConstParaOpt = false
+	dmConn.IsoLevel = -1
+	dmConn.sessionID = -1
+	dmConn.Malini2 = true
+	dmConn.NewLobFlag = true
+	dmConn.Execute2 = true
+	dmConn.serverEncoding = ENCODING_GB18030
+	dmConn.TrxStatus = Dm_build_1028
+	dmConn.OracleDateLanguage = byte(Locale)
+	dmConn.lastExecInfo = NewExceInfo()
+	dmConn.MsgVersion = Dm_build_961
 
-	if b := props.GetBool(IsCompressKey, false); b {
-		c.compress = Dm_build_680
+	dmConn.idGenerator = dmConnIDGenerator
+}
+
+func (dmConn *DmConnection) reset() {
+	dmConn.DbTimezone = 0
+	dmConn.GlobalServerSeries = 0
+	dmConn.MaxRowSize = 0
+	dmConn.LobEmptyCompOrcl = false
+	dmConn.ReadOnly = false
+	dmConn.DDLAutoCommit = false
+	dmConn.ConstParaOpt = false
+	dmConn.IsoLevel = -1
+	dmConn.sessionID = -1
+	dmConn.Malini2 = true
+	dmConn.NewLobFlag = true
+	dmConn.Execute2 = true
+	dmConn.serverEncoding = ENCODING_GB18030
+	dmConn.TrxStatus = Dm_build_1028
+}
+
+func (dc *DmConnection) checkClosed() error {
+	if dc.closed.IsSet() {
+		return driver.ErrBadConn
 	}
 
-	c.compress = props.GetInt(CompressKey, c.compress, 0, 2)
-	c.compressID = int8(props.GetInt(CompressIdKey, int(c.compressID), 0, 1))
-	c.enRsCache = props.GetBool(EnRsCacheKey, c.enRsCache)
-	c.localTimezone = int16(props.GetInt(TimeZoneKey, int(c.localTimezone), -720, 720))
-	c.rsCacheSize = props.GetInt(RsCacheSizeKey, c.rsCacheSize, 0, int(INT32_MAX))
-	c.rsRefreshFreq = props.GetInt(RsRefreshFreqKey, c.rsRefreshFreq, 0, int(INT32_MAX))
-	c.loginMode = int32(props.GetInt(LoginModeKey, int(c.loginMode), 0, 4))
-	c.loginStatus = props.GetInt(LoginStatusKey, c.loginStatus, 0, int(INT32_MAX))
-	c.loginDscCtrl = props.GetBool(LoginDscCtrlKey, c.loginDscCtrl)
-	c.switchTimes = int32(props.GetInt(SwitchTimesKey, int(c.switchTimes), 0, int(INT32_MAX)))
-	c.switchInterval = props.GetInt(SwitchIntervalKey, c.switchInterval, 0, int(INT32_MAX))
-	c.epSelector = int32(props.GetInt(EpSelectorKey, int(c.epSelector), 0, 1))
-	c.loginEncrypt = props.GetBool(LoginEncryptKey, c.loginEncrypt)
-	c.loginCertificate = props.GetTrimString(LoginCertificateKey, c.loginCertificate)
-	c.dec2Double = props.GetBool(Dec2DoubleKey, c.dec2Double)
-
-	c.rwSeparate = props.GetBool(RwSeparateKey, c.rwSeparate)
-	c.rwAutoDistribute = props.GetBool(RwAutoDistributeKey, c.rwAutoDistribute)
-	c.rwPercent = int32(props.GetInt(RwPercentKey, int(c.rwPercent), 0, 100))
-	c.rwHA = props.GetBool(RwHAKey, c.rwHA)
-	c.rwStandbyRecoverTime = props.GetInt(RwStandbyRecoverTimeKey, c.rwStandbyRecoverTime, 0, int(INT32_MAX))
-	c.rwIgnoreSql = props.GetBool(RwIgnoreSqlKey, c.rwIgnoreSql)
-	c.doSwitch = int32(props.GetInt(DoSwitchKey, int(c.doSwitch), 0, 2))
-	c.parseCluster(props)
-	c.cipherPath = props.GetTrimString(CipherPathKey, c.cipherPath)
-
-	if props.GetBool(CompatibleOraKey, false) {
-		c.compatibleMode = int(COMPATIBLE_MODE_ORACLE)
-	}
-	c.parseCompatibleMode(props)
-	c.keyWords = props.GetStringArray(KeywordsKey, c.keyWords)
-
-	c.appName = props.GetTrimString(AppNameKey, c.appName)
-	c.osName = props.GetTrimString(OsNameKey, c.osName)
-	c.mppLocal = props.GetBool(MppLocalKey, c.mppLocal)
-	c.socketTimeout = props.GetInt(SocketTimeoutKey, c.socketTimeout, 0, int(INT32_MAX))
-	c.connectTimeout = props.GetInt(ConnectTimeoutKey, c.connectTimeout, 0, int(INT32_MAX))
-	c.sessionTimeout = props.GetInt(SessionTimeoutKey, c.sessionTimeout, 0, int(INT32_MAX))
-
-	err := c.parseOsAuthType(props)
-	if err != nil {
-		return err
-	}
-	c.continueBatchOnError = props.GetBool(ContinueBatchOnErrorKey, c.continueBatchOnError)
-	c.batchAllowMaxErrors = int32(props.GetInt(BatchAllowMaxErrorsKey, int(c.batchAllowMaxErrors), 0, int(INT32_MAX)))
-	c.escapeProcess = props.GetBool(EscapeProcessKey, c.escapeProcess)
-	c.autoCommit = props.GetBool(AutoCommitKey, c.autoCommit)
-	c.maxRows = props.GetInt(MaxRowsKey, c.maxRows, 0, int(INT32_MAX))
-	c.rowPrefetch = props.GetInt(RowPrefetchKey, c.rowPrefetch, 0, int(INT32_MAX))
-	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_666), int(Dm_build_667))
-	c.lobMode = props.GetInt(LobModeKey, c.lobMode, 1, 2)
-	c.stmtPoolMaxSize = props.GetInt(StmtPoolSizeKey, c.stmtPoolMaxSize, 0, int(INT32_MAX))
-	c.ignoreCase = props.GetBool(IgnoreCaseKey, c.ignoreCase)
-	c.alwayseAllowCommit = props.GetBool(AlwayseAllowCommitKey, c.alwayseAllowCommit)
-	c.batchType = props.GetInt(BatchTypeKey, c.batchType, 1, 2)
-	c.batchNotOnCall = props.GetBool(BatchNotOnCallKey, c.batchNotOnCall)
-	c.isBdtaRS = props.GetBool(IsBdtaRSKey, c.isBdtaRS)
-	c.sslFilesPath = props.GetTrimString(SslFilesPathKey, c.sslFilesPath)
-	c.sslCertPath = props.GetTrimString(SslCertPathKey, c.sslCertPath)
-	if c.sslCertPath == "" && c.sslFilesPath != "" {
-		c.sslCertPath = filepath.Join(c.sslFilesPath, "client-cert.pem")
-	}
-	c.sslKeyPath = props.GetTrimString(SslKeyPathKey, c.sslKeyPath)
-	if c.sslKeyPath == "" && c.sslFilesPath != "" {
-		c.sslKeyPath = filepath.Join(c.sslKeyPath, "client-key.pem")
-	}
-
-	c.kerberosLoginConfPath = props.GetTrimString(KerberosLoginConfPathKey, c.kerberosLoginConfPath)
-
-	c.uKeyName = props.GetTrimString(UKeyNameKey, c.uKeyName)
-	c.uKeyPin = props.GetTrimString(UKeyPinKey, c.uKeyPin)
-
-	c.svcConfPath = props.GetString("confPath", "")
-
-	if props.GetBool(ColumnNameUpperCaseKey, false) {
-		c.columnNameCase = COLUMN_NAME_UPPER_CASE
-	}
-
-	v := props.GetTrimString(ColumnNameCaseKey, "")
-	if util.StringUtil.EqualsIgnoreCase(v, "upper") {
-		c.columnNameCase = COLUMN_NAME_UPPER_CASE
-	} else if util.StringUtil.EqualsIgnoreCase(v, "lower") {
-		c.columnNameCase = COLUMN_NAME_LOWER_CASE
-	}
-
-	c.schema = props.GetTrimString(SchemaKey, c.schema)
-
-	c.logLevel = ParseLogLevel(props)
-	LogLevel = c.logLevel
-	c.logDir = util.StringUtil.FormatDir(props.GetTrimString(LogDirKey, LogDirDef))
-	LogDir = c.logDir
-	c.logBufferSize = props.GetInt(LogBufferSizeKey, LogBufferSizeDef, 1, int(INT32_MAX))
-	LogBufferSize = c.logBufferSize
-	c.logFlushFreq = props.GetInt(LogFlushFreqKey, LogFlushFreqDef, 1, int(INT32_MAX))
-	LogFlushFreq = c.logFlushFreq
-	c.logFlushQueueSize = props.GetInt(LogFlusherQueueSizeKey, LogFlushQueueSizeDef, 1, int(INT32_MAX))
-	LogFlushQueueSize = c.logFlushQueueSize
-
-	c.statEnable = props.GetBool(StatEnableKey, StatEnableDef)
-	StatEnable = c.statEnable
-	c.statDir = util.StringUtil.FormatDir(props.GetTrimString(StatDirKey, StatDirDef))
-	StatDir = c.statDir
-	c.statFlushFreq = props.GetInt(StatFlushFreqKey, StatFlushFreqDef, 1, int(INT32_MAX))
-	StatFlushFreq = c.statFlushFreq
-	c.statHighFreqSqlCount = props.GetInt(StatHighFreqSqlCountKey, StatHighFreqSqlCountDef, 0, 1000)
-	StatHighFreqSqlCount = c.statHighFreqSqlCount
-	c.statSlowSqlCount = props.GetInt(StatSlowSqlCountKey, StatSlowSqlCountDef, 0, 1000)
-	StatSlowSqlCount = c.statSlowSqlCount
-	c.statSqlMaxCount = props.GetInt(StatSqlMaxCountKey, StatSqlMaxCountDef, 0, 100000)
-	StatSqlMaxCount = c.statSqlMaxCount
-	c.parseStatSqlRemoveMode(props)
 	return nil
 }
 
-func (c *DmConnector) parseOsAuthType(props *Properties) error {
-	value := props.GetString(OsAuthTypeKey, "")
-	if value != "" && !util.StringUtil.IsDigit(value) {
-		if util.StringUtil.EqualsIgnoreCase(value, "ON") {
-			c.osAuthType = Dm_build_664
-		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSDBA") {
-			c.osAuthType = Dm_build_660
-		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSAUDITOR") {
-			c.osAuthType = Dm_build_662
-		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSSSO") {
-			c.osAuthType = Dm_build_661
-		} else if util.StringUtil.EqualsIgnoreCase(value, "AUTO") {
-			c.osAuthType = Dm_build_663
-		} else if util.StringUtil.EqualsIgnoreCase(value, "OFF") {
-			c.osAuthType = Dm_build_659
-		}
-	} else {
-		c.osAuthType = byte(props.GetInt(OsAuthTypeKey, int(c.osAuthType), 0, 4))
-	}
-	if c.user == "" && c.osAuthType == Dm_build_659 {
-		c.user = "SYSDBA"
-	} else if c.osAuthType != Dm_build_659 && c.user != "" {
-		return ECGO_OSAUTH_ERROR.throw()
-	} else if c.osAuthType != Dm_build_659 {
-		c.user = os.Getenv("user")
-		c.password = ""
-	}
-	return nil
-}
+func (dc *DmConnection) executeInner(query string, execType int16) (interface{}, error) {
 
-func (c *DmConnector) parseCompatibleMode(props *Properties) {
-	value := props.GetString(CompatibleModeKey, "")
-	if value != "" && !util.StringUtil.IsDigit(value) {
-		if util.StringUtil.EqualsIgnoreCase(value, "oracle") {
-			c.compatibleMode = COMPATIBLE_MODE_ORACLE
-		} else if util.StringUtil.EqualsIgnoreCase(value, "mysql") {
-			c.compatibleMode = COMPATIBLE_MODE_MYSQL
-		}
-	} else {
-		c.compatibleMode = props.GetInt(CompatibleModeKey, c.compatibleMode, 0, 2)
-	}
-}
+	stmt, err := NewDmStmt(dc, query)
 
-func (c *DmConnector) parseStatSqlRemoveMode(props *Properties) {
-	value := props.GetString(StatSqlRemoveModeKey, "")
-	if value != "" && !util.StringUtil.IsDigit(value) {
-		if util.StringUtil.EqualsIgnoreCase("oldest", value) || util.StringUtil.EqualsIgnoreCase("eldest", value) {
-			c.statSqlRemoveMode = STAT_SQL_REMOVE_OLDEST
-		} else if util.StringUtil.EqualsIgnoreCase("latest", value) {
-			c.statSqlRemoveMode = STAT_SQL_REMOVE_LATEST
-		}
-	} else {
-		c.statSqlRemoveMode = props.GetInt(StatSqlRemoveModeKey, StatSqlRemoveModeDef, 1, 2)
-	}
-}
-
-func (c *DmConnector) parseCluster(props *Properties) {
-	value := props.GetTrimString(ClusterKey, "")
-	if util.StringUtil.EqualsIgnoreCase(value, "DSC") {
-		c.cluster = CLUSTER_TYPE_DSC
-	} else if util.StringUtil.EqualsIgnoreCase(value, "RW") {
-		c.cluster = CLUSTER_TYPE_RW
-	} else if util.StringUtil.EqualsIgnoreCase(value, "DW") {
-		c.cluster = CLUSTER_TYPE_DW
-	} else if util.StringUtil.EqualsIgnoreCase(value, "MPP") {
-		c.cluster = CLUSTER_TYPE_MPP
-	} else {
-		c.cluster = CLUSTER_TYPE_NORMAL
-	}
-}
-
-func (c *DmConnector) parseDSN(dsn string) (*Properties, string, error) {
-	var dsnProps = NewProperties()
-	url, err := url.Parse(dsn)
 	if err != nil {
-		return nil, "", err
-	}
-	if url.Scheme != "dm" {
-		return nil, "", DSN_INVALID_SCHEMA
+		return nil, err
 	}
 
-	if url.User != nil {
-		c.user = url.User.Username()
-		c.password, _ = url.User.Password()
+	if execType == Dm_build_1045 {
+		defer stmt.close()
 	}
 
-	q := url.Query()
-	for k := range q {
-		dsnProps.Set(k, q.Get(k))
-	}
-
-	return dsnProps, url.Host, nil
-}
-
-func (c *DmConnector) BuildDSN() string {
-	var buf bytes.Buffer
-
-	buf.WriteString("dm://")
-
-	if len(c.user) > 0 {
-		buf.WriteString(url.QueryEscape(c.user))
-		if len(c.password) > 0 {
-			buf.WriteByte(':')
-			buf.WriteString(url.QueryEscape(c.password))
-		}
-		buf.WriteByte('@')
-	}
-
-	if len(c.host) > 0 {
-		buf.WriteString(c.host)
-		if c.port > 0 {
-			buf.WriteByte(':')
-			buf.WriteString(strconv.Itoa(int(c.port)))
-		}
-	}
-
-	hasParam := false
-	if c.connectTimeout > 0 {
-		if hasParam {
-			buf.WriteString("&timeout=")
-		} else {
-			buf.WriteString("?timeout=")
-			hasParam = true
-		}
-		buf.WriteString(strconv.Itoa(c.connectTimeout))
-	}
-	return buf.String()
-}
-
-func (c *DmConnector) mergeConfigs(dsn string) error {
-	props, host, err := c.parseDSN(dsn)
-	if err != nil {
-		return err
-	}
-
-	driverInit(props.GetString("svcConfPath", ""))
-
-	addressRemapStr := props.GetTrimString(AddressRemapKey, "")
-	userRemapStr := props.GetTrimString(UserRemapKey, "")
-	if addressRemapStr == "" {
-		addressRemapStr = GlobalProperties.GetTrimString(AddressRemapKey, "")
-	}
-	if userRemapStr == "" {
-		userRemapStr = GlobalProperties.GetTrimString(UserRemapKey, "")
-	}
-
-	host = c.remap(host, addressRemapStr)
-
-	c.user = c.remap(c.user, userRemapStr)
-
-	if group, ok := ServerGroupMap[strings.ToLower(host)]; ok {
-		c.group = group
-	} else {
-		host, port, err := net.SplitHostPort(host)
-		if err != nil || net.ParseIP(host) == nil {
-			c.host = hostDef
-		} else {
-			c.host = host
-		}
-		tmpPort, err := strconv.Atoi(port)
+	stmt.innerUsed = true
+	if stmt.dmConn.dmConnector.escapeProcess {
+		stmt.nativeSql, err = stmt.dmConn.escape(stmt.nativeSql, stmt.dmConn.dmConnector.keyWords)
 		if err != nil {
-			c.port = portDef
-		} else {
-			c.port = int32(tmpPort)
-		}
-
-		c.group = newEPGroup(c.host+":"+strconv.Itoa(int(c.port)), []*ep{newEP(c.host, c.port)})
-	}
-
-	props.SetDiffProperties(c.group.props)
-
-	props.SetDiffProperties(GlobalProperties)
-
-	if props.GetBool(RwSeparateKey, false) {
-		props.SetIfNotExist(LoginModeKey, strconv.Itoa(int(LOGIN_MODE_PRIMARY_ONLY)))
-		props.SetIfNotExist(LoginStatusKey, strconv.Itoa(int(SERVER_STATUS_OPEN)))
-
-		props.SetIfNotExist(DoSwitchKey, "true")
-	}
-
-	if err = c.setAttributes(props); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *DmConnector) remap(origin string, cfgStr string) string {
-	if cfgStr == "" || origin == "" {
-		return origin
-	}
-
-	maps := regexp.MustCompile("\\(.*?,.*?\\)").FindAllString(cfgStr, -1)
-	for _, kvStr := range maps {
-		kv := strings.Split(strings.TrimSpace(kvStr[1:len(kvStr)-1]), ",")
-		if util.StringUtil.Equals(strings.TrimSpace(kv[0]), origin) {
-			return strings.TrimSpace(kv[1])
-		}
-	}
-	return origin
-}
-
-func (c *DmConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	return c.filterChain.reset().DmConnectorConnect(c, ctx)
-}
-
-func (c *DmConnector) Driver() driver.Driver {
-	return c.filterChain.reset().DmConnectorDriver(c)
-}
-
-func (c *DmConnector) connect(ctx context.Context) (*DmConnection, error) {
-	if c.group != nil && len(c.group.epList) > 0 {
-		return c.group.connect(c)
-	} else {
-		return c.connectSingle(ctx)
-	}
-}
-
-func (c *DmConnector) driver() *DmDriver {
-	return c.dmDriver
-}
-
-func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) {
-	var err error
-	var dc *DmConnection
-	if c.reConnection == nil {
-		dc = &DmConnection{
-			closech: make(chan struct{}),
-		}
-		dc.dmConnector = c
-		dc.autoCommit = c.autoCommit
-		dc.createFilterChain(c, nil)
-
-		dc.objId = -1
-		dc.init()
-	} else {
-		dc = c.reConnection
-		dc.reset()
-	}
-
-	dc.Access, err = dm_build_344(dc)
-	if err != nil {
-		return nil, err
-	}
-
-	dc.startWatcher()
-	if err = dc.watchCancel(ctx); err != nil {
-		return nil, err
-	}
-	defer dc.finish()
-
-	if err = dc.Access.dm_build_385(); err != nil {
-
-		if !dc.closed.IsSet() {
-			close(dc.closech)
-			if dc.Access != nil {
-				dc.Access.Close()
-			}
-			dc.closed.Set(true)
-		}
-		return nil, err
-	}
-
-	if c.schema != "" {
-		_, err = dc.exec("set schema "+c.schema, nil)
-		if err != nil {
+			stmt.close()
 			return nil, err
 		}
 	}
 
+	var optParamList []OptParameter
+
+	if stmt.dmConn.ConstParaOpt {
+		optParamList = make([]OptParameter, 0)
+		stmt.nativeSql, optParamList, err = stmt.dmConn.execOpt(stmt.nativeSql, optParamList, stmt.dmConn.getServerEncoding())
+		if err != nil {
+			stmt.close()
+			optParamList = nil
+		}
+	}
+
+	if execType == Dm_build_1044 && dc.dmConnector.enRsCache {
+		rpv, err := rp.get(stmt, query)
+		if err != nil {
+			return nil, err
+		}
+
+		if rpv != nil {
+			stmt.execInfo = rpv.execInfo
+			dc.lastExecInfo = rpv.execInfo
+			return newDmRows(rpv.getResultSet(stmt)), nil
+		}
+	}
+
+	var info *execRetInfo
+
+	if optParamList != nil && len(optParamList) > 0 {
+		info, err = dc.Access.Dm_build_769(stmt, optParamList)
+		if err != nil {
+			stmt.nativeSql = query
+			info, err = dc.Access.Dm_build_775(stmt, execType)
+		}
+	} else {
+		info, err = dc.Access.Dm_build_775(stmt, execType)
+	}
+
+	if err != nil {
+		stmt.close()
+		return nil, err
+	}
+	dc.lastExecInfo = info
+
+	if info.hasResultSet {
+		return newDmRows(newInnerRows(0, stmt, info)), nil
+	} else {
+		return newDmResult(stmt, info), nil
+	}
+}
+
+func g2dbIsoLevel(isoLevel int32) int32 {
+	switch isoLevel {
+	case 1:
+		return Dm_build_1032
+	case 2:
+		return Dm_build_1033
+	case 4:
+		return Dm_build_1034
+	case 6:
+		return Dm_build_1035
+	default:
+		return -1
+	}
+}
+
+func (dc *DmConnection) Begin() (driver.Tx, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.begin()
+	} else {
+		return dc.filterChain.reset().DmConnectionBegin(dc)
+	}
+}
+
+func (dc *DmConnection) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.beginTx(ctx, opts)
+	}
+	return dc.filterChain.reset().DmConnectionBeginTx(dc, ctx, opts)
+}
+
+func (dc *DmConnection) Commit() error {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.commit()
+	} else {
+		return dc.filterChain.reset().DmConnectionCommit(dc)
+	}
+}
+
+func (dc *DmConnection) Rollback() error {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.rollback()
+	} else {
+		return dc.filterChain.reset().DmConnectionRollback(dc)
+	}
+}
+
+func (dc *DmConnection) Close() error {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.close()
+	} else {
+		return dc.filterChain.reset().DmConnectionClose(dc)
+	}
+}
+
+func (dc *DmConnection) Ping(ctx context.Context) error {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.ping(ctx)
+	} else {
+		return dc.filterChain.reset().DmConnectionPing(dc, ctx)
+	}
+}
+
+func (dc *DmConnection) Exec(query string, args []driver.Value) (driver.Result, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.exec(query, args)
+	}
+	return dc.filterChain.reset().DmConnectionExec(dc, query, args)
+}
+
+func (dc *DmConnection) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.execContext(ctx, query, args)
+	}
+	return dc.filterChain.reset().DmConnectionExecContext(dc, ctx, query, args)
+}
+
+func (dc *DmConnection) Query(query string, args []driver.Value) (driver.Rows, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.query(query, args)
+	}
+	return dc.filterChain.reset().DmConnectionQuery(dc, query, args)
+}
+
+func (dc *DmConnection) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.queryContext(ctx, query, args)
+	}
+	return dc.filterChain.reset().DmConnectionQueryContext(dc, ctx, query, args)
+}
+
+func (dc *DmConnection) Prepare(query string) (driver.Stmt, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.prepare(query)
+	}
+	return dc.filterChain.reset().DmConnectionPrepare(dc, query)
+}
+
+func (dc *DmConnection) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.prepareContext(ctx, query)
+	}
+	return dc.filterChain.reset().DmConnectionPrepareContext(dc, ctx, query)
+}
+
+func (dc *DmConnection) ResetSession(ctx context.Context) error {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.resetSession(ctx)
+	}
+	return dc.filterChain.reset().DmConnectionResetSession(dc, ctx)
+}
+
+func (dc *DmConnection) CheckNamedValue(nv *driver.NamedValue) error {
+	if len(dc.filterChain.filters) == 0 {
+		return dc.checkNamedValue(nv)
+	}
+	return dc.filterChain.reset().DmConnectionCheckNamedValue(dc, nv)
+}
+
+func (dc *DmConnection) begin() (*DmConnection, error) {
+	return dc.beginTx(context.Background(), driver.TxOptions{driver.IsolationLevel(sql.LevelDefault), false})
+}
+
+func (dc *DmConnection) beginTx(ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
+	if err := dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	dc.autoCommit = false
+
+	if sql.IsolationLevel(opts.Isolation) == sql.LevelDefault {
+		opts.Isolation = driver.IsolationLevel(sql.LevelReadCommitted)
+	}
+
+	dc.ReadOnly = opts.ReadOnly
+
+	if dc.IsoLevel == int32(opts.Isolation) {
+		return dc, nil
+	}
+
+	switch sql.IsolationLevel(opts.Isolation) {
+	case sql.LevelDefault, sql.LevelReadUncommitted:
+		return dc, nil
+	case sql.LevelReadCommitted, sql.LevelSerializable:
+		dc.IsoLevel = int32(opts.Isolation)
+	case sql.LevelRepeatableRead:
+		if dc.CompatibleMysql() {
+			dc.IsoLevel = int32(sql.LevelReadCommitted)
+		} else {
+			return nil, ECGO_INVALID_TRAN_ISOLATION.throw()
+		}
+	default:
+		return nil, ECGO_INVALID_TRAN_ISOLATION.throw()
+	}
+
+	err = dc.Access.Dm_build_829(dc)
+	if err != nil {
+		return nil, err
+	}
 	return dc, nil
+}
+
+func (dc *DmConnection) commit() error {
+	err := dc.checkClosed()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		dc.autoCommit = dc.dmConnector.autoCommit
+	}()
+
+	if !dc.autoCommit {
+		err = dc.Access.Commit()
+		if err != nil {
+			return err
+		}
+		dc.trxFinish = true
+		return nil
+	} else if !dc.dmConnector.alwayseAllowCommit {
+		return ECGO_COMMIT_IN_AUTOCOMMIT_MODE.throw()
+	}
+
+	return nil
+}
+
+func (dc *DmConnection) rollback() error {
+	err := dc.checkClosed()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		dc.autoCommit = dc.dmConnector.autoCommit
+	}()
+
+	if !dc.autoCommit {
+		err = dc.Access.Rollback()
+		if err != nil {
+			return err
+		}
+		dc.trxFinish = true
+		return nil
+	} else if !dc.dmConnector.alwayseAllowCommit {
+		return ECGO_ROLLBACK_IN_AUTOCOMMIT_MODE.throw()
+	}
+
+	return nil
+}
+
+func (dc *DmConnection) reconnect() error {
+	err := dc.Access.Close()
+	if err != nil {
+		return err
+	}
+
+	for _, stmt := range dc.stmtMap {
+		stmt.closed = true
+		for id, _ := range stmt.rsMap {
+			delete(stmt.rsMap, id)
+		}
+	}
+
+	if dc.stmtPool != nil {
+		dc.stmtPool = dc.stmtPool[:0]
+	}
+
+	dc.dmConnector.reConnection = dc
+
+	if dc.dmConnector.group != nil {
+		_, err = dc.dmConnector.group.connect(dc.dmConnector)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = dc.dmConnector.connect(context.Background())
+	}
+
+	for _, stmt := range dc.stmtMap {
+		err = dc.Access.Dm_build_747(stmt)
+		if err != nil {
+			return err
+		}
+
+		if stmt.paramCount > 0 {
+			err = stmt.prepare()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (dc *DmConnection) cleanup() {
+	dc.close()
+}
+
+func (dc *DmConnection) close() error {
+	if !dc.closed.TrySet(true) {
+		return nil
+	}
+
+	close(dc.closech)
+	if dc.Access == nil {
+		return nil
+	}
+
+	dc.rollback()
+
+	for _, stmt := range dc.stmtMap {
+		stmt.free()
+	}
+
+	if dc.stmtPool != nil {
+		for _, spi := range dc.stmtPool {
+			dc.Access.Dm_build_752(spi.id)
+		}
+		dc.stmtPool = nil
+	}
+
+	dc.Access.Close()
+
+	return nil
+}
+
+func (dc *DmConnection) ping(ctx context.Context) error {
+	if err := dc.watchCancel(ctx); err != nil {
+		return err
+	}
+	defer dc.finish()
+
+	rows, err := dc.query("select 1", nil)
+	if err != nil {
+		return err
+	}
+	return rows.close()
+}
+
+func (dc *DmConnection) exec(query string, args []driver.Value) (*DmResult, error) {
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	if args != nil && len(args) > 0 {
+		stmt, err := dc.prepare(query)
+		defer stmt.close()
+		if err != nil {
+			return nil, err
+		}
+		dc.lastExecInfo = stmt.execInfo
+
+		return stmt.exec(args)
+	} else {
+		r1, err := dc.executeInner(query, Dm_build_1045)
+		if err != nil {
+			return nil, err
+		}
+
+		if r2, ok := r1.(*DmResult); ok {
+			return r2, nil
+		} else {
+			return nil, ECGO_NOT_EXEC_SQL.throw()
+		}
+	}
+}
+
+func (dc *DmConnection) execContext(ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
+
+	if err := dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	if args != nil && len(args) > 0 {
+		stmt, err := dc.prepare(query)
+		defer stmt.close()
+		if err != nil {
+			return nil, err
+		}
+		dc.lastExecInfo = stmt.execInfo
+
+		return stmt.execContext(ctx, args)
+	} else {
+		r1, err := dc.executeInner(query, Dm_build_1045)
+		if err != nil {
+			return nil, err
+		}
+
+		if r2, ok := r1.(*DmResult); ok {
+			return r2, nil
+		} else {
+			return nil, ECGO_NOT_EXEC_SQL.throw()
+		}
+	}
+}
+
+func (dc *DmConnection) query(query string, args []driver.Value) (*DmRows, error) {
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	if args != nil && len(args) > 0 {
+		stmt, err := dc.prepare(query)
+		if err != nil {
+			stmt.close()
+			return nil, err
+		}
+		dc.lastExecInfo = stmt.execInfo
+
+		stmt.innerUsed = true
+		return stmt.query(args)
+
+	} else {
+		r1, err := dc.executeInner(query, Dm_build_1044)
+		if err != nil {
+			return nil, err
+		}
+
+		if r2, ok := r1.(*DmRows); ok {
+			return r2, nil
+		} else {
+			return nil, ECGO_NOT_QUERY_SQL.throw()
+		}
+	}
+}
+
+func (dc *DmConnection) queryContext(ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+	if err := dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	if args != nil && len(args) > 0 {
+		stmt, err := dc.prepare(query)
+		if err != nil {
+			stmt.close()
+			return nil, err
+		}
+		dc.lastExecInfo = stmt.execInfo
+
+		stmt.innerUsed = true
+		return stmt.queryContext(ctx, args)
+
+	} else {
+		r1, err := dc.executeInner(query, Dm_build_1044)
+		if err != nil {
+			return nil, err
+		}
+
+		if r2, ok := r1.(*DmRows); ok {
+			return r2, nil
+		} else {
+			return nil, ECGO_NOT_QUERY_SQL.throw()
+		}
+	}
+
+}
+
+func (dc *DmConnection) prepare(query string) (*DmStatement, error) {
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := NewDmStmt(dc, query)
+	if err != nil {
+		return nil, err
+	}
+
+	err = stmt.prepare()
+	return stmt, err
+}
+
+func (dc *DmConnection) prepareContext(ctx context.Context, query string) (*DmStatement, error) {
+	if err := dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
+
+	err := dc.checkClosed()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := dc.prepare(query)
+	if err != nil {
+		return nil, err
+	}
+
+	return stmt, nil
+}
+
+func (dc *DmConnection) resetSession(ctx context.Context) error {
+	err := dc.checkClosed()
+	if err != nil {
+		return err
+	}
+
+	for _, stmt := range dc.stmtMap {
+		stmt.inUse = false
+	}
+
+	return nil
+}
+
+func (dc *DmConnection) checkNamedValue(nv *driver.NamedValue) error {
+	var err error
+	var cvt = converter{dc, false}
+	nv.Value, err = cvt.ConvertValue(nv.Value)
+	dc.isBatch = cvt.isBatch
+	return err
+}
+
+func (dc *DmConnection) driverQuery(query string) (*DmStatement, *DmRows, error) {
+	stmt, err := NewDmStmt(dc, query)
+	if err != nil {
+		return nil, nil, err
+	}
+	stmt.innerUsed = true
+	stmt.innerExec = true
+	info, err := dc.Access.Dm_build_775(stmt, Dm_build_1044)
+	if err != nil {
+		return nil, nil, err
+	}
+	dc.lastExecInfo = info
+	stmt.innerExec = false
+	return stmt, newDmRows(newInnerRows(0, stmt, info)), nil
+}
+
+func (dc *DmConnection) getIndexOnEPGroup() int32 {
+	if dc.dmConnector.group == nil || dc.dmConnector.group.epList == nil {
+		return -1
+	}
+	for i := 0; i < len(dc.dmConnector.group.epList); i++ {
+		ep := dc.dmConnector.group.epList[i]
+		if dc.dmConnector.host == ep.host && dc.dmConnector.port == ep.port {
+			return int32(i)
+		}
+	}
+	return -1
+}
+
+func (dc *DmConnection) getServerEncoding() string {
+	if dc.dmConnector.charCode != "" {
+		return dc.dmConnector.charCode
+	}
+	return dc.serverEncoding
+}
+
+func (dc *DmConnection) lobFetchAll() bool {
+	return dc.dmConnector.lobMode == 2
+}
+
+func (conn *DmConnection) CompatibleOracle() bool {
+	return conn.dmConnector.compatibleMode == COMPATIBLE_MODE_ORACLE
+}
+
+func (conn *DmConnection) CompatibleMysql() bool {
+	return conn.dmConnector.compatibleMode == COMPATIBLE_MODE_MYSQL
+}
+
+func (conn *DmConnection) cancel(err error) {
+	conn.canceled.Set(err)
+	fmt.Println(conn.close())
+}
+
+func (conn *DmConnection) finish() {
+	if !conn.watching || conn.finished == nil {
+		return
+	}
+	select {
+	case conn.finished <- struct{}{}:
+		conn.watching = false
+	case <-conn.closech:
+	}
+}
+
+func (conn *DmConnection) startWatcher() {
+	watcher := make(chan context.Context, 1)
+	conn.watcher = watcher
+	finished := make(chan struct{})
+	conn.finished = finished
+	go func() {
+		for {
+			var ctx context.Context
+			select {
+			case ctx = <-watcher:
+			case <-conn.closech:
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				conn.cancel(ctx.Err())
+			case <-finished:
+			case <-conn.closech:
+				return
+			}
+		}
+	}()
+}
+
+func (conn *DmConnection) watchCancel(ctx context.Context) error {
+	if conn.watching {
+
+		conn.cleanup()
+		return nil
+	}
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if ctx.Done() == nil {
+		return nil
+	}
+
+	if conn.watcher == nil {
+		return nil
+	}
+
+	conn.watching = true
+	conn.watcher <- ctx
+	return nil
+}
+
+type noCopy struct{}
+
+func (*noCopy) Lock() {}
+
+type atomicBool struct {
+	_noCopy noCopy
+	value   uint32
+}
+
+func (ab *atomicBool) IsSet() bool {
+	return atomic.LoadUint32(&ab.value) > 0
+}
+
+func (ab *atomicBool) Set(value bool) {
+	if value {
+		atomic.StoreUint32(&ab.value, 1)
+	} else {
+		atomic.StoreUint32(&ab.value, 0)
+	}
+}
+
+func (ab *atomicBool) TrySet(value bool) bool {
+	if value {
+		return atomic.SwapUint32(&ab.value, 1) == 0
+	}
+	return atomic.SwapUint32(&ab.value, 0) > 0
+}
+
+type atomicError struct {
+	_noCopy noCopy
+	value   atomic.Value
+}
+
+func (ae *atomicError) Set(value error) {
+	ae.value.Store(value)
+}
+
+func (ae *atomicError) Value() error {
+	if v := ae.value.Load(); v != nil {
+
+		return v.(error)
+	}
+	return nil
 }

@@ -5,210 +5,127 @@
 
 package dm
 
-import (
-	"database/sql/driver"
-	"strings"
-	"time"
-)
+import "database/sql/driver"
 
-const (
-	Seconds_1900_1970 = 2209017600
+type DmStruct struct {
+	TypeData
+	m_strctDesc *StructDescriptor // 结构体的描述信息
 
-	OFFSET_YEAR = 0
+	m_attribs []TypeData // 各属性值
 
-	OFFSET_MONTH = 1
+	m_objCount int // 一个数组项中存在对象类型的个数（class、动态数组)
 
-	OFFSET_DAY = 2
+	m_strCount int // 一个数组项中存在字符串类型的个数
 
-	OFFSET_HOUR = 3
+	typeName string
 
-	OFFSET_MINUTE = 4
-
-	OFFSET_SECOND = 5
-
-	OFFSET_MILLISECOND = 6
-
-	OFFSET_TIMEZONE = 7
-
-	DT_LEN = 8
-
-	INVALID_VALUE = int(INT32_MIN)
-)
-
-type DmTimestamp struct {
-	dt                  []int
-	dtype               int
-	scale               int
-	oracleFormatPattern string
-	oracleDateLanguage  int
+	elements []interface{}
 
 	// Valid为false代表DmArray数据在数据库中为NULL
 	Valid bool
 }
 
-func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
-	dmts := new(DmTimestamp)
-	dmts.Valid = true
-	dmts.dt = dt
-	dmts.dtype = dtype
-	dmts.scale = scale
-	return dmts
+func newDmStruct(typeName string, elements []interface{}) *DmStruct {
+	ds := new(DmStruct)
+	ds.typeName = typeName
+	ds.elements = elements
+	ds.Valid = true
+	return ds
 }
 
-func newDmTimestampFromBytes(bytes []byte, column column, conn *DmConnection) *DmTimestamp {
-	dmts := new(DmTimestamp)
-	dmts.Valid = true
-	dmts.dt = decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
-
-	if isLocalTimeZone(int(column.colType), int(column.scale)) {
-		dmts.scale = getLocalTimeZoneScale(int(column.colType), int(column.scale))
-	} else {
-		dmts.scale = int(column.scale)
-	}
-
-	dmts.dtype = int(column.colType)
-	dmts.scale = int(column.scale)
-	dmts.oracleDateLanguage = int(conn.OracleDateLanguage)
-	switch column.colType {
-	case DATE:
-		dmts.oracleFormatPattern = conn.FormatDate
-	case TIME:
-		dmts.oracleFormatPattern = conn.FormatTime
-	case TIME_TZ:
-		dmts.oracleFormatPattern = conn.FormatTimeTZ
-	case DATETIME:
-		dmts.oracleFormatPattern = conn.FormatTimestamp
-	case DATETIME_TZ:
-		dmts.oracleFormatPattern = conn.FormatTimestampTZ
-	}
-	return dmts
-}
-
-func NewDmTimestampFromString(str string) (*DmTimestamp, error) {
-	dt := make([]int, DT_LEN)
-	dtype, err := toDTFromString(strings.TrimSpace(str), dt)
+func (ds *DmStruct) create(dc *DmConnection) (*DmStruct, error) {
+	desc, err := newStructDescriptor(ds.typeName, dc)
 	if err != nil {
 		return nil, err
 	}
-
-	if dtype == DATE {
-		return newDmTimestampFromDt(dt, dtype, 0), nil
-	}
-	return newDmTimestampFromDt(dt, dtype, 6), nil
+	return ds.createByStructDescriptor(desc, dc)
 }
 
-func NewDmTimestampFromTime(time time.Time) *DmTimestamp {
-	dt := toDTFromTime(time)
-	return newDmTimestampFromDt(dt, DATETIME, 6)
+func newDmStructByTypeData(atData []TypeData, desc *TypeDescriptor) *DmStruct {
+	ds := new(DmStruct)
+	ds.Valid = true
+	ds.initTypeData()
+	ds.m_strctDesc = newStructDescriptorByTypeDescriptor(desc)
+	ds.m_attribs = atData
+	return ds
 }
 
-func (dmTimestamp *DmTimestamp) ToTime() time.Time {
-	return toTimeFromDT(dmTimestamp.dt, 0)
-}
-
-// 获取年月日时分秒毫秒时区
-func (dmTimestamp *DmTimestamp) GetDt() []int {
-	return dmTimestamp.dt
-}
-
-func (dmTimestamp *DmTimestamp) CompareTo(ts DmTimestamp) int {
-	if dmTimestamp.ToTime().Equal(ts.ToTime()) {
-		return 0
-	} else if dmTimestamp.ToTime().Before(ts.ToTime()) {
-		return -1
-	} else {
-		return 1
-	}
-}
-
-func (dmTimestamp *DmTimestamp) String() string {
-	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
-	}
-	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
-}
-
-func (dest *DmTimestamp) Scan(src interface{}) error {
-	if dest == nil {
-		return ECGO_STORE_IN_NIL_POINTER.throw()
-	}
+func (dest *DmStruct) Scan(src interface{}) error {
 	switch src := src.(type) {
 	case nil:
-		*dest = *new(DmTimestamp)
+		*dest = *new(DmStruct)
 		// 将Valid标志置false表示数据库中该列为NULL
 		(*dest).Valid = false
 		return nil
-	case *DmTimestamp:
+	case *DmStruct:
 		*dest = *src
-		return nil
-	case time.Time:
-		ret := NewDmTimestampFromTime(src)
-		*dest = *ret
 		return nil
 	default:
 		return UNSUPPORTED_SCAN
 	}
 }
 
-func (dmTimestamp DmTimestamp) Value() (driver.Value, error) {
-	if !dmTimestamp.Valid {
+func (dt DmStruct) Value() (driver.Value, error) {
+	if !dt.Valid {
 		return nil, nil
 	}
-	return dmTimestamp, nil
+	return dt, nil
 }
 
-func (dmTimestamp *DmTimestamp) toBytes() ([]byte, error) {
-	return encode(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale, dmTimestamp.dt[OFFSET_TIMEZONE])
+func (ds *DmStruct) getAttribsTypeData() []TypeData {
+	return ds.m_attribs
 }
 
-/**
- * 获取当前对象的年月日时分秒，如果原来没有decode会先decode;
- */
-func (dmTimestamp *DmTimestamp) getDt() []int {
-	return dmTimestamp.dt
-}
+func (ds *DmStruct) createByStructDescriptor(desc *StructDescriptor, conn *DmConnection) (*DmStruct, error) {
+	ds.initTypeData()
 
-func (dmTimestamp *DmTimestamp) getTime() int64 {
-	sec := toTimeFromDT(dmTimestamp.dt, 0).Unix()
-	return sec + int64(dmTimestamp.dt[OFFSET_MILLISECOND])
-}
-
-func (dmTimestamp *DmTimestamp) setTime(time int64) {
-	timeInMillis := (time / 1000) * 1000
-	nanos := (int64)((time % 1000) * 1000000)
-	if nanos < 0 {
-		nanos = 1000000000 + nanos
-		timeInMillis = (((time / 1000) - 1) * 1000)
+	if nil == desc {
+		return nil, ECGO_INVALID_PARAMETER_VALUE.throw()
 	}
-	dmTimestamp.dt = toDTFromUnix(timeInMillis, nanos)
+
+	ds.m_strctDesc = desc
+	if nil == ds.elements {
+		ds.m_attribs = make([]TypeData, desc.getSize())
+	} else {
+		if desc.getSize() != len(ds.elements) && desc.getObjId() != 4 {
+			return nil, ECGO_STRUCT_MEM_NOT_MATCH.throw()
+		}
+		var err error
+		ds.m_attribs, err = TypeDataSV.toStruct(ds.elements, ds.m_strctDesc.m_typeDesc)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return ds, nil
 }
 
-func (dmTimestamp *DmTimestamp) setTimezone(tz int) error {
-	// DM中合法的时区取值范围为-12:59至+14:00
-	if tz <= -13*60 || tz > 14*60 {
-		return ECGO_INVALID_DATETIME_FORMAT.throw()
+func (ds *DmStruct) getSQLTypeName() (string, error) {
+	return ds.m_strctDesc.m_typeDesc.getFulName()
+}
+
+func (ds *DmStruct) getAttributes() ([]interface{}, error) {
+	return TypeDataSV.toJavaArrayByDmStruct(ds)
+}
+
+func (ds *DmStruct) checkCol(col int) error {
+	if col < 1 || col > len(ds.m_attribs) {
+		return ECGO_INVALID_SEQUENCE_NUMBER.throw()
 	}
-	dmTimestamp.dt[OFFSET_TIMEZONE] = tz
 	return nil
 }
 
-func (dmTimestamp *DmTimestamp) getNano() int64 {
-	return int64(dmTimestamp.dt[OFFSET_MILLISECOND] * 1000)
-}
-
-func (dmTimestamp *DmTimestamp) setNano(nano int64) {
-	dmTimestamp.dt[OFFSET_MILLISECOND] = (int)(nano / 1000)
-}
-
-func (dmTimestamp *DmTimestamp) string() string {
-	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
+// 获取指定索引的成员变量值，以TypeData的形式给出，col 1 based
+func (ds *DmStruct) getAttrValue(col int) (*TypeData, error) {
+	err := ds.checkCol(col)
+	if err != nil {
+		return nil, err
 	}
-	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
+	return &ds.m_attribs[col-1], nil
 }
 
-func (dmTimestamp *DmTimestamp) checkValid() error {
-	if !dmTimestamp.Valid {
+func (ds *DmStruct) checkValid() error {
+	if !ds.Valid {
 		return ECGO_IS_NULL.throw()
 	}
 	return nil

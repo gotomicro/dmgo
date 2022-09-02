@@ -6,143 +6,187 @@
 package dm
 
 import (
-	"bytes"
-	"math/rand"
+	"context"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
-
-	"gitee.com/chunanyong/dm/util"
 )
 
-/**
- * dm_svc.conf中配置的服务名对应的一组实例, 以及相关属性和状态信息
- *
- * 需求：
- * 1. 连接均匀分布在各个节点上
- * 2. loginMode，loginStatus匹配
- * 3. 连接异常节点比较耗时，在DB列表中包含异常节点时异常连接尽量靠后，减少对建连接速度的影响
- *
- *
- * DB 连接顺序：
- * 1. well distribution，每次连接都从列表的下一个节点开始
- * 2. 用DB sort值按从大到小排序，sort为一个四位数XXXX，个位--serverStatus，十位--serverMode，共 有三种模式，最优先的 *100, 次优先的*10
- */
-type epGroup struct {
-	name       string
-	epList     []*ep
-	props      *Properties
-	epStartPos int32 // wellDistribute 起始位置
-	lock       sync.Mutex
+const (
+	STATUS_VALID_TIME = 20 * time.Second // ms
+
+	// sort 值
+	SORT_SERVER_MODE_INVALID = -1 // 不允许连接的模式
+
+	SORT_SERVER_NOT_ALIVE = -2 // 站点无法连接
+
+	SORT_UNKNOWN = INT32_MAX // 站点还未连接过，模式未知
+
+	SORT_NORMAL = 30
+
+	SORT_PRIMARY = 20
+
+	SORT_STANDBY = 10
+
+	// OPEN>MOUNT>SUSPEND
+	SORT_OPEN = 3
+
+	SORT_MOUNT = 2
+
+	SORT_SUSPEND = 1
+)
+
+type ep struct {
+	host            string
+	port            int32
+	alive           bool
+	statusRefreshTs int64 // 状态更新的时间点
+	serverMode      int32
+	serverStatus    int32
+	dscControl      bool
+	sort            int32
+	epSeqno			int32
+	epStatus		int32
+	lock            sync.Mutex
 }
 
-func newEPGroup(name string, serverList []*ep) *epGroup {
-	g := new(epGroup)
-	g.name = name
-	g.epList = serverList
-	if serverList == nil || len(serverList) == 0 {
-		g.epStartPos = -1
-	} else {
-		// 保证进程间均衡，起始位置采用随机值
-		g.epStartPos = rand.Int31n(int32(len(serverList))) - 1
-	}
-	return g
+func newEP(host string, port int32) *ep {
+	ep := new(ep)
+	ep.host = host
+	ep.port = port
+	ep.serverMode = -1
+	ep.serverStatus = -1
+	ep.sort = SORT_UNKNOWN
+	return ep
 }
 
-func (g *epGroup) connect(connector *DmConnector) (*DmConnection, error) {
-	var dbSelector = g.getEPSelector(connector)
-	var ex error = nil
-	// 如果配置了loginMode的主、备等优先策略，而未找到最高优先级的节点时持续循环switchtimes次，如果最终还是没有找到最高优先级则选择次优先级的
-	// 如果只有一个节点，一轮即可决定是否连接；多个节点时保证switchTimes轮尝试，最后一轮决定用哪个节点（由于节点已经按照模式优先级排序，最后一轮理论上就是连第一个节点）
-	var cycleCount int32
-	if len(g.epList) == 1 {
-		cycleCount = 1
-	} else {
-		cycleCount = connector.switchTimes + 1
-	}
-	for i := int32(0); i < cycleCount; i++ {
-		// 循环了一遍，如果没有符合要求的, 重新排序, 再尝试连接
-		conn, err := g.traverseServerList(connector, dbSelector, i == 0, i == cycleCount-1)
-		if err != nil {
-			ex = err
-			time.Sleep(time.Duration(connector.switchInterval) * time.Millisecond)
-			continue
+func (ep *ep) getSort(checkTime bool) int32 {
+	if checkTime {
+		if time.Now().UnixNano()-ep.statusRefreshTs < int64(STATUS_VALID_TIME) {
+			return ep.sort
+		} else {
+			return SORT_UNKNOWN
 		}
-		return conn, nil
 	}
-	return nil, ex
+	return ep.sort
 }
 
-func (g *epGroup) getEPSelector(connector *DmConnector) *epSelector {
-	if connector.epSelector == TYPE_HEAD_FIRST {
-		return newEPSelector(g.epList)
-	} else {
-		serverCount := int32(len(g.epList))
-		sortEPs := make([]*ep, serverCount)
-		g.lock.Lock()
-		defer g.lock.Unlock()
-		g.epStartPos = (g.epStartPos + 1) % serverCount
-		for i := int32(0); i < serverCount; i++ {
-			sortEPs[i] = g.epList[(i+g.epStartPos)%serverCount]
-		}
-		return newEPSelector(sortEPs)
-	}
-}
-
-/**
-* 从指定编号开始，遍历一遍服务名中的ip列表，只连接指定类型（主机或备机）的ip
-* @param servers
-* @param checkTime
-*
-* @exception
-* DBError.ECJDBC_INVALID_SERVER_MODE 有站点的模式不匹配
-* DBError.ECJDBC_COMMUNITION_ERROR 所有站点都连不上
- */
-func (g *epGroup) traverseServerList(connector *DmConnector, epSelector *epSelector, first bool, last bool) (*DmConnection, error) {
-	epList := epSelector.sortDBList(first)
-	errorMsg := bytes.NewBufferString("")
-	var ex error = nil // 第一个错误
-	for _, server := range epList {
-		conn, err := server.connect(connector)
-		if err != nil {
-			if ex == nil {
-				ex = err
+func (ep *ep) calcSort(loginMode int32) int32 {
+	var sort int32 = 0
+	switch loginMode {
+	case LOGIN_MODE_PRIMARY_FIRST:
+		{
+			// 主机优先：PRIMARY>NORMAL>STANDBY
+			switch ep.serverMode {
+			case SERVER_MODE_NORMAL:
+				sort += SORT_NORMAL * 10
+			case SERVER_MODE_PRIMARY:
+				sort += SORT_PRIMARY * 100
+			case SERVER_MODE_STANDBY:
+				sort += SORT_STANDBY
 			}
-			errorMsg.WriteString("[")
-			errorMsg.WriteString(server.String())
-			errorMsg.WriteString("]")
-			errorMsg.WriteString(err.Error())
-			errorMsg.WriteString(util.StringUtil.LineSeparator())
-			continue
 		}
-		valid, err := epSelector.checkServerMode(conn, last)
-		if err != nil {
-			if ex == nil {
-				ex = err
+	case LOGIN_MODE_STANDBY_FIRST:
+		{
+			// STANDBY优先: STANDBY>PRIMARY>NORMAL
+			switch ep.serverMode {
+			case SERVER_MODE_NORMAL:
+				sort += SORT_NORMAL
+			case SERVER_MODE_PRIMARY:
+				sort += SORT_PRIMARY * 10
+			case SERVER_MODE_STANDBY:
+				sort += SORT_STANDBY * 100
 			}
-			errorMsg.WriteString("[")
-			errorMsg.WriteString(server.String())
-			errorMsg.WriteString("]")
-			errorMsg.WriteString(err.Error())
-			errorMsg.WriteString(util.StringUtil.LineSeparator())
-			continue
 		}
-		if !valid {
-			conn.close()
-			err = ECGO_INVALID_SERVER_MODE.throw()
-			if ex == nil {
-				ex = err
-			}
-			errorMsg.WriteString("[")
-			errorMsg.WriteString(server.String())
-			errorMsg.WriteString("]")
-			errorMsg.WriteString(err.Error())
-			errorMsg.WriteString(util.StringUtil.LineSeparator())
-			continue
+	case LOGIN_MODE_PRIMARY_ONLY:
+		if ep.serverMode != SERVER_MODE_PRIMARY {
+			return SORT_SERVER_MODE_INVALID
 		}
-		return conn, nil
+		sort += SORT_PRIMARY
+	case LOGIN_MODE_STANDBY_ONLY:
+		if ep.serverMode != SERVER_MODE_STANDBY {
+			return SORT_SERVER_MODE_INVALID
+		}
+		sort += SORT_STANDBY
 	}
-	if ex != nil {
-		return nil, ex
+
+	switch ep.serverStatus {
+	case SERVER_STATUS_MOUNT:
+		sort += SORT_MOUNT
+	case SERVER_STATUS_OPEN:
+		sort += SORT_OPEN
+	case SERVER_STATUS_SUSPEND:
+		sort += SORT_SUSPEND
 	}
-	return nil, ECGO_COMMUNITION_ERROR.addDetail(errorMsg.String()).throw()
+	return sort
+}
+
+func (ep *ep) refreshStatus(alive bool, conn *DmConnection) {
+	ep.lock.Lock()
+	defer ep.lock.Unlock()
+	ep.alive = alive
+	ep.statusRefreshTs = time.Now().UnixNano()
+	if alive {
+		ep.serverMode = conn.SvrMode
+		ep.serverStatus = conn.SvrStat
+		ep.dscControl = conn.dscControl
+		ep.sort = ep.calcSort(int32(conn.dmConnector.loginMode))
+	} else {
+		ep.serverMode = -1
+		ep.serverStatus = -1
+		ep.dscControl = false
+		ep.sort = SORT_SERVER_NOT_ALIVE
+	}
+}
+
+func (ep *ep) connect(connector *DmConnector) (*DmConnection, error) {
+	connector.host = ep.host
+	connector.port = ep.port
+	conn, err := connector.connectSingle(context.Background())
+	if err != nil {
+		ep.refreshStatus(false, conn)
+		return nil, err
+	}
+	ep.refreshStatus(true, conn)
+	return conn, nil
+}
+
+func (ep *ep) getServerStatusDesc(serverStatus int32) string {
+	ret := ""
+	switch ep.serverStatus {
+	case SERVER_STATUS_OPEN:
+		ret = "OPEN"
+	case SERVER_STATUS_MOUNT:
+		ret = "MOUNT"
+	case SERVER_STATUS_SUSPEND:
+		ret = "SUSPEND"
+	default:
+		ret = "UNKNOWN"
+	}
+	return ret
+}
+
+func (ep *ep) getServerModeDesc(serverMode int32) string {
+	ret := ""
+	switch ep.serverMode {
+	case SERVER_MODE_NORMAL:
+		ret = "NORMAL"
+	case SERVER_MODE_PRIMARY:
+		ret = "PRIMARY"
+	case SERVER_MODE_STANDBY:
+		ret = "STANDBY"
+	default:
+		ret = "UNKNOWN"
+	}
+	return ret
+}
+
+func (ep *ep) String() string {
+	dscControl := ")"
+	if ep.dscControl {
+		dscControl = ", DSC CONTROL)"
+	}
+	return strings.TrimSpace(ep.host) + ":" + strconv.Itoa(int(ep.port)) +
+		" (" + ep.getServerModeDesc(ep.serverMode) + ", " + ep.getServerStatusDesc(ep.serverStatus) + dscControl
 }
