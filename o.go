@@ -160,8 +160,8 @@ const (
 
 	COLUMN_NAME_LOWER_CASE = 2
 
-	compressDef   = Dm_build_1039
-	compressIDDef = Dm_build_1040
+	compressDef   = Dm_build_84
+	compressIDDef = Dm_build_85
 
 	charCodeDef = ""
 
@@ -215,7 +215,7 @@ const (
 
 	sessionTimeoutDef = 0
 
-	osAuthTypeDef = Dm_build_1022
+	osAuthTypeDef = Dm_build_67
 
 	continueBatchOnErrorDef = false
 
@@ -225,7 +225,7 @@ const (
 
 	maxRowsDef = 0
 
-	rowPrefetchDef = Dm_build_1023
+	rowPrefetchDef = Dm_build_68
 
 	bufPrefetchDef = 0
 
@@ -507,7 +507,7 @@ func (c *DmConnector) setAttributes(props *Properties) error {
 	c.rwStandby = props.GetBool(RwStandbyKey, c.rwStandby)
 
 	if b := props.GetBool(IsCompressKey, false); b {
-		c.compress = Dm_build_1038
+		c.compress = Dm_build_83
 	}
 
 	c.compress = props.GetInt(CompressKey, c.compress, 0, 2)
@@ -559,7 +559,7 @@ func (c *DmConnector) setAttributes(props *Properties) error {
 	c.autoCommit = props.GetBool(AutoCommitKey, c.autoCommit)
 	c.maxRows = props.GetInt(MaxRowsKey, c.maxRows, 0, int(INT32_MAX))
 	c.rowPrefetch = props.GetInt(RowPrefetchKey, c.rowPrefetch, 0, int(INT32_MAX))
-	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_1024), int(Dm_build_1025))
+	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_69), int(Dm_build_70))
 	c.lobMode = props.GetInt(LobModeKey, c.lobMode, 1, 2)
 	c.stmtPoolMaxSize = props.GetInt(StmtPoolSizeKey, c.stmtPoolMaxSize, 0, int(INT32_MAX))
 	c.ignoreCase = props.GetBool(IgnoreCaseKey, c.ignoreCase)
@@ -628,26 +628,26 @@ func (c *DmConnector) parseOsAuthType(props *Properties) error {
 	value := props.GetString(OsAuthTypeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase(value, "ON") {
-			c.osAuthType = Dm_build_1022
+			c.osAuthType = Dm_build_67
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSDBA") {
-			c.osAuthType = Dm_build_1018
+			c.osAuthType = Dm_build_63
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSAUDITOR") {
-			c.osAuthType = Dm_build_1020
+			c.osAuthType = Dm_build_65
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSSSO") {
-			c.osAuthType = Dm_build_1019
+			c.osAuthType = Dm_build_64
 		} else if util.StringUtil.EqualsIgnoreCase(value, "AUTO") {
-			c.osAuthType = Dm_build_1021
+			c.osAuthType = Dm_build_66
 		} else if util.StringUtil.EqualsIgnoreCase(value, "OFF") {
-			c.osAuthType = Dm_build_1017
+			c.osAuthType = Dm_build_62
 		}
 	} else {
 		c.osAuthType = byte(props.GetInt(OsAuthTypeKey, int(c.osAuthType), 0, 4))
 	}
-	if c.user == "" && c.osAuthType == Dm_build_1017 {
+	if c.user == "" && c.osAuthType == Dm_build_62 {
 		c.user = "SYSDBA"
-	} else if c.osAuthType != Dm_build_1017 && c.user != "" {
+	} else if c.osAuthType != Dm_build_62 && c.user != "" {
 		return ECGO_OSAUTH_ERROR.throw()
-	} else if c.osAuthType != Dm_build_1017 {
+	} else if c.osAuthType != Dm_build_62 {
 		c.user = os.Getenv("user")
 		c.password = ""
 	}
@@ -863,7 +863,7 @@ func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) 
 		dc.reset()
 	}
 
-	dc.Access, err = dm_build_702(dc)
+	dc.Access, err = dm_build_1324(dc)
 	if err != nil {
 		return nil, err
 	}
@@ -874,7 +874,7 @@ func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) 
 	}
 	defer dc.finish()
 
-	if err = dc.Access.dm_build_743(); err != nil {
+	if err = dc.Access.dm_build_1365(); err != nil {
 
 		if !dc.closed.IsSet() {
 			close(dc.closech)
