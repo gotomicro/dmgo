@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	YYEOF               = -1    /** This character denotes the end of file */
-	ZZ_BUFFERSIZE       = 16384 /** initial size of the lookahead buffer */
+	YYEOF         = -1    /** This character denotes the end of file */
+	ZZ_BUFFERSIZE = 16384 /** initial size of the lookahead buffer */
 	/** lexical states */
 	YYINITIAL = 0
 	xc        = 2
@@ -458,7 +458,7 @@ func (lexer *Lexer) zzRefill() (bool, error) {
 	requested := len(lexer.zzBuffer) - lexer.zzEndRead
 
 	var numRead = 0
-	for i := lexer.zzEndRead; i < lexer.zzEndRead + requested; i ++ {
+	for i := lexer.zzEndRead; i < lexer.zzEndRead+requested; i++ {
 		r, _, err := lexer.zzReader.ReadRune()
 		if err == io.EOF {
 			if numRead == 0 {
@@ -728,7 +728,7 @@ func (lexer *Lexer) Yylex() (*LVal, error) {
 
 				if zzCurrentPosL < zzEndReadL {
 					zzInput = zzBufferL[zzCurrentPosL]
-					zzCurrentPosL += 1//utf8.RuneLen(zzInput)
+					zzCurrentPosL += 1 //utf8.RuneLen(zzInput)
 				} else if lexer.zzAtEOF {
 					zzInput = YYEOF
 					goto zzForAction
@@ -750,7 +750,7 @@ func (lexer *Lexer) Yylex() (*LVal, error) {
 						goto zzForAction
 					} else {
 						zzInput = zzBufferL[zzCurrentPosL]
-						zzCurrentPosL += 1//utf8.RuneLen(zzInput)
+						zzCurrentPosL += 1 //utf8.RuneLen(zzInput)
 					}
 				}
 

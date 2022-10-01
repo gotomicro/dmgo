@@ -20,8 +20,8 @@ type ThirdPartCipher struct {
 	key         []byte
 	cipherCount int // 外部加密算法个数
 	//innerId		int // 外部加密算法内部id
-	blockSize   int // 分组块大小
-	khSize      int // key/hash大小
+	blockSize int // 分组块大小
+	khSize    int // key/hash大小
 }
 
 func NewThirdPartCipher(encryptType int, key []byte, cipherPath string, hashType int) (ThirdPartCipher, error) {
@@ -129,11 +129,11 @@ func uintptr2bytes(p uintptr) []byte {
 	i := 0
 	for b := (*byte)(unsafe.Pointer(p)); *b != 0; i++ {
 		if i > cap(buf) {
-			buf = addBufSize(buf, i * 2)
+			buf = addBufSize(buf, i*2)
 		}
 		buf[i] = *b
 		// byte占1字节
-		p ++
+		p++
 		b = (*byte)(unsafe.Pointer(p))
 	}
 	return buf[:i]

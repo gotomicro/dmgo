@@ -25,7 +25,12 @@ type DmStruct struct {
 	Valid bool
 }
 
-func newDmStruct(typeName string, elements []interface{}) *DmStruct {
+// 数据库自定义类型Struct构造函数，typeName为库中定义的类型名称，elements为该类型每个字段的值
+//
+// 例如，自定义类型语句为：create or replace type myType as object (a1 int, a2 varchar);
+//
+// 则绑入绑出的go对象为: val := dm.NewDmStruct("myType", []interface{} {123, "abc"})
+func NewDmStruct(typeName string, elements []interface{}) *DmStruct {
 	ds := new(DmStruct)
 	ds.typeName = typeName
 	ds.elements = elements
@@ -51,6 +56,9 @@ func newDmStructByTypeData(atData []TypeData, desc *TypeDescriptor) *DmStruct {
 }
 
 func (dest *DmStruct) Scan(src interface{}) error {
+	if dest == nil {
+		return ECGO_STORE_IN_NIL_POINTER.throw()
+	}
 	switch src := src.(type) {
 	case nil:
 		*dest = *new(DmStruct)
@@ -61,7 +69,7 @@ func (dest *DmStruct) Scan(src interface{}) error {
 		*dest = *src
 		return nil
 	default:
-		return UNSUPPORTED_SCAN
+		return UNSUPPORTED_SCAN.throw()
 	}
 }
 
@@ -100,11 +108,13 @@ func (ds *DmStruct) createByStructDescriptor(desc *StructDescriptor, conn *DmCon
 	return ds, nil
 }
 
-func (ds *DmStruct) getSQLTypeName() (string, error) {
+// 获取Struct对象在数据库中的类型名称
+func (ds *DmStruct) GetSQLTypeName() (string, error) {
 	return ds.m_strctDesc.m_typeDesc.getFulName()
 }
 
-func (ds *DmStruct) getAttributes() ([]interface{}, error) {
+// 获取Struct对象中的各个字段的值
+func (ds *DmStruct) GetAttributes() ([]interface{}, error) {
 	return TypeDataSV.toJavaArrayByDmStruct(ds)
 }
 

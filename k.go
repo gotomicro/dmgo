@@ -48,6 +48,11 @@ func (da *DmArray) init() *DmArray {
 	return da
 }
 
+// 数据库自定义数组Array构造函数，typeName为库中定义的数组类型名称，elements为该数组类型的每个值
+//
+// 例如，自定义数组类型语句为：create or replace type myArray is array int[];
+//
+// 则绑入绑出的go对象为: val := dm.NewDmArray("myArray", []interface{} {123, 456})
 func NewDmArray(typeName string, elements []interface{}) *DmArray {
 	da := new(DmArray)
 	da.typeName = typeName
@@ -101,7 +106,7 @@ func newDmArrayByTypeData(atData []TypeData, desc *TypeDescriptor) *DmArray {
 }
 
 func (da *DmArray) checkIndex(index int64) error {
-	if index < 0 || index > int64(len(da.m_arrData) - 1) {
+	if index < 0 || index > int64(len(da.m_arrData)-1) {
 		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
 	return nil
@@ -119,6 +124,7 @@ func (da *DmArray) checkIndexAndCount(index int64, count int) error {
 	return nil
 }
 
+// 获取Array对象在数据库中的类型名称
 func (da *DmArray) GetBaseTypeName() (string, error) {
 	if err := da.checkValid(); err != nil {
 		return "", err
@@ -126,6 +132,16 @@ func (da *DmArray) GetBaseTypeName() (string, error) {
 	return da.m_arrDesc.m_typeDesc.getFulName()
 }
 
+// 获取Array对象的go数组对象
+func (da *DmArray) GetArray() (interface{}, error) {
+	if da.m_arrData == nil || len(da.m_arrData) <= 0 {
+		return nil, nil;
+	}
+
+	return TypeDataSV.toJavaArray(da, 0, len(da.m_arrData), da.m_arrDesc.getItemDesc().getDType())
+}
+
+// 获取Array对象的指定偏移和执行长度go数据对象 index从0开始
 func (da *DmArray) GetObjArray(index int64, count int) (interface{}, error) {
 	var err error
 	if err = da.checkValid(); err != nil {

@@ -186,7 +186,6 @@ func (sc *SymmCipher) getDecrypter(workMode int, block cipher.Block, iv []byte) 
 	return
 }
 
-
 // 补码
 func pkcs77Padding(ciphertext []byte, blocksize int) []byte {
 	padding := blocksize - len(ciphertext)%blocksize

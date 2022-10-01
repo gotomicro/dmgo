@@ -16,8 +16,8 @@ type ecb struct {
 }
 
 func newECB(b cipher.Block) *ecb {
-	return &ecb {
-		b: b,
+	return &ecb{
+		b:         b,
 		blockSize: b.BlockSize(),
 	}
 }
@@ -40,7 +40,7 @@ func (x *ecbEncrypter) CryptBlocks(dst, src []byte) {
 	if InexactOverlap(dst[:len(src)], src) {
 		panic("dm/security: invalid buffer overlap")
 	}
-	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs + x.blockSize, be + x.blockSize {
+	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs+x.blockSize, be+x.blockSize {
 		x.b.Encrypt(dst[bs:be], src[bs:be])
 	}
 }
@@ -63,7 +63,7 @@ func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
 	if InexactOverlap(dst[:len(src)], src) {
 		panic("dm/security: invalid buffer overlap")
 	}
-	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs + x.blockSize, be + x.blockSize {
+	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs+x.blockSize, be+x.blockSize {
 		x.b.Decrypt(dst[bs:be], src[bs:be])
 	}
 }

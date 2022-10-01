@@ -184,6 +184,13 @@ func (dest *DmDecimal) Scan(src interface{}) error {
 		}
 		*dest = *d
 		return nil
+	case float32, float64:
+		d, err := NewDecimalFromFloat64(reflect.ValueOf(src).Float())
+		if err != nil {
+			return err
+		}
+		*dest = *d
+		return nil
 	case string:
 		d, err := NewDecimalFromString(src)
 		if err != nil {

@@ -46,8 +46,8 @@ type ep struct {
 	serverStatus    int32
 	dscControl      bool
 	sort            int32
-	epSeqno			int32
-	epStatus		int32
+	epSeqno         int32
+	epStatus        int32
 	lock            sync.Mutex
 }
 

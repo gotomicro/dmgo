@@ -30,8 +30,10 @@ func (dm_build_988 *Dm_build_980) dm_build_987(dm_build_989 int) *Dm_build_980 {
 	if dm_build_990+dm_build_989 <= dm_build_991 {
 		dm_build_988.dm_build_981 = dm_build_988.dm_build_981[:dm_build_990+dm_build_989]
 	} else {
-		remain := dm_build_989 + dm_build_990 - dm_build_991
-		nbuf := make([]byte, dm_build_989+dm_build_990, 2*dm_build_991+remain)
+
+		var calCap = int64(math.Max(float64(2*dm_build_991), float64(dm_build_989+dm_build_990)))
+
+		nbuf := make([]byte, dm_build_989+dm_build_990, calCap)
 		copy(nbuf, dm_build_988.dm_build_981)
 		dm_build_988.dm_build_981 = nbuf
 	}

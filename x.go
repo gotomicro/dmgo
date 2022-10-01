@@ -145,8 +145,15 @@ func (dest *DmTimestamp) Scan(src interface{}) error {
 		ret := NewDmTimestampFromTime(src)
 		*dest = *ret
 		return nil
+	case string:
+		ret, err := NewDmTimestampFromString(src)
+		if err != nil {
+			return err
+		}
+		*dest = *ret
+		return nil
 	default:
-		return UNSUPPORTED_SCAN
+		return UNSUPPORTED_SCAN.throw()
 	}
 }
 

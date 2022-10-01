@@ -34,7 +34,7 @@ func NewTLSFromTCP(conn *net.TCPConn, sslCertPath string, sslKeyPath string, use
 	}
 	conf := &tls.Config{
 		InsecureSkipVerify: true,
-		Certificates: []tls.Certificate{cer},
+		Certificates:       []tls.Certificate{cer},
 	}
 	tlsConn := tls.Client(conn, conf)
 	if err := tlsConn.Handshake(); err != nil {

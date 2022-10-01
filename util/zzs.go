@@ -19,7 +19,7 @@ const (
 
 var (
 	goRoot = build.Default.GOROOT
-	goPath = build.Default.GOPATH   //获取实际编译时的GOPATH值
+	goPath = build.Default.GOPATH //获取实际编译时的GOPATH值
 )
 
 type fileUtil struct {

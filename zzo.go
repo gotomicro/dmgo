@@ -158,9 +158,9 @@ const (
 
 	INTERVAL_DT_PREC = 6 * ULINT_SIZE
 
-	TIME_TZ_PREC = 12
+	TIME_TZ_PREC = 7
 
-	DATETIME_TZ_PREC = 12
+	DATETIME_TZ_PREC = 10
 
 	VARCHAR_PREC = 8188
 
@@ -184,7 +184,7 @@ const (
 
 	CURRENCY_SCALE = 4
 
-	FLOAT_SCALE_MASK = 0X81
+	FLOAT_SCALE_MASK = 0x81
 )
 
 func resetColType(stmt *DmStatement, i int, colType int32) bool {
@@ -206,6 +206,16 @@ func resetColType(stmt *DmStatement, i int, colType int32) bool {
 		parameter.colType = colType
 		parameter.scale = 0
 		switch colType {
+		case BOOLEAN, BIT:
+			parameter.prec = BIT_PREC
+		case TINYINT:
+			parameter.prec = TINYINT_PREC
+		case SMALLINT:
+			parameter.prec = SMALLINT_PREC
+		case INT:
+			parameter.prec = INT_PREC
+		case BIGINT:
+			parameter.prec = BIGINT_PREC
 		case CHAR, VARCHAR, VARCHAR2:
 			parameter.prec = VARCHAR_PREC
 		case CLOB:
@@ -214,8 +224,25 @@ func resetColType(stmt *DmStatement, i int, colType int32) bool {
 			parameter.prec = VARBINARY_PREC
 		case BLOB:
 			parameter.prec = BLOB_PREC
-		case BOOLEAN, BIT:
-			parameter.prec = BIT_PREC
+		case DATE:
+			parameter.prec = DATE_PREC
+		case TIME:
+			parameter.prec = TIME_PREC
+			parameter.scale = 6
+		case TIME_TZ:
+			parameter.prec = TIME_TZ_PREC
+			parameter.scale = 6
+		case DATETIME:
+			parameter.prec = DATETIME_PREC
+			parameter.scale = 6
+		case DATETIME_TZ:
+			parameter.prec = DATETIME_TZ_PREC
+			parameter.scale = 6
+		case REAL, DOUBLE, DECIMAL, INTERVAL_YM, INTERVAL_DT, ARRAY, CLASS, PLTYPE_RECORD, SARRAY:
+			parameter.prec = 0
+		case UNKNOWN, NULL:
+			parameter.colType = VARCHAR
+			parameter.prec = VARCHAR_PREC
 		}
 	}
 
@@ -430,11 +457,27 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 	case BINARY, VARBINARY:
 		return bytes, nil
 	case BLOB:
-		return DB2G.toDmBlob(bytes, column, conn), nil
+		blob := DB2G.toDmBlob(bytes, column, conn)
+		if conn.CompatibleMysql() {
+			l, err := blob.GetLength()
+			if err != nil {
+				return nil, err
+			}
+			return blob.getBytes(1, int32(l))
+		}
+		return blob, nil
 	case CHAR, VARCHAR2, VARCHAR:
 		return Dm_build_623.Dm_build_780(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
 	case CLOB:
-		return DB2G.toDmClob(bytes, conn, column), nil
+		clob := DB2G.toDmClob(bytes, conn, column)
+		if conn.CompatibleMysql() {
+			l, err := clob.GetLength()
+			if err != nil {
+				return nil, err
+			}
+			return clob.getSubString(1, int32(l))
+		}
+		return clob, nil
 	}
 
 	return string(bytes), nil
