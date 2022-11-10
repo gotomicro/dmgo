@@ -547,7 +547,7 @@ func (sv TypeData) arrayToBytes(data *DmArray, desc *TypeDescriptor) ([]byte, er
 func (sv TypeData) objToBytes(data interface{}, desc *TypeDescriptor) ([]byte, error) {
 
 	switch data.(type) {
-	case DmArray:
+	case *DmArray:
 		return sv.arrayToBytes(data.(*DmArray), desc)
 	default:
 		return sv.structToBytes(data.(*DmStruct), desc)
@@ -1353,7 +1353,7 @@ func (td *TypeData) toBytesFromDmArray(x *DmArray, typeDesc *TypeDescriptor) ([]
 	Dm_build_623.Dm_build_639(ret, 0, OBJ_BLOB_MAGIC)
 	Dm_build_623.Dm_build_639(ret, ULINT_SIZE, int32(len(desc)))
 	copy(ret[ULINT_SIZE+ULINT_SIZE:ULINT_SIZE+ULINT_SIZE+len(desc)], desc[:len(desc)])
-	copy(ret[ULINT_SIZE+ULINT_SIZE:ULINT_SIZE+ULINT_SIZE+len(desc)+len(data)], desc[:len(data)])
+	copy(ret[ULINT_SIZE+ULINT_SIZE+len(desc):ULINT_SIZE+ULINT_SIZE+len(desc)+len(data)], data[:len(data)])
 	return ret, nil
 }
 

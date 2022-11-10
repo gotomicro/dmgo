@@ -894,3 +894,24 @@ func (DB2G db2g) toObject(bytes []byte, column *column, conn *DmConnection) (int
 
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
+
+func (DB2G db2g) toComplexType(bytes []byte, column *column, conn *DmConnection) (interface{}, error) {
+	switch column.colType {
+	case BLOB:
+		if !isComplexType(int(column.colType), int(column.scale)) {
+			return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+		}
+		blob := newBlobFromDB(bytes, conn, column, true)
+		return TypeDataSV.objBlobToObj(blob, column.typeDescriptor)
+	case ARRAY:
+		return TypeDataSV.bytesToArray(bytes, nil, column.typeDescriptor)
+	case SARRAY:
+		return TypeDataSV.bytesToSArray(bytes, nil, column.typeDescriptor)
+	case CLASS:
+		return TypeDataSV.bytesToObj(bytes, nil, column.typeDescriptor)
+	case PLTYPE_RECORD:
+		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+	default:
+		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+	}
+}

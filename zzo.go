@@ -457,6 +457,9 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 	case BINARY, VARBINARY:
 		return bytes, nil
 	case BLOB:
+		if isComplexType(int(column.colType), int(column.scale)) {
+			return DB2G.toComplexType(bytes, column, conn)
+		}
 		blob := DB2G.toDmBlob(bytes, column, conn)
 		if conn.CompatibleMysql() {
 			l, err := blob.GetLength()

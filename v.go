@@ -423,7 +423,11 @@ func (stmt *DmStatement) query(args []driver.Value) (*DmRows, error) {
 		return nil, err
 	}
 
-	return newDmRows(newInnerRows(0, stmt, stmt.execInfo)), nil
+	if stmt.execInfo.hasResultSet {
+		return newDmRows(newInnerRows(0, stmt, stmt.execInfo)), nil
+	} else {
+		return newDmRows(newLocalInnerRows(stmt, nil, nil)), nil
+	}
 }
 
 func (stmt *DmStatement) queryContext(ctx context.Context, args []driver.NamedValue) (*DmRows, error) {
@@ -605,11 +609,11 @@ func encodeArgs(stmt *DmStatement, args []driver.Value) ([]interface{}, error) {
 				bytes[i], err = G2DB.fromString(v, stmt.params[i], stmt.dmConn)
 			}
 		case time.Time:
-			if resetColType(stmt, i, DATETIME_TZ) {
+			if resetColType(stmt, i, DATETIME) {
 				bytes[i], err = G2DB.fromTime(v, stmt.params[i], stmt.dmConn)
 			}
 		case DmTimestamp:
-			if resetColType(stmt, i, DATETIME_TZ) {
+			if resetColType(stmt, i, DATETIME) {
 				bytes[i], err = G2DB.fromTime(v.ToTime(), stmt.params[i], stmt.dmConn)
 			}
 		case DmIntervalDT:
@@ -650,7 +654,7 @@ func encodeArgs(stmt *DmStatement, args []driver.Value) ([]interface{}, error) {
 				bytes[i], err = G2DB.fromArray(da, stmt.params[i], stmt.dmConn)
 			}
 		case DmStruct:
-			if resetColType(stmt, i, RECORD) {
+			if resetColType(stmt, i, CLASS) {
 				ds := &v
 				ds, err = ds.create(stmt.dmConn)
 				if err != nil {
@@ -667,7 +671,7 @@ func encodeArgs(stmt *DmStatement, args []driver.Value) ([]interface{}, error) {
 			goto nextSwitch
 
 		case *DmTimestamp:
-			if resetColType(stmt, i, DATETIME_TZ) {
+			if resetColType(stmt, i, DATETIME) {
 				bytes[i], err = G2DB.fromTime(v.ToTime(), stmt.params[i], stmt.dmConn)
 			}
 		case *DmIntervalDT:
@@ -700,7 +704,7 @@ func encodeArgs(stmt *DmStatement, args []driver.Value) ([]interface{}, error) {
 				bytes[i], err = G2DB.fromArray(v, stmt.params[i], stmt.dmConn)
 			}
 		case *DmStruct:
-			if resetColType(stmt, i, RECORD) {
+			if resetColType(stmt, i, CLASS) {
 				v, err = v.create(stmt.dmConn)
 				if err != nil {
 					return nil, err

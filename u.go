@@ -461,7 +461,7 @@ func (innerRows *innerRows) checkIndex(index int) *column {
 func (innerRows *innerRows) fetchData(startPos int64) bool {
 	execInfo, err := innerRows.dmStmt.dmConn.Access.Dm_build_1436(innerRows, startPos)
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	innerRows.totalRowCount = execInfo.updateCount

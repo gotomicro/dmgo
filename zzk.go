@@ -5,7 +5,10 @@
 
 package dm
 
-import "database/sql/driver"
+import (
+	"database/sql"
+	"database/sql/driver"
+)
 
 var SQLName sqlName
 
@@ -66,18 +69,18 @@ func (SqlName *sqlName) getFulName() (string, error) {
 
 	// 其他数据名描述信息
 	if SqlName.m_packId != 0 || SqlName.m_schId != 0 {
-		sql := "SELECT NAME INTO ? FROM SYS.SYSOBJECTS WHERE ID=?"
+		query := "SELECT NAME INTO ? FROM SYS.SYSOBJECTS WHERE ID=?"
 
 		params := make([]driver.Value, 2)
 		var v string
-		params[0] = &v
+		params[0] = sql.Out{Dest: &v}
 		if SqlName.m_packId != 0 {
 			params[1] = SqlName.m_packId
 		} else {
 			params[1] = SqlName.m_schId
 		}
 
-		rs, err := SqlName.m_conn.query(sql, params)
+		rs, err := SqlName.m_conn.query(query, params)
 		if err != nil {
 			return "", err
 		}
