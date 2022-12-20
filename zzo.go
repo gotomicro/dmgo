@@ -408,7 +408,11 @@ func (column *column) Length() (length int64, ok bool) {
 func (column *column) PrecisionScale() (precision, scale int64, ok bool) {
 	switch column.colType {
 	case DECIMAL:
-		return int64(column.prec), int64(column.scale), true
+		if column.prec == 0 {
+			return 38, int64(column.scale), true
+		} else {
+			return int64(column.prec), int64(column.scale), true
+		}
 	}
 
 	return int64(0), int64(0), false
@@ -431,16 +435,16 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 	case TINYINT:
 		return int8(bytes[0]), nil
 	case SMALLINT:
-		return Dm_build_623.Dm_build_720(bytes, 0), nil
+		return Dm_build_1298.Dm_build_1395(bytes, 0), nil
 	case INT:
-		return Dm_build_623.Dm_build_725(bytes, 0), nil
+		return Dm_build_1298.Dm_build_1400(bytes, 0), nil
 	case BIGINT:
-		return Dm_build_623.Dm_build_730(bytes, 0), nil
+		return Dm_build_1298.Dm_build_1405(bytes, 0), nil
 	case REAL:
-		return Dm_build_623.Dm_build_735(bytes, 0), nil
+		return Dm_build_1298.Dm_build_1410(bytes, 0), nil
 	case DOUBLE:
 
-		return Dm_build_623.Dm_build_739(bytes, 0), nil
+		return Dm_build_1298.Dm_build_1414(bytes, 0), nil
 	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ:
 		return DB2G.toTime(bytes, column, conn)
 	case INTERVAL_DT:
@@ -470,7 +474,7 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 		}
 		return blob, nil
 	case CHAR, VARCHAR2, VARCHAR:
-		return Dm_build_623.Dm_build_780(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
+		return Dm_build_1298.Dm_build_1455(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
 	case CLOB:
 		clob := DB2G.toDmClob(bytes, conn, column)
 		if conn.CompatibleMysql() {

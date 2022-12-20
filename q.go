@@ -14,9 +14,9 @@ import (
 )
 
 // 发版标记
-var version = "8.1.2.162"
-var build_date = "2022.10.19"
-var svn = "13252"
+var version = "8.1.2.174"
+var build_date = "2022.11.21"
+var svn = "13574"
 
 var globalDmDriver = newDmDriver()
 
