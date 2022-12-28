@@ -14,8 +14,8 @@ go get gitee.com/chunanyong/dm
 Go轻量ORM https://gitee.com/chunanyong/zorm 原生支持达梦数据库  
 
 ### DSN  
-dm://userName:password@127.0.0.1:5236  
-用户名(userName)就是数据库的名称,达梦用户模式和数据库名称是对应的   
+dm://userName:password@127.0.0.1:5236?schema=DBName  
+用户名(userName)默认就是数据库的名称,达梦用户模式和数据库名称是对应的,也可以通过schema参数指定数据库  
 建议达梦使用UTF-8字符编码,不区分大小写,建表语句的字段名不要带""双引号      
 
 ### 版本号  
