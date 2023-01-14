@@ -11,13 +11,21 @@ import (
 	"flag"
 	"net"
 	"os"
+	"sync"
 )
 
 var dmHome = flag.String("DM_HOME", "", "Where DMDB installed")
 
+var lock = sync.Mutex{}
+
 func NewTLSFromTCP(conn *net.TCPConn, sslCertPath string, sslKeyPath string, user string) (*tls.Conn, error) {
 	if sslCertPath == "" && sslKeyPath == "" {
-		flag.Parse()
+		func() {
+			lock.Lock()
+			defer lock.Unlock()
+			flag.Parse()
+		}()
+
 		separator := string(os.PathSeparator)
 		if *dmHome != "" {
 			sslCertPath = *dmHome + separator + "bin" + separator + "client_ssl" + separator +
