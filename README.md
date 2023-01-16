@@ -9,6 +9,7 @@ go get gitee.com/chunanyong/dm
 达梦官方文档:https://eco.dameng.com/docs/zh-cn/app-dev/go-go.html    
 资源下载:https://eco.dameng.com/download/    
 达梦官方Go驱动包:https://package.dameng.com/eco/adapter/resource/go/dm-go-driver.zip  
+达梦官方论坛(提交bug):https://eco.dameng.com/community/question  
 
 ### zorm  
 Go轻量ORM https://gitee.com/chunanyong/zorm 原生支持达梦数据库  
@@ -17,6 +18,9 @@ Go轻量ORM https://gitee.com/chunanyong/zorm 原生支持达梦数据库
 dm://userName:password@127.0.0.1:5236?schema=DBName  
 用户名(userName)默认就是数据库的名称,达梦用户模式和数据库名称是对应的,也可以通过schema参数指定数据库  
 建议达梦使用UTF-8字符编码,不区分大小写,建表语句的字段名不要带""双引号      
+
+### bug
+- 达梦开启等保参数 COMM_ENCRYPT_NAME = AES128_ECB，导致连接异常
 
 ### 版本号  
 Go三段位版本号和达梦四段位版本号不兼容,统一使用1.达梦主版本号.发布的小版本号,具体查看标签的备注  
