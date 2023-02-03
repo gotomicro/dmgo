@@ -8,490 +8,303 @@ package dm
 import (
 	"context"
 	"database/sql/driver"
-	"io"
 	"reflect"
-	"time"
-
-	"gitee.com/chunanyong/dm/util"
 )
 
-const SQL_GET_DSC_EP_SITE = "SELECT " +
-	"dsc.ep_seqno, " +
-	"(CASE mal.MAL_INST_HOST WHEN '' THEN mal.MAL_HOST ELSE mal.MAL_INST_HOST END) as ep_host, " +
-	"dcr.EP_PORT, " +
-	"dsc.EP_STATUS " +
-	"FROM V$DSC_EP_INFO dsc " +
-	"LEFT join V$DM_MAL_INI mal " +
-	"on dsc.EP_NAME = mal.MAL_INST_NAME " +
-	"LEFT join (SELECT grp.GROUP_TYPE GROUP_TYPE, ep.* FROM SYS.\"V$DCR_GROUP\" grp, SYS.\"V$DCR_EP\" ep where grp.GROUP_NAME = ep.GROUP_NAME) dcr " +
-	"on dsc.EP_NAME = dcr.EP_NAME and GROUP_TYPE = 'DB' order by  dsc.ep_seqno asc;"
-
-type reconnectFilter struct {
-}
-
-// 一定抛错
-func (rf *reconnectFilter) autoReconnect(connection *DmConnection, err error) error {
-	if dmErr, ok := err.(*DmError); ok {
-		if dmErr.ErrCode == ECGO_COMMUNITION_ERROR.ErrCode {
-			return rf.reconnect(connection, dmErr.Error())
-		}
-	}
-	return err
-}
-
-// 一定抛错
-func (rf *reconnectFilter) reconnect(connection *DmConnection, reason string) error {
-	// 读写分离，重连需要处理备机
-	var err error
-	if connection.dmConnector.rwSeparate {
-		err = RWUtil.reconnect(connection)
-	} else {
-		err = connection.reconnect()
-	}
-
-	if err != nil {
-		return ECGO_CONNECTION_SWITCH_FAILED.addDetailln(reason).throw()
-	}
-
-	// 重连成功
-	return ECGO_CONNECTION_SWITCHED.addDetailln(reason).throw()
-}
-
-func (rf *reconnectFilter) loadDscEpSites(conn *DmConnection) []*ep {
-	stmt, rs, err := conn.driverQuery(SQL_GET_DSC_EP_SITE)
-	if err != nil {
-		return nil
-	}
-	defer func() {
-		rs.close()
-		stmt.close()
-	}()
-	epList := make([]*ep, 0)
-	dest := make([]driver.Value, 4)
-	for err = rs.next(dest); err != io.EOF; err = rs.next(dest) {
-		ep := newEP(dest[1].(string), dest[2].(int32))
-		ep.epSeqno = dest[0].(int32)
-		if util.StringUtil.EqualsIgnoreCase(dest[3].(string), "OK") {
-			ep.epStatus = EP_STATUS_OK
-		} else {
-			ep.epStatus = EP_STATUS_ERROR
-		}
-		epList = append(epList, ep)
-	}
-	return epList
-}
-
-func (rf *reconnectFilter) checkAndRecover(conn *DmConnection) error {
-	if conn.dmConnector.doSwitch != DO_SWITCH_WHEN_EP_RECOVER {
-		return nil
-	}
-	// check trx finish
-	if !conn.trxFinish {
-		return nil
-	}
-	var curIndex = conn.getIndexOnEPGroup()
-	if curIndex == 0 || (time.Now().UnixNano()/1000000-conn.recoverInfo.checkEpRecoverTs) < int64(conn.dmConnector.switchInterval) {
-		return nil
-	}
-	// check db recover
-	var dscEps []*ep
-	if conn.dmConnector.cluster == CLUSTER_TYPE_DSC {
-		dscEps = rf.loadDscEpSites(conn)
-	}
-	if dscEps == nil || len(dscEps) == 0 {
-		return nil
-	}
-	var recover = false
-	for _, okEp := range dscEps {
-		if okEp.epStatus != EP_STATUS_OK {
-			continue
-		}
-		for i := int32(0); i < curIndex; i++ {
-			ep := conn.dmConnector.group.epList[i]
-			if okEp.host == ep.host && okEp.port == ep.port {
-				recover = true
-				break
-			}
-		}
-		if recover {
-			break
-		}
-	}
-
-	conn.recoverInfo.checkEpRecoverTs = time.Now().UnixNano() / 1000000
-	if !recover {
-		return nil
-	}
-	// do reconnect
-	return conn.reconnect()
+type rwFilter struct {
 }
 
 //DmDriver
-func (rf *reconnectFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error) {
+func (rwf *rwFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error) {
 	return filterChain.DmDriverOpen(d, dsn)
 }
 
-func (rf *reconnectFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error) {
+func (rwf *rwFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error) {
 	return filterChain.DmDriverOpenConnector(d, dsn)
 }
 
 //DmConnector
-func (rf *reconnectFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error) {
-	return filterChain.DmConnectorConnect(c, ctx)
+func (rwf *rwFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error) {
+	return RWUtil.connect(c, ctx)
 }
 
-func (rf *reconnectFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver {
+func (rwf *rwFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver {
 	return filterChain.DmConnectorDriver(c)
 }
 
 //DmConnection
-func (rf *reconnectFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error) {
-	dc, err := filterChain.DmConnectionBegin(c)
-	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+func (rwf *rwFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error) {
+	if RWUtil.isStandbyAlive(c) {
+		_, err := c.rwInfo.connStandby.begin()
+		if err != nil {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
 	}
-	return dc, err
+
+	return filterChain.DmConnectionBegin(c)
 }
 
-func (rf *reconnectFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
-	dc, err := filterChain.DmConnectionBeginTx(c, ctx, opts)
-	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+func (rwf *rwFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
+	if RWUtil.isStandbyAlive(c) {
+		_, err := c.rwInfo.connStandby.beginTx(ctx, opts)
+		if err != nil {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
 	}
-	return dc, err
+
+	return filterChain.DmConnectionBeginTx(c, ctx, opts)
 }
 
-func (rf *reconnectFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnection) error {
-	if err := filterChain.DmConnectionCommit(c); err != nil {
-		return rf.autoReconnect(c, err)
+func (rwf *rwFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnection) error {
+	if RWUtil.isStandbyAlive(c) {
+		err := c.rwInfo.connStandby.commit()
+		if err != nil {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
 	}
-	if err := rf.checkAndRecover(c); err != nil {
-		return rf.autoReconnect(c, err)
-	}
-	return nil
+
+	return filterChain.DmConnectionCommit(c)
 }
 
-func (rf *reconnectFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnection) error {
-	err := filterChain.DmConnectionRollback(c)
-	if err != nil {
-		err = rf.autoReconnect(c, err)
+func (rwf *rwFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnection) error {
+	if RWUtil.isStandbyAlive(c) {
+		err := c.rwInfo.connStandby.rollback()
+		if err != nil {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
 	}
 
-	return err
+	return filterChain.DmConnectionRollback(c)
 }
 
-func (rf *reconnectFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection) error {
-	err := filterChain.DmConnectionClose(c)
-	if err != nil {
-		err = rf.autoReconnect(c, err)
+func (rwf *rwFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection) error {
+	if RWUtil.isStandbyAlive(c) {
+		err := c.rwInfo.connStandby.close()
+		if err != nil {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
 	}
 
-	return err
+	return filterChain.DmConnectionClose(c)
 }
 
-func (rf *reconnectFilter) DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
-	err := filterChain.DmConnectionPing(c, ctx)
-	if err != nil {
-		err = rf.autoReconnect(c, err)
-	}
-
-	return err
+func (rwf *rwFilter) DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
+	return filterChain.DmConnectionPing(c, ctx)
 }
 
-func (rf *reconnectFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error) {
-	if err := rf.checkAndRecover(c); err != nil {
-		return nil, rf.autoReconnect(c, err)
-	}
-	dr, err := filterChain.DmConnectionExec(c, query, args)
+func (rwf *rwFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error) {
+	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
+		return c.rwInfo.connCurrent.exec(query, args)
+	}, func(otherConn *DmConnection) (interface{}, error) {
+		return otherConn.exec(query, args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmResult), nil
 }
 
-func (rf *reconnectFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
-	if err := rf.checkAndRecover(c); err != nil {
-		return nil, rf.autoReconnect(c, err)
-	}
-	dr, err := filterChain.DmConnectionExecContext(c, ctx, query, args)
+func (rwf *rwFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
+	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
+		return c.rwInfo.connCurrent.execContext(ctx, query, args)
+	}, func(otherConn *DmConnection) (interface{}, error) {
+		return otherConn.execContext(ctx, query, args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmResult), nil
 }
 
-func (rf *reconnectFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error) {
-	if err := rf.checkAndRecover(c); err != nil {
-		return nil, rf.autoReconnect(c, err)
-	}
-	dr, err := filterChain.DmConnectionQuery(c, query, args)
+func (rwf *rwFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error) {
+	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
+		return c.rwInfo.connCurrent.query(query, args)
+	}, func(otherConn *DmConnection) (interface{}, error) {
+		return otherConn.query(query, args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmRows), nil
 }
 
-func (rf *reconnectFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
-	if err := rf.checkAndRecover(c); err != nil {
-		return nil, rf.autoReconnect(c, err)
-	}
-	dr, err := filterChain.DmConnectionQueryContext(c, ctx, query, args)
+func (rwf *rwFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+	ret, err := RWUtil.executeByConn(c, query, func() (interface{}, error) {
+		return c.rwInfo.connCurrent.queryContext(ctx, query, args)
+	}, func(otherConn *DmConnection) (interface{}, error) {
+		return otherConn.queryContext(ctx, query, args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmRows), nil
 }
 
-func (rf *reconnectFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error) {
-	ds, err := filterChain.DmConnectionPrepare(c, query)
+func (rwf *rwFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error) {
+	stmt, err := c.prepare(query)
 	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+		return nil, err
 	}
-
-	return ds, err
+	stmt.rwInfo.stmtCurrent = stmt
+	stmt.rwInfo.readOnly = RWUtil.checkReadonlyByStmt(stmt)
+	if RWUtil.isCreateStandbyStmt(stmt) {
+		stmt.rwInfo.stmtStandby, err = c.rwInfo.connStandby.prepare(query)
+		if err == nil {
+			stmt.rwInfo.stmtCurrent = stmt.rwInfo.stmtStandby
+		} else {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
+	}
+	return stmt, nil
 }
 
-func (rf *reconnectFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error) {
-	ds, err := filterChain.DmConnectionPrepareContext(c, ctx, query)
+func (rwf *rwFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error) {
+	stmt, err := c.prepareContext(ctx, query)
 	if err != nil {
-		return nil, rf.autoReconnect(c, err)
+		return nil, err
 	}
-
-	return ds, err
+	stmt.rwInfo.stmtCurrent = stmt
+	stmt.rwInfo.readOnly = RWUtil.checkReadonlyByStmt(stmt)
+	if RWUtil.isCreateStandbyStmt(stmt) {
+		stmt.rwInfo.stmtStandby, err = c.rwInfo.connStandby.prepareContext(ctx, query)
+		if err == nil {
+			stmt.rwInfo.stmtCurrent = stmt.rwInfo.stmtStandby
+		} else {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
+	}
+	return stmt, nil
 }
 
-func (rf *reconnectFilter) DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
-	err := filterChain.DmConnectionResetSession(c, ctx)
-	if err != nil {
-		err = rf.autoReconnect(c, err)
+func (rwf *rwFilter) DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
+	if RWUtil.isStandbyAlive(c) {
+		err := c.rwInfo.connStandby.resetSession(ctx)
+		if err != nil {
+			RWUtil.afterExceptionOnStandby(c, err)
+		}
 	}
 
-	return err
+	return filterChain.DmConnectionResetSession(c, ctx)
 }
 
-func (rf *reconnectFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error {
-	err := filterChain.DmConnectionCheckNamedValue(c, nv)
-	if err != nil {
-		err = rf.autoReconnect(c, err)
-	}
-
-	return err
+func (rwf *rwFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error {
+	return filterChain.DmConnectionCheckNamedValue(c, nv)
 }
 
 //DmStatement
-func (rf *reconnectFilter) DmStatementClose(filterChain *filterChain, s *DmStatement) error {
-	err := filterChain.DmStatementClose(s)
-	if err != nil {
-		err = rf.autoReconnect(s.dmConn, err)
-	}
-
-	return err
-}
-
-func (rf *reconnectFilter) DmStatementNumInput(filterChain *filterChain, s *DmStatement) int {
-	var ret int
-	defer func() {
-		err := recover()
+func (rwf *rwFilter) DmStatementClose(filterChain *filterChain, s *DmStatement) error {
+	if RWUtil.isStandbyStatementValid(s) {
+		err := s.rwInfo.stmtStandby.close()
 		if err != nil {
-			rf.autoReconnect(s.dmConn, err.(error))
-			ret = 0
+			RWUtil.afterExceptionOnStandby(s.dmConn, err)
 		}
-	}()
-	ret = filterChain.DmStatementNumInput(s)
-	return ret
+	}
+
+	return filterChain.DmStatementClose(s)
 }
 
-func (rf *reconnectFilter) DmStatementExec(filterChain *filterChain, s *DmStatement, args []driver.Value) (*DmResult, error) {
-	if err := rf.checkAndRecover(s.dmConn); err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
-	}
-	dr, err := filterChain.DmStatementExec(s, args)
-	if err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
-	}
-
-	return dr, err
+func (rwf *rwFilter) DmStatementNumInput(filterChain *filterChain, s *DmStatement) int {
+	return filterChain.DmStatementNumInput(s)
 }
 
-func (rf *reconnectFilter) DmStatementExecContext(filterChain *filterChain, s *DmStatement, ctx context.Context, args []driver.NamedValue) (*DmResult, error) {
-	if err := rf.checkAndRecover(s.dmConn); err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
-	}
-	dr, err := filterChain.DmStatementExecContext(s, ctx, args)
+func (rwf *rwFilter) DmStatementExec(filterChain *filterChain, s *DmStatement, args []driver.Value) (*DmResult, error) {
+	ret, err := RWUtil.executeByStmt(s, func() (interface{}, error) {
+		return s.rwInfo.stmtCurrent.exec(args)
+	}, func(otherStmt *DmStatement) (interface{}, error) {
+		return otherStmt.exec(args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmResult), nil
 }
 
-func (rf *reconnectFilter) DmStatementQuery(filterChain *filterChain, s *DmStatement, args []driver.Value) (*DmRows, error) {
-	if err := rf.checkAndRecover(s.dmConn); err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
-	}
-	dr, err := filterChain.DmStatementQuery(s, args)
+func (rwf *rwFilter) DmStatementExecContext(filterChain *filterChain, s *DmStatement, ctx context.Context, args []driver.NamedValue) (*DmResult, error) {
+	ret, err := RWUtil.executeByStmt(s, func() (interface{}, error) {
+		return s.rwInfo.stmtCurrent.execContext(ctx, args)
+	}, func(otherStmt *DmStatement) (interface{}, error) {
+		return otherStmt.execContext(ctx, args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmResult), nil
 }
 
-func (rf *reconnectFilter) DmStatementQueryContext(filterChain *filterChain, s *DmStatement, ctx context.Context, args []driver.NamedValue) (*DmRows, error) {
-	if err := rf.checkAndRecover(s.dmConn); err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
-	}
-	dr, err := filterChain.DmStatementQueryContext(s, ctx, args)
+func (rwf *rwFilter) DmStatementQuery(filterChain *filterChain, s *DmStatement, args []driver.Value) (*DmRows, error) {
+	ret, err := RWUtil.executeByStmt(s, func() (interface{}, error) {
+		return s.rwInfo.stmtCurrent.query(args)
+	}, func(otherStmt *DmStatement) (interface{}, error) {
+		return otherStmt.query(args)
+	})
 	if err != nil {
-		return nil, rf.autoReconnect(s.dmConn, err)
+		return nil, err
 	}
-
-	return dr, err
+	return ret.(*DmRows), nil
 }
 
-func (rf *reconnectFilter) DmStatementCheckNamedValue(filterChain *filterChain, s *DmStatement, nv *driver.NamedValue) error {
-	err := filterChain.DmStatementCheckNamedValue(s, nv)
+func (rwf *rwFilter) DmStatementQueryContext(filterChain *filterChain, s *DmStatement, ctx context.Context, args []driver.NamedValue) (*DmRows, error) {
+	ret, err := RWUtil.executeByStmt(s, func() (interface{}, error) {
+		return s.rwInfo.stmtCurrent.queryContext(ctx, args)
+	}, func(otherStmt *DmStatement) (interface{}, error) {
+		return otherStmt.queryContext(ctx, args)
+	})
 	if err != nil {
-		err = rf.autoReconnect(s.dmConn, err)
+		return nil, err
 	}
+	return ret.(*DmRows), nil
+}
 
-	return err
+func (rwf *rwFilter) DmStatementCheckNamedValue(filterChain *filterChain, s *DmStatement, nv *driver.NamedValue) error {
+	return filterChain.DmStatementCheckNamedValue(s, nv)
 }
 
 //DmResult
-func (rf *reconnectFilter) DmResultLastInsertId(filterChain *filterChain, r *DmResult) (int64, error) {
-	i, err := filterChain.DmResultLastInsertId(r)
-	if err != nil {
-		err = rf.autoReconnect(r.dmStmt.dmConn, err)
-		return 0, err
-	}
-
-	return i, err
+func (rwf *rwFilter) DmResultLastInsertId(filterChain *filterChain, r *DmResult) (int64, error) {
+	return filterChain.DmResultLastInsertId(r)
 }
 
-func (rf *reconnectFilter) DmResultRowsAffected(filterChain *filterChain, r *DmResult) (int64, error) {
-	i, err := filterChain.DmResultRowsAffected(r)
-	if err != nil {
-		err = rf.autoReconnect(r.dmStmt.dmConn, err)
-		return 0, err
-	}
-
-	return i, err
+func (rwf *rwFilter) DmResultRowsAffected(filterChain *filterChain, r *DmResult) (int64, error) {
+	return filterChain.DmResultRowsAffected(r)
 }
 
 //DmRows
-func (rf *reconnectFilter) DmRowsColumns(filterChain *filterChain, r *DmRows) []string {
-	var ret []string
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			ret = nil
-		}
-	}()
-	ret = filterChain.DmRowsColumns(r)
-	return ret
+func (rwf *rwFilter) DmRowsColumns(filterChain *filterChain, r *DmRows) []string {
+	return filterChain.DmRowsColumns(r)
 }
 
-func (rf *reconnectFilter) DmRowsClose(filterChain *filterChain, r *DmRows) error {
-	err := filterChain.DmRowsClose(r)
-	if err != nil {
-		err = rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err)
-	}
-
-	return err
+func (rwf *rwFilter) DmRowsClose(filterChain *filterChain, r *DmRows) error {
+	return filterChain.DmRowsClose(r)
 }
 
-func (rf *reconnectFilter) DmRowsNext(filterChain *filterChain, r *DmRows, dest []driver.Value) error {
-	err := filterChain.DmRowsNext(r, dest)
-	if err != nil {
-		err = rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err)
-	}
-
-	return err
+func (rwf *rwFilter) DmRowsNext(filterChain *filterChain, r *DmRows, dest []driver.Value) error {
+	return filterChain.DmRowsNext(r, dest)
 }
 
-func (rf *reconnectFilter) DmRowsHasNextResultSet(filterChain *filterChain, r *DmRows) bool {
-	var ret bool
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			ret = false
-		}
-	}()
-	ret = filterChain.DmRowsHasNextResultSet(r)
-	return ret
+func (rwf *rwFilter) DmRowsHasNextResultSet(filterChain *filterChain, r *DmRows) bool {
+	return filterChain.DmRowsHasNextResultSet(r)
 }
 
-func (rf *reconnectFilter) DmRowsNextResultSet(filterChain *filterChain, r *DmRows) error {
-	err := filterChain.DmRowsNextResultSet(r)
-	if err != nil {
-		err = rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err)
-	}
-
-	return err
+func (rwf *rwFilter) DmRowsNextResultSet(filterChain *filterChain, r *DmRows) error {
+	return filterChain.DmRowsNextResultSet(r)
 }
 
-func (rf *reconnectFilter) DmRowsColumnTypeScanType(filterChain *filterChain, r *DmRows, index int) reflect.Type {
-	var ret reflect.Type
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			ret = scanTypeUnknown
-		}
-	}()
-	ret = filterChain.DmRowsColumnTypeScanType(r, index)
-	return ret
+func (rwf *rwFilter) DmRowsColumnTypeScanType(filterChain *filterChain, r *DmRows, index int) reflect.Type {
+	return filterChain.DmRowsColumnTypeScanType(r, index)
 }
 
-func (rf *reconnectFilter) DmRowsColumnTypeDatabaseTypeName(filterChain *filterChain, r *DmRows, index int) string {
-	var ret string
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			ret = ""
-		}
-	}()
-	ret = filterChain.DmRowsColumnTypeDatabaseTypeName(r, index)
-	return ret
+func (rwf *rwFilter) DmRowsColumnTypeDatabaseTypeName(filterChain *filterChain, r *DmRows, index int) string {
+	return filterChain.DmRowsColumnTypeDatabaseTypeName(r, index)
 }
 
-func (rf *reconnectFilter) DmRowsColumnTypeLength(filterChain *filterChain, r *DmRows, index int) (length int64, ok bool) {
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			length, ok = 0, false
-		}
-	}()
+func (rwf *rwFilter) DmRowsColumnTypeLength(filterChain *filterChain, r *DmRows, index int) (length int64, ok bool) {
 	return filterChain.DmRowsColumnTypeLength(r, index)
 }
 
-func (rf *reconnectFilter) DmRowsColumnTypeNullable(filterChain *filterChain, r *DmRows, index int) (nullable, ok bool) {
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			nullable, ok = false, false
-		}
-	}()
+func (rwf *rwFilter) DmRowsColumnTypeNullable(filterChain *filterChain, r *DmRows, index int) (nullable, ok bool) {
 	return filterChain.DmRowsColumnTypeNullable(r, index)
 }
 
-func (rf *reconnectFilter) DmRowsColumnTypePrecisionScale(filterChain *filterChain, r *DmRows, index int) (precision, scale int64, ok bool) {
-	defer func() {
-		err := recover()
-		if err != nil {
-			rf.autoReconnect(r.CurrentRows.dmStmt.dmConn, err.(error))
-			precision, scale, ok = 0, 0, false
-		}
-	}()
+func (rwf *rwFilter) DmRowsColumnTypePrecisionScale(filterChain *filterChain, r *DmRows, index int) (precision, scale int64, ok bool) {
 	return filterChain.DmRowsColumnTypePrecisionScale(r, index)
 }

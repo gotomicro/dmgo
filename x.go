@@ -6,217 +6,187 @@
 package dm
 
 import (
-	"database/sql/driver"
+	"context"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
-	Seconds_1900_1970 = 2209017600
+	STATUS_VALID_TIME = 20 * time.Second // ms
 
-	OFFSET_YEAR = 0
+	// sort 值
+	SORT_SERVER_MODE_INVALID = -1 // 不允许连接的模式
 
-	OFFSET_MONTH = 1
+	SORT_SERVER_NOT_ALIVE = -2 // 站点无法连接
 
-	OFFSET_DAY = 2
+	SORT_UNKNOWN = INT32_MAX // 站点还未连接过，模式未知
 
-	OFFSET_HOUR = 3
+	SORT_NORMAL = 30
 
-	OFFSET_MINUTE = 4
+	SORT_PRIMARY = 20
 
-	OFFSET_SECOND = 5
+	SORT_STANDBY = 10
 
-	OFFSET_MILLISECOND = 6
+	// OPEN>MOUNT>SUSPEND
+	SORT_OPEN = 3
 
-	OFFSET_TIMEZONE = 7
+	SORT_MOUNT = 2
 
-	DT_LEN = 8
-
-	INVALID_VALUE = int(INT32_MIN)
+	SORT_SUSPEND = 1
 )
 
-type DmTimestamp struct {
-	dt                  []int
-	dtype               int
-	scale               int
-	oracleFormatPattern string
-	oracleDateLanguage  int
-
-	// Valid为false代表DmArray数据在数据库中为NULL
-	Valid bool
+type ep struct {
+	host            string
+	port            int32
+	alive           bool
+	statusRefreshTs int64 // 状态更新的时间点
+	serverMode      int32
+	serverStatus    int32
+	dscControl      bool
+	sort            int32
+	epSeqno         int32
+	epStatus        int32
+	lock            sync.Mutex
 }
 
-func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
-	dmts := new(DmTimestamp)
-	dmts.Valid = true
-	dmts.dt = dt
-	dmts.dtype = dtype
-	dmts.scale = scale
-	return dmts
+func newEP(host string, port int32) *ep {
+	ep := new(ep)
+	ep.host = host
+	ep.port = port
+	ep.serverMode = -1
+	ep.serverStatus = -1
+	ep.sort = SORT_UNKNOWN
+	return ep
 }
 
-func newDmTimestampFromBytes(bytes []byte, column column, conn *DmConnection) *DmTimestamp {
-	dmts := new(DmTimestamp)
-	dmts.Valid = true
-	dmts.dt = decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+func (ep *ep) getSort(checkTime bool) int32 {
+	if checkTime {
+		if time.Now().UnixNano()-ep.statusRefreshTs < int64(STATUS_VALID_TIME) {
+			return ep.sort
+		} else {
+			return SORT_UNKNOWN
+		}
+	}
+	return ep.sort
+}
 
-	if isLocalTimeZone(int(column.colType), int(column.scale)) {
-		dmts.scale = getLocalTimeZoneScale(int(column.colType), int(column.scale))
+func (ep *ep) calcSort(loginMode int32) int32 {
+	var sort int32 = 0
+	switch loginMode {
+	case LOGIN_MODE_PRIMARY_FIRST:
+		{
+			// 主机优先：PRIMARY>NORMAL>STANDBY
+			switch ep.serverMode {
+			case SERVER_MODE_NORMAL:
+				sort += SORT_NORMAL * 10
+			case SERVER_MODE_PRIMARY:
+				sort += SORT_PRIMARY * 100
+			case SERVER_MODE_STANDBY:
+				sort += SORT_STANDBY
+			}
+		}
+	case LOGIN_MODE_STANDBY_FIRST:
+		{
+			// STANDBY优先: STANDBY>PRIMARY>NORMAL
+			switch ep.serverMode {
+			case SERVER_MODE_NORMAL:
+				sort += SORT_NORMAL
+			case SERVER_MODE_PRIMARY:
+				sort += SORT_PRIMARY * 10
+			case SERVER_MODE_STANDBY:
+				sort += SORT_STANDBY * 100
+			}
+		}
+	case LOGIN_MODE_PRIMARY_ONLY:
+		if ep.serverMode != SERVER_MODE_PRIMARY {
+			return SORT_SERVER_MODE_INVALID
+		}
+		sort += SORT_PRIMARY
+	case LOGIN_MODE_STANDBY_ONLY:
+		if ep.serverMode != SERVER_MODE_STANDBY {
+			return SORT_SERVER_MODE_INVALID
+		}
+		sort += SORT_STANDBY
+	}
+
+	switch ep.serverStatus {
+	case SERVER_STATUS_MOUNT:
+		sort += SORT_MOUNT
+	case SERVER_STATUS_OPEN:
+		sort += SORT_OPEN
+	case SERVER_STATUS_SUSPEND:
+		sort += SORT_SUSPEND
+	}
+	return sort
+}
+
+func (ep *ep) refreshStatus(alive bool, conn *DmConnection) {
+	ep.lock.Lock()
+	defer ep.lock.Unlock()
+	ep.alive = alive
+	ep.statusRefreshTs = time.Now().UnixNano()
+	if alive {
+		ep.serverMode = conn.SvrMode
+		ep.serverStatus = conn.SvrStat
+		ep.dscControl = conn.dscControl
+		ep.sort = ep.calcSort(int32(conn.dmConnector.loginMode))
 	} else {
-		dmts.scale = int(column.scale)
+		ep.serverMode = -1
+		ep.serverStatus = -1
+		ep.dscControl = false
+		ep.sort = SORT_SERVER_NOT_ALIVE
 	}
-
-	dmts.dtype = int(column.colType)
-	dmts.scale = int(column.scale)
-	dmts.oracleDateLanguage = int(conn.OracleDateLanguage)
-	switch column.colType {
-	case DATE:
-		dmts.oracleFormatPattern = conn.FormatDate
-	case TIME:
-		dmts.oracleFormatPattern = conn.FormatTime
-	case TIME_TZ:
-		dmts.oracleFormatPattern = conn.FormatTimeTZ
-	case DATETIME:
-		dmts.oracleFormatPattern = conn.FormatTimestamp
-	case DATETIME_TZ:
-		dmts.oracleFormatPattern = conn.FormatTimestampTZ
-	}
-	return dmts
 }
 
-func NewDmTimestampFromString(str string) (*DmTimestamp, error) {
-	dt := make([]int, DT_LEN)
-	dtype, err := toDTFromString(strings.TrimSpace(str), dt)
+func (ep *ep) connect(connector *DmConnector) (*DmConnection, error) {
+	connector.host = ep.host
+	connector.port = ep.port
+	conn, err := connector.connectSingle(context.Background())
 	if err != nil {
+		ep.refreshStatus(false, conn)
 		return nil, err
 	}
-
-	if dtype == DATE {
-		return newDmTimestampFromDt(dt, dtype, 0), nil
-	}
-	return newDmTimestampFromDt(dt, dtype, 6), nil
+	ep.refreshStatus(true, conn)
+	return conn, nil
 }
 
-func NewDmTimestampFromTime(time time.Time) *DmTimestamp {
-	dt := toDTFromTime(time)
-	return newDmTimestampFromDt(dt, DATETIME, 6)
-}
-
-func (dmTimestamp *DmTimestamp) ToTime() time.Time {
-	return toTimeFromDT(dmTimestamp.dt, 0)
-}
-
-// 获取年月日时分秒毫秒时区
-func (dmTimestamp *DmTimestamp) GetDt() []int {
-	return dmTimestamp.dt
-}
-
-func (dmTimestamp *DmTimestamp) CompareTo(ts DmTimestamp) int {
-	if dmTimestamp.ToTime().Equal(ts.ToTime()) {
-		return 0
-	} else if dmTimestamp.ToTime().Before(ts.ToTime()) {
-		return -1
-	} else {
-		return 1
-	}
-}
-
-func (dmTimestamp *DmTimestamp) String() string {
-	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
-	}
-	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
-}
-
-func (dest *DmTimestamp) Scan(src interface{}) error {
-	if dest == nil {
-		return ECGO_STORE_IN_NIL_POINTER.throw()
-	}
-	switch src := src.(type) {
-	case nil:
-		*dest = *new(DmTimestamp)
-		// 将Valid标志置false表示数据库中该列为NULL
-		(*dest).Valid = false
-		return nil
-	case *DmTimestamp:
-		*dest = *src
-		return nil
-	case time.Time:
-		ret := NewDmTimestampFromTime(src)
-		*dest = *ret
-		return nil
-	case string:
-		ret, err := NewDmTimestampFromString(src)
-		if err != nil {
-			return err
-		}
-		*dest = *ret
-		return nil
+func (ep *ep) getServerStatusDesc(serverStatus int32) string {
+	ret := ""
+	switch ep.serverStatus {
+	case SERVER_STATUS_OPEN:
+		ret = "OPEN"
+	case SERVER_STATUS_MOUNT:
+		ret = "MOUNT"
+	case SERVER_STATUS_SUSPEND:
+		ret = "SUSPEND"
 	default:
-		return UNSUPPORTED_SCAN.throw()
+		ret = "UNKNOWN"
 	}
+	return ret
 }
 
-func (dmTimestamp DmTimestamp) Value() (driver.Value, error) {
-	if !dmTimestamp.Valid {
-		return nil, nil
+func (ep *ep) getServerModeDesc(serverMode int32) string {
+	ret := ""
+	switch ep.serverMode {
+	case SERVER_MODE_NORMAL:
+		ret = "NORMAL"
+	case SERVER_MODE_PRIMARY:
+		ret = "PRIMARY"
+	case SERVER_MODE_STANDBY:
+		ret = "STANDBY"
+	default:
+		ret = "UNKNOWN"
 	}
-	return dmTimestamp, nil
+	return ret
 }
 
-func (dmTimestamp *DmTimestamp) toBytes() ([]byte, error) {
-	return encode(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale, dmTimestamp.dt[OFFSET_TIMEZONE])
-}
-
-/**
- * 获取当前对象的年月日时分秒，如果原来没有decode会先decode;
- */
-func (dmTimestamp *DmTimestamp) getDt() []int {
-	return dmTimestamp.dt
-}
-
-func (dmTimestamp *DmTimestamp) getTime() int64 {
-	sec := toTimeFromDT(dmTimestamp.dt, 0).Unix()
-	return sec + int64(dmTimestamp.dt[OFFSET_MILLISECOND])
-}
-
-func (dmTimestamp *DmTimestamp) setTime(time int64) {
-	timeInMillis := (time / 1000) * 1000
-	nanos := (int64)((time % 1000) * 1000000)
-	if nanos < 0 {
-		nanos = 1000000000 + nanos
-		timeInMillis = (((time / 1000) - 1) * 1000)
+func (ep *ep) String() string {
+	dscControl := ")"
+	if ep.dscControl {
+		dscControl = ", DSC CONTROL)"
 	}
-	dmTimestamp.dt = toDTFromUnix(timeInMillis, nanos)
-}
-
-func (dmTimestamp *DmTimestamp) setTimezone(tz int) error {
-	// DM中合法的时区取值范围为-12:59至+14:00
-	if tz <= -13*60 || tz > 14*60 {
-		return ECGO_INVALID_DATETIME_FORMAT.throw()
-	}
-	dmTimestamp.dt[OFFSET_TIMEZONE] = tz
-	return nil
-}
-
-func (dmTimestamp *DmTimestamp) getNano() int64 {
-	return int64(dmTimestamp.dt[OFFSET_MILLISECOND] * 1000)
-}
-
-func (dmTimestamp *DmTimestamp) setNano(nano int64) {
-	dmTimestamp.dt[OFFSET_MILLISECOND] = (int)(nano / 1000)
-}
-
-func (dmTimestamp *DmTimestamp) string() string {
-	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
-	}
-	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
-}
-
-func (dmTimestamp *DmTimestamp) checkValid() error {
-	if !dmTimestamp.Valid {
-		return ECGO_IS_NULL.throw()
-	}
-	return nil
+	return strings.TrimSpace(ep.host) + ":" + strconv.Itoa(int(ep.port)) +
+		" (" + ep.getServerModeDesc(ep.serverMode) + ", " + ep.getServerStatusDesc(ep.serverStatus) + dscControl
 }

@@ -2,219 +2,420 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
-
 package dm
 
 import (
-	"math/rand"
-	"strconv"
+	"context"
+	"database/sql"
+	"database/sql/driver"
+	"errors"
+	"io"
+	"regexp"
+	"strings"
 	"time"
 
 	"gitee.com/chunanyong/dm/util"
 )
 
-var rwMap = make(map[string]*rwCounter)
+const (
+	SQL_SELECT_STANDBY = "select distinct mailIni.inst_name, mailIni.INST_IP, mailIni.INST_PORT, archIni.arch_status " +
+		"from  v$arch_status archIni " +
+		"left join (select * from V$DM_MAL_INI) mailIni on archIni.arch_dest = mailIni.inst_name " +
+		"left join V$MAL_LINK_STATUS on CTL_LINK_STATUS  = 'CONNECTED' AND DATA_LINK_STATUS = 'CONNECTED' " +
+		"where archIni.arch_type in ('TIMELY', 'REALTIME') AND  archIni.arch_status = 'VALID'"
 
-type rwCounter struct {
-	ntrx_primary int64
+	SQL_SELECT_STANDBY2 = "select distinct " +
+		"mailIni.mal_inst_name, mailIni.mal_INST_HOST, mailIni.mal_INST_PORT, archIni.arch_status " +
+		"from v$arch_status archIni " + "left join (select * from V$DM_MAL_INI) mailIni " +
+		"on archIni.arch_dest = mailIni.mal_inst_name " + "left join V$MAL_LINK_STATUS " +
+		"on CTL_LINK_STATUS  = 'CONNECTED' AND DATA_LINK_STATUS = 'CONNECTED' " +
+		"where archIni.arch_type in ('TIMELY', 'REALTIME') AND  archIni.arch_status = 'VALID'"
+)
 
-	ntrx_total int64
-
-	primaryPercent float64
-
-	standbyPercent float64
-
-	standbyNTrxMap map[string]int64
-
-	standbyIdMap map[string]int32
-
-	standbyCount int32
-
-	flag []int32
-
-	increments []int32
+type rwUtil struct {
 }
 
-func newRWCounter(primaryPercent int32, standbyCount int32) *rwCounter {
-	rwc := new(rwCounter)
-	rwc.standbyNTrxMap = make(map[string]int64)
-	rwc.standbyIdMap = make(map[string]int32)
-	rwc.reset(primaryPercent, standbyCount)
-	return rwc
-}
+var RWUtil = rwUtil{}
 
-func (rwc *rwCounter) reset(primaryPercent int32, standbyCount int32) {
-	rwc.ntrx_primary = 0
-	rwc.ntrx_total = 0
-	rwc.standbyCount = standbyCount
-	rwc.increments = make([]int32, standbyCount+1)
-	rwc.flag = make([]int32, standbyCount+1)
-	var gcd = util.GCD(primaryPercent*standbyCount, 100-primaryPercent)
-	rwc.increments[0] = primaryPercent * standbyCount / gcd
-	for i, tmp := 1, (100-primaryPercent)/gcd; i < len(rwc.increments); i++ {
-		rwc.increments[i] = tmp
+func (RWUtil rwUtil) connect(c *DmConnector, ctx context.Context) (*DmConnection, error) {
+	c.loginMode = LOGIN_MODE_PRIMARY_ONLY
+	connection, err := c.connect(ctx)
+	if err != nil {
+		return nil, err
 	}
-	copy(rwc.flag, rwc.increments)
 
-	if standbyCount > 0 {
-		rwc.primaryPercent = float64(primaryPercent) / 100.0
-		rwc.standbyPercent = float64(100-primaryPercent) / 100.0 / float64(standbyCount)
-	} else {
-		rwc.primaryPercent = 1
-		rwc.standbyPercent = 0
+	connection.rwInfo.rwCounter = getRwCounterInstance(connection, connection.StandbyCount)
+	err = RWUtil.connectStandby(connection)
+
+	return connection, err
+}
+
+func (RWUtil rwUtil) reconnect(connection *DmConnection) error {
+	if connection.rwInfo == nil {
+		return nil
 	}
-}
 
-// 连接创建成功后调用，需要服务器返回standbyCount
-func getRwCounterInstance(conn *DmConnection, standbyCount int32) *rwCounter {
-	key := conn.dmConnector.host + "_" + strconv.Itoa(int(conn.dmConnector.port)) + "_" + strconv.Itoa(int(conn.dmConnector.rwPercent))
+	RWUtil.removeStandby(connection)
 
-	rwc, ok := rwMap[key]
-	if !ok {
-		rwc = newRWCounter(conn.dmConnector.rwPercent, standbyCount)
-		rwMap[key] = rwc
-	} else if rwc.standbyCount != standbyCount {
-		rwc.reset(conn.dmConnector.rwPercent, standbyCount)
+	err := connection.reconnect()
+	if err != nil {
+		return err
 	}
-	return rwc
+	connection.rwInfo.cleanup()
+	connection.rwInfo.rwCounter = getRwCounterInstance(connection, connection.StandbyCount)
+
+	err = RWUtil.connectStandby(connection)
+
+	return err
 }
 
-/**
-* @return 主机;
- */
-func (rwc *rwCounter) countPrimary() RWSiteEnum {
-	rwc.adjustNtrx()
-	rwc.increasePrimaryNtrx()
-	return PRIMARY
+func (RWUtil rwUtil) recoverStandby(connection *DmConnection) error {
+	if connection.closed.IsSet() || RWUtil.isStandbyAlive(connection) {
+		return nil
+	}
+
+	ts := time.Now().UnixNano() / 1000000
+
+	freq := int64(connection.dmConnector.rwStandbyRecoverTime)
+	if freq <= 0 || ts-connection.rwInfo.tryRecoverTs < freq {
+		return nil
+	}
+
+	err := RWUtil.connectStandby(connection)
+	connection.rwInfo.tryRecoverTs = ts
+
+	return err
 }
 
-/**
-* @param dest 主机; 备机; any;
-* @return 主机; 备机
- */
-func (rwc *rwCounter) count(dest RWSiteEnum, standby *DmConnection) RWSiteEnum {
-	rwc.adjustNtrx()
-	switch dest {
-	case ANYSITE:
-		{
-			if rwc.primaryPercent == 1 || (rwc.flag[0] > rwc.getStandbyFlag(standby) && rwc.flag[0] > util.Sum(rwc.flag[1:])) {
-				rwc.increasePrimaryNtrx()
-				dest = PRIMARY
-			} else {
-				rwc.increaseStandbyNtrx(standby)
-				dest = STANDBY
+func (RWUtil rwUtil) connectStandby(connection *DmConnection) error {
+	var err error
+	db, err := RWUtil.chooseValidStandby(connection)
+	if err != nil {
+		return err
+	}
+	if db == nil {
+		return nil
+	}
+
+	standbyConnectorValue := *connection.dmConnector
+	standbyConnector := &standbyConnectorValue
+	standbyConnector.host = db.host
+	standbyConnector.port = db.port
+	standbyConnector.rwStandby = true
+	standbyConnector.group = nil
+	standbyConnector.loginMode = LOGIN_MODE_STANDBY_ONLY
+	standbyConnector.switchTimes = 0
+	connection.rwInfo.connStandby, err = standbyConnector.connectSingle(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if connection.rwInfo.connStandby.SvrMode != SERVER_MODE_STANDBY || connection.rwInfo.connStandby.SvrStat != SERVER_STATUS_OPEN {
+		RWUtil.removeStandby(connection)
+	}
+	return nil
+}
+
+func (RWUtil rwUtil) chooseValidStandby(connection *DmConnection) (*ep, error) {
+	stmt, rs, err := connection.driverQuery(SQL_SELECT_STANDBY2)
+	if err != nil {
+		stmt, rs, err = connection.driverQuery(SQL_SELECT_STANDBY)
+	}
+	defer func() {
+		if rs != nil {
+			rs.close()
+		}
+		if stmt != nil {
+			stmt.close()
+		}
+	}()
+	if err == nil {
+		count := int32(rs.CurrentRows.getRowCount())
+		if count > 0 {
+			connection.rwInfo.rwCounter = getRwCounterInstance(connection, count)
+			i := int32(0)
+			rowIndex := connection.rwInfo.rwCounter.random(count)
+			dest := make([]driver.Value, 3)
+			for err := rs.next(dest); err != io.EOF; err = rs.next(dest) {
+				if i == rowIndex {
+					ep := newEP(dest[1].(string), dest[2].(int32))
+					return ep, nil
+				}
+				i++
 			}
 		}
-	case STANDBY:
-		{
-			rwc.increaseStandbyNtrx(standby)
+	}
+	if err != nil {
+		return nil, errors.New("choose valid standby error!" + err.Error())
+	}
+	return nil, nil
+}
+
+func (RWUtil rwUtil) afterExceptionOnStandby(connection *DmConnection, e error) {
+	if e.(*DmError).ErrCode == ECGO_COMMUNITION_ERROR.ErrCode {
+		RWUtil.removeStandby(connection)
+	}
+}
+
+func (RWUtil rwUtil) removeStandby(connection *DmConnection) {
+	if connection.rwInfo.connStandby != nil {
+		connection.rwInfo.connStandby.close()
+		connection.rwInfo.connStandby = nil
+	}
+}
+
+func (RWUtil rwUtil) isCreateStandbyStmt(stmt *DmStatement) bool {
+	return stmt != nil && stmt.rwInfo.readOnly && RWUtil.isStandbyAlive(stmt.dmConn)
+}
+
+func (RWUtil rwUtil) executeByConn(conn *DmConnection, query string, execute1 func() (interface{}, error), execute2 func(otherConn *DmConnection) (interface{}, error)) (interface{}, error) {
+
+	if err := RWUtil.recoverStandby(conn); err != nil {
+		return nil, err
+	}
+	RWUtil.distributeSqlByConn(conn, query)
+
+	turnToPrimary := false
+
+	ret, err := execute1()
+	if err != nil {
+		if conn.rwInfo.connCurrent == conn.rwInfo.connStandby {
+
+			RWUtil.afterExceptionOnStandby(conn, err)
+			turnToPrimary = true
+		} else {
+
+			return nil, err
 		}
-	case PRIMARY:
+	}
+
+	curConn := conn.rwInfo.connCurrent
+	var otherConn *DmConnection
+	if curConn != conn {
+		otherConn = conn
+	} else {
+		otherConn = conn.rwInfo.connStandby
+	}
+
+	switch curConn.lastExecInfo.retSqlType {
+	case Dm_build_1063, Dm_build_1064, Dm_build_1068, Dm_build_1075, Dm_build_1074, Dm_build_1066:
 		{
-			rwc.increasePrimaryNtrx()
+
+			if otherConn != nil {
+				execute2(otherConn)
+			}
 		}
+	case Dm_build_1073:
+		{
+
+			sqlhead := regexp.MustCompile("[ (]").Split(strings.TrimSpace(query), 2)[0]
+			if util.StringUtil.EqualsIgnoreCase(sqlhead, "SP_SET_PARA_VALUE") || util.StringUtil.EqualsIgnoreCase(sqlhead, "SP_SET_SESSION_READONLY") {
+				if otherConn != nil {
+					execute2(otherConn)
+				}
+			}
+		}
+	case Dm_build_1072:
+		{
+
+			if conn.dmConnector.rwHA && curConn == conn.rwInfo.connStandby &&
+				(curConn.lastExecInfo.rsDatas == nil || len(curConn.lastExecInfo.rsDatas) == 0) {
+				turnToPrimary = true
+			}
+		}
+	}
+
+	if turnToPrimary {
+		conn.rwInfo.toPrimary()
+		conn.rwInfo.connCurrent = conn
+
+		return execute2(conn)
+	}
+	return ret, nil
+}
+
+func (RWUtil rwUtil) executeByStmt(stmt *DmStatement, execute1 func() (interface{}, error), execute2 func(otherStmt *DmStatement) (interface{}, error)) (interface{}, error) {
+	orgStmt := stmt.rwInfo.stmtCurrent
+	query := stmt.nativeSql
+
+	if err := RWUtil.recoverStandby(stmt.dmConn); err != nil {
+		return nil, err
+	}
+	RWUtil.distributeSqlByStmt(stmt)
+	if orgStmt != stmt.rwInfo.stmtCurrent {
+		RWUtil.copyStatement(orgStmt, stmt.rwInfo.stmtCurrent)
+		stmt.rwInfo.stmtCurrent.nativeSql = orgStmt.nativeSql
+	}
+
+	turnToPrimary := false
+
+	ret, err := execute1()
+	if err != nil {
+
+		if stmt.rwInfo.stmtCurrent == stmt.rwInfo.stmtStandby {
+			RWUtil.afterExceptionOnStandby(stmt.dmConn, err)
+			turnToPrimary = true
+		} else {
+			return nil, err
+		}
+	}
+
+	curStmt := stmt.rwInfo.stmtCurrent
+	var otherStmt *DmStatement
+	if curStmt != stmt {
+		otherStmt = stmt
+	} else {
+		otherStmt = stmt.rwInfo.stmtStandby
+	}
+
+	switch curStmt.execInfo.retSqlType {
+	case Dm_build_1063, Dm_build_1064, Dm_build_1068, Dm_build_1075, Dm_build_1074, Dm_build_1066:
+		{
+
+			if otherStmt != nil {
+				RWUtil.copyStatement(curStmt, otherStmt)
+				execute2(otherStmt)
+			}
+		}
+	case Dm_build_1073:
+		{
+
+			var tmpsql string
+			if query != "" {
+				tmpsql = strings.TrimSpace(query)
+			} else if stmt.nativeSql != "" {
+				tmpsql = strings.TrimSpace(stmt.nativeSql)
+			} else {
+				tmpsql = ""
+			}
+			sqlhead := regexp.MustCompile("[ (]").Split(tmpsql, 2)[0]
+			if util.StringUtil.EqualsIgnoreCase(sqlhead, "SP_SET_PARA_VALUE") || util.StringUtil.EqualsIgnoreCase(sqlhead, "SP_SET_SESSION_READONLY") {
+				if otherStmt != nil {
+					RWUtil.copyStatement(curStmt, otherStmt)
+					execute2(otherStmt)
+				}
+			}
+		}
+	case Dm_build_1072:
+		{
+
+			if stmt.dmConn.dmConnector.rwHA && curStmt == stmt.rwInfo.stmtStandby &&
+				(curStmt.execInfo.rsDatas == nil || len(curStmt.execInfo.rsDatas) == 0) {
+				turnToPrimary = true
+			}
+		}
+	}
+
+	if turnToPrimary {
+		stmt.dmConn.rwInfo.toPrimary()
+		stmt.rwInfo.stmtCurrent = stmt
+
+		RWUtil.copyStatement(stmt.rwInfo.stmtStandby, stmt)
+
+		return execute2(stmt)
+	}
+	return ret, nil
+}
+
+func (RWUtil rwUtil) checkReadonlyByConn(conn *DmConnection, sql string) bool {
+	readonly := true
+
+	if sql != "" && !conn.dmConnector.rwIgnoreSql {
+		tmpsql := strings.TrimSpace(sql)
+		sqlhead := strings.SplitN(tmpsql, " ", 2)[0]
+		if util.StringUtil.EqualsIgnoreCase(sqlhead, "INSERT") ||
+			util.StringUtil.EqualsIgnoreCase(sqlhead, "UPDATE") ||
+			util.StringUtil.EqualsIgnoreCase(sqlhead, "DELETE") ||
+			util.StringUtil.EqualsIgnoreCase(sqlhead, "CREATE") ||
+			util.StringUtil.EqualsIgnoreCase(sqlhead, "TRUNCATE") ||
+			util.StringUtil.EqualsIgnoreCase(sqlhead, "DROP") ||
+			util.StringUtil.EqualsIgnoreCase(sqlhead, "ALTER") {
+			readonly = false
+		} else {
+			readonly = true
+		}
+	}
+	return readonly
+}
+
+func (RWUtil rwUtil) checkReadonlyByStmt(stmt *DmStatement) bool {
+	return RWUtil.checkReadonlyByConn(stmt.dmConn, stmt.nativeSql)
+}
+
+func (RWUtil rwUtil) distributeSqlByConn(conn *DmConnection, query string) RWSiteEnum {
+	var dest RWSiteEnum
+	if !RWUtil.isStandbyAlive(conn) {
+
+		dest = conn.rwInfo.toPrimary()
+	} else if !RWUtil.checkReadonlyByConn(conn, query) {
+
+		dest = conn.rwInfo.toPrimary()
+	} else if (conn.rwInfo.distribute == PRIMARY && !conn.trxFinish) ||
+		(conn.rwInfo.distribute == STANDBY && !conn.rwInfo.connStandby.trxFinish) {
+
+		dest = conn.rwInfo.distribute
+	} else if conn.IsoLevel != int32(sql.LevelSerializable) {
+
+		dest = conn.rwInfo.toAny()
+	} else {
+		dest = conn.rwInfo.toPrimary()
+	}
+
+	if dest == PRIMARY {
+		conn.rwInfo.connCurrent = conn
+	} else {
+		conn.rwInfo.connCurrent = conn.rwInfo.connStandby
 	}
 	return dest
 }
 
-/**
-* 防止ntrx超出有效范围，等比调整
- */
-func (rwc *rwCounter) adjustNtrx() {
-	if rwc.ntrx_total >= INT64_MAX {
-		var min int64
-		var i = 0
-		for _, num := range rwc.standbyNTrxMap {
-			if i == 0 || num < min {
-				min = num
-			}
-			i++
-		}
-		if rwc.ntrx_primary < min {
-			min = rwc.ntrx_primary
-		}
-		rwc.ntrx_primary /= min
-		rwc.ntrx_total /= min
-		for k, v := range rwc.standbyNTrxMap {
-			rwc.standbyNTrxMap[k] = v / min
-		}
-	}
+func (RWUtil rwUtil) distributeSqlByStmt(stmt *DmStatement) RWSiteEnum {
+	var dest RWSiteEnum
+	if !RWUtil.isStandbyAlive(stmt.dmConn) {
 
-	if rwc.flag[0] <= 0 && util.Sum(rwc.flag[1:]) <= 0 {
-		// 如果主库事务数以及所有备库事务数的总和 都 <= 0, 重置事务计数，给每个库的事务计数加上初始计数值
-		for i := 0; i < len(rwc.flag); i++ {
-			rwc.flag[i] += rwc.increments[i]
-		}
-	}
-}
+		dest = stmt.dmConn.rwInfo.toPrimary()
+	} else if !RWUtil.checkReadonlyByStmt(stmt) {
 
-func (rwc *rwCounter) increasePrimaryNtrx() {
-	rwc.ntrx_primary++
-	rwc.flag[0]--
-	rwc.ntrx_total++
-}
+		dest = stmt.dmConn.rwInfo.toPrimary()
+	} else if (stmt.dmConn.rwInfo.distribute == PRIMARY && !stmt.dmConn.trxFinish) ||
+		(stmt.dmConn.rwInfo.distribute == STANDBY && !stmt.dmConn.rwInfo.connStandby.trxFinish) {
 
-//func (rwc *rwCounter) getStandbyNtrx(standby *DmConnection) int64 {
-//	key := standby.dmConnector.host + ":" + strconv.Itoa(int(standby.dmConnector.port))
-//	ret, ok := rwc.standbyNTrxMap[key]
-//	if !ok {
-//		ret = 0
-//	}
-//
-//	return ret
-//}
+		dest = stmt.dmConn.rwInfo.distribute
+	} else if stmt.dmConn.IsoLevel != int32(sql.LevelSerializable) {
 
-func (rwc *rwCounter) getStandbyId(standby *DmConnection) int32 {
-	key := standby.dmConnector.host + ":" + strconv.Itoa(int(standby.dmConnector.port))
-	sid, ok := rwc.standbyIdMap[key]
-	if !ok {
-		sid = int32(len(rwc.standbyIdMap) + 1) // 下标0是primary
-		if sid > rwc.standbyCount {
-			// 不在有效备库中
-			return -1
-		}
-		rwc.standbyIdMap[key] = sid
-	}
-	return sid
-}
-
-func (rwc *rwCounter) getStandbyFlag(standby *DmConnection) int32 {
-	sid := rwc.getStandbyId(standby)
-	if sid > 0 && sid < int32(len(rwc.flag)) {
-		// 保证备库有效
-		return rwc.flag[sid]
-	}
-	return 0
-}
-
-func (rwc *rwCounter) increaseStandbyNtrx(standby *DmConnection) {
-	key := standby.dmConnector.host + ":" + strconv.Itoa(int(standby.dmConnector.port))
-	ret, ok := rwc.standbyNTrxMap[key]
-	if ok {
-		ret += 1
+		dest = stmt.dmConn.rwInfo.toAny()
 	} else {
-		ret = 1
+		dest = stmt.dmConn.rwInfo.toPrimary()
 	}
-	rwc.standbyNTrxMap[key] = ret
-	sid, ok := rwc.standbyIdMap[key]
-	if !ok {
-		sid = int32(len(rwc.standbyIdMap) + 1) // 下标0是primary
-		rwc.standbyIdMap[key] = sid
-	}
-	rwc.flag[sid]--
-	rwc.ntrx_total++
-}
 
-func (rwc *rwCounter) random(rowCount int32) int32 {
-	rand.Seed(time.Now().UnixNano())
-	if rowCount > rwc.standbyCount {
-		return rand.Int31n(rwc.standbyCount)
+	if dest == STANDBY && !RWUtil.isStandbyStatementValid(stmt) {
+
+		var err error
+		stmt.rwInfo.stmtStandby, err = stmt.dmConn.rwInfo.connStandby.prepare(stmt.nativeSql)
+		if err != nil {
+			dest = stmt.dmConn.rwInfo.toPrimary()
+		}
+	}
+
+	if dest == PRIMARY {
+		stmt.rwInfo.stmtCurrent = stmt
 	} else {
-		return rand.Int31n(rowCount)
+		stmt.rwInfo.stmtCurrent = stmt.rwInfo.stmtStandby
 	}
+	return dest
 }
 
-func (rwc *rwCounter) String() string {
-	return "PERCENT(P/S) : " + strconv.FormatFloat(rwc.primaryPercent, 'f', -1, 64) + "/" + strconv.FormatFloat(rwc.standbyPercent, 'f', -1, 64) + "\nNTRX_PRIMARY : " +
-		strconv.FormatInt(rwc.ntrx_primary, 10) + "\nNTRX_TOTAL : " + strconv.FormatInt(rwc.ntrx_total, 10) + "\nNTRX_STANDBY : "
+func (RWUtil rwUtil) isStandbyAlive(connection *DmConnection) bool {
+	return connection.rwInfo.connStandby != nil && !connection.rwInfo.connStandby.closed.IsSet()
+}
+
+func (RWUtil rwUtil) isStandbyStatementValid(statement *DmStatement) bool {
+	return statement.rwInfo.stmtStandby != nil && !statement.rwInfo.stmtStandby.closed
+}
+
+func (RWUtil rwUtil) copyStatement(srcStmt *DmStatement, destStmt *DmStatement) {
+	destStmt.nativeSql = srcStmt.nativeSql
+	destStmt.serverParams = srcStmt.serverParams
+	destStmt.bindParams = srcStmt.bindParams
+	destStmt.paramCount = srcStmt.paramCount
 }

@@ -2,440 +2,448 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
-
 package dm
 
 import (
-	"bufio"
-	"io"
-	"os"
-	"runtime"
-	"strconv"
+	"database/sql"
+	"database/sql/driver"
+	"math"
+	"reflect"
 	"strings"
-
-	"gitee.com/chunanyong/dm/util"
+	"time"
 )
-
-var LogDirDef, _ = os.Getwd()
-
-var StatDirDef, _ = os.Getwd()
 
 const (
-	DEFAULT_PORT int32 = 5236
+	INT8_MAX int8 = math.MaxInt8
 
-	//log level
-	LOG_OFF int = 0
+	INT8_MIN int8 = math.MinInt8
 
-	LOG_ERROR int = 1
+	BYTE_MAX byte = math.MaxUint8
 
-	LOG_WARN int = 2
+	BYTE_MIN byte = 0
 
-	LOG_SQL int = 3
+	INT16_MAX int16 = math.MaxInt16
 
-	LOG_INFO int = 4
+	INT16_MIN int16 = math.MinInt16
 
-	LOG_DEBUG int = 5
+	UINT16_MAX uint16 = math.MaxUint16
 
-	LOG_ALL int = 9
+	UINT16_MIN uint16 = 0
 
-	//stat
-	STAT_SQL_REMOVE_LATEST int = 0
+	INT32_MAX int32 = math.MaxInt32
 
-	STAT_SQL_REMOVE_OLDEST int = 1
+	INT32_MIN int32 = math.MinInt32
 
-	// 编码字符集
-	ENCODING_UTF8 string = "UTF-8"
+	UINT32_MAX uint32 = math.MaxUint32
 
-	ENCODING_EUCKR string = "EUC-KR"
+	UINT32_MIN uint32 = 0
 
-	ENCODING_GB18030 string = "GB18030"
+	INT64_MAX int64 = math.MaxInt64
 
-	DbAliveCheckFreqDef = 0
+	INT64_MIN int64 = math.MinInt64
 
-	LocaleDef = 0
+	UINT64_MAX uint64 = math.MaxUint64
 
-	// log
-	LogLevelDef = LOG_OFF // 日志级别：off, error, warn, sql, info, all
+	UINT64_MIN uint64 = 0
 
-	LogFlushFreqDef = 10 // 日志刷盘时间s (>=0)
+	FLOAT32_MAX float32 = 3.4e+38
 
-	LogFlushQueueSizeDef = 100 //日志队列大小
+	FLOAT32_MIN float32 = -3.4e+38
 
-	LogBufferSizeDef = 32 * 1024 // 日志缓冲区大小 (>0)
+	BYTE_SIZE = 1
 
-	// stat
-	StatEnableDef = false //
+	USINT_SIZE = 2
 
-	StatFlushFreqDef = 3 // 日志刷盘时间s (>=0)
+	ULINT_SIZE = 4
 
-	StatSlowSqlCountDef = 100 // 慢sql top行数，(0-1000)
+	DDWORD_SIZE = 8
 
-	StatHighFreqSqlCountDef = 100 // 高频sql top行数， (0-1000)
+	LINT64_SIZE = 8
 
-	StatSqlMaxCountDef = 100000 // sql 统计最大值(0-100000)
+	CHAR = 0
 
-	StatSqlRemoveModeDef = STAT_SQL_REMOVE_LATEST // 记录sql数超过最大值时，sql淘汰方式
+	VARCHAR2 = 1
+
+	VARCHAR = 2
+
+	BIT = 3
+
+	TINYINT = 5
+
+	SMALLINT = 6
+
+	INT = 7
+
+	BIGINT = 8
+
+	DECIMAL = 9
+
+	REAL = 10
+
+	DOUBLE = 11
+
+	BLOB = 12
+
+	BOOLEAN = 13
+
+	DATE = 14
+
+	TIME = 15
+
+	DATETIME = 16
+
+	BINARY = 17
+
+	VARBINARY = 18
+
+	CLOB = 19
+
+	INTERVAL_YM = 20
+
+	INTERVAL_DT = 21
+
+	TIME_TZ = 22
+
+	DATETIME_TZ = 23
+
+	XDEC_INT32 = 24
+
+	XDEC_INT64 = 25
+
+	DATETIME2 = 26
+
+	DATETIME2_TZ = 27
+
+	NULL = 28
+
+	ANY = 31
+
+	STAR_ALL = 32
+
+	STAR = 33
+
+	RECORD = 40
+
+	TYPE = 41
+
+	TYPE_REF = 42
+
+	UNKNOWN = 54
+
+	ARRAY = 117
+
+	CLASS = 119
+
+	CURSOR = 120
+
+	PLTYPE_RECORD = 121
+
+	SARRAY = 122
+
+	CURSOR_ORACLE = -10
+
+	BIT_PREC = BYTE_SIZE
+
+	TINYINT_PREC = BYTE_SIZE
+
+	SMALLINT_PREC = USINT_SIZE
+
+	INT_PREC = ULINT_SIZE
+
+	BIGINT_PREC = LINT64_SIZE
+
+	REAL_PREC = 4
+
+	DOUBLE_PREC = 8
+
+	DATE_PREC = 3
+
+	TIME_PREC = 5
+
+	DATETIME_PREC = 8
+
+	DATETIME2_PREC = 9
+
+	TIME_TZ_PREC = TIME_PREC + 2
+
+	DATETIME_TZ_PREC = DATETIME_PREC + 2
+
+	DATETIME2_TZ_PREC = DATETIME2_PREC + 2
+
+	INTERVAL_YM_PREC = 3 * ULINT_SIZE
+
+	INTERVAL_DT_PREC = 6 * ULINT_SIZE
+
+	VARCHAR_PREC = 8188
+
+	VARBINARY_PREC = 8188
+
+	BLOB_PREC int32 = INT32_MAX
+
+	CLOB_PREC int32 = INT32_MAX
+
+	NULL_PREC = 0
+
+	LOCAL_TIME_ZONE_SCALE_MASK = 0x00001000
+
+	BFILE_PREC = 512
+
+	BFILE_SCALE = 6
+
+	COMPLEX_SCALE = 5
+
+	CURRENCY_PREC = 19
+
+	CURRENCY_SCALE = 4
+
+	LOCAL_DATETIME_SCALE_MASK int32 = 0x00001000
+
+	ORACLE_FLOAT_SCALE_MASK int32 = 0x81
+
+	ORACLE_DATE_SCALE_MASK int32 = 0x00002000
 )
+
+func isComplexType(colType int, scale int) bool {
+	return (colType == BLOB && scale == COMPLEX_SCALE) || colType == ARRAY || colType == SARRAY || colType == CLASS || colType == PLTYPE_RECORD
+}
+
+func isLocalTimeZone(colType int, scale int) bool {
+	return (colType == DATETIME || colType == DATETIME2) && (scale&LOCAL_TIME_ZONE_SCALE_MASK) != 0
+}
+
+func getLocalTimeZoneScale(colType int, scale int) int {
+	return scale & (^LOCAL_TIME_ZONE_SCALE_MASK)
+}
+
+func isFloat(colType int, scale int) bool {
+	return colType == DECIMAL && scale == int(ORACLE_FLOAT_SCALE_MASK)
+}
+
+func getFloatPrec(prec int) int {
+	return int(math.Round(float64(prec)*0.30103)) + 1
+}
+
+func getFloatScale(scale int) int {
+	return scale & (^int(ORACLE_FLOAT_SCALE_MASK))
+}
 
 var (
-	DbAliveCheckFreq = DbAliveCheckFreqDef
-
-	Locale = LocaleDef // 0:简体中文 1：英文 2:繁体中文
-
-	// log
-	LogLevel = LogLevelDef // 日志级别：off, error, warn, sql, info, all
-
-	LogDir = LogDirDef
-
-	LogFlushFreq = LogFlushFreqDef // 日志刷盘时间s (>=0)
-
-	LogFlushQueueSize = LogFlushQueueSizeDef
-
-	LogBufferSize = LogBufferSizeDef // 日志缓冲区大小 (>0)
-
-	// stat
-	StatEnable = StatEnableDef //
-
-	StatDir = StatDirDef // jdbc工作目录,所有生成的文件都在该目录下
-
-	StatFlushFreq = StatFlushFreqDef // 日志刷盘时间s (>=0)
-
-	StatSlowSqlCount = StatSlowSqlCountDef // 慢sql top行数，(0-1000)
-
-	StatHighFreqSqlCount = StatHighFreqSqlCountDef // 高频sql top行数， (0-1000)
-
-	StatSqlMaxCount = StatSqlMaxCountDef // sql 统计最大值(0-100000)
-
-	StatSqlRemoveMode = StatSqlRemoveModeDef // 记录sql数超过最大值时，sql淘汰方式
-
-	/*---------------------------------------------------------------*/
-	ServerGroupMap = make(map[string]*epGroup)
-
-	GlobalProperties = NewProperties()
+	scanTypeFloat32    = reflect.TypeOf(float32(0))
+	scanTypeFloat64    = reflect.TypeOf(float64(0))
+	scanTypeBool       = reflect.TypeOf(false)
+	scanTypeInt8       = reflect.TypeOf(int8(0))
+	scanTypeInt16      = reflect.TypeOf(int16(0))
+	scanTypeInt32      = reflect.TypeOf(int32(0))
+	scanTypeInt64      = reflect.TypeOf(int64(0))
+	scanTypeNullBool   = reflect.TypeOf(sql.NullBool{})
+	scanTypeNullFloat  = reflect.TypeOf(sql.NullFloat64{})
+	scanTypeNullInt    = reflect.TypeOf(sql.NullInt64{})
+	scanTypeNullString = reflect.TypeOf(sql.NullString{})
+	scanTypeNullTime   = reflect.TypeOf(sql.NullTime{})
+	scanTypeRawBytes   = reflect.TypeOf(sql.RawBytes{})
+	scanTypeString     = reflect.TypeOf("")
+	scanTypeTime       = reflect.TypeOf(time.Now())
+	scanTypeUnknown    = reflect.TypeOf(new(interface{}))
 )
 
-// filePath: dm_svc.conf 文件路径
-func load(filePath string) {
-	if filePath == "" {
-		switch runtime.GOOS {
-		case "windows":
-			filePath = os.Getenv("SystemRoot") + "\\system32\\dm_svc.conf"
-		case "linux":
-			filePath = "/etc/dm_svc.conf"
-		default:
-			return
-		}
-	}
-	file, err := os.Open(filePath)
-	defer file.Close()
-	if err != nil {
-		return
-	}
-	fileReader := bufio.NewReader(file)
+func (column *column) ScanType() reflect.Type {
 
-	// GlobalProperties = NewProperties()
-	var groupProps *Properties
-	var line string //dm_svc.conf读取到的一行
-
-	for line, err = fileReader.ReadString('\n'); line != "" && (err == nil || err == io.EOF); line, err = fileReader.ReadString('\n') {
-		// 去除#标记的注释
-		if notesIndex := strings.IndexByte(line, '#'); notesIndex != -1 {
-			line = line[:notesIndex]
-		}
-		// 去除前后多余的空格
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+	switch column.colType {
+	case BOOLEAN:
+		if column.nullable {
+			return scanTypeNullBool
 		}
 
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			groupName := strings.ToLower(line[1 : len(line)-1])
-			dbGroup, ok := ServerGroupMap[groupName]
-			if groupName == "" || !ok {
-				continue
-			}
-			groupProps = dbGroup.props
-			if groupProps.IsNil() {
-				groupProps = NewProperties()
-				groupProps.SetProperties(GlobalProperties)
-				dbGroup.props = groupProps
+		return scanTypeBool
+
+	case BIT:
+		if strings.ToLower(column.typeName) == "boolean" {
+
+			if column.nullable {
+				return scanTypeNullBool
 			}
 
+			return scanTypeBool
 		} else {
-			cfgInfo := strings.Split(line, "=")
-			if len(cfgInfo) < 2 {
-				continue
+
+			if column.nullable {
+				return scanTypeNullInt
 			}
-			key := strings.TrimSpace(cfgInfo[0])
-			value := strings.TrimSpace(cfgInfo[1])
-			if strings.HasPrefix(value, "(") && strings.HasSuffix(value, ")") {
-				value = strings.TrimSpace(value[1 : len(value)-1])
-			}
-			if key == "" || value == "" {
-				continue
-			}
-			// 区分属性是全局的还是组的
-			var success bool
-			if groupProps.IsNil() {
-				success = SetServerGroupProperties(GlobalProperties, key, value)
-			} else {
-				success = SetServerGroupProperties(groupProps, key, value)
-			}
-			if !success {
-				var serverGroup = parseServerName(key, value)
-				if serverGroup != nil {
-					serverGroup.props = NewProperties()
-					serverGroup.props.SetProperties(GlobalProperties)
-					ServerGroupMap[strings.ToLower(key)] = serverGroup
-				}
-			}
+			return scanTypeInt8
 		}
+
+	case TINYINT:
+		if column.nullable {
+			return scanTypeNullInt
+		}
+		return scanTypeInt8
+
+	case SMALLINT:
+		if column.nullable {
+			return scanTypeNullInt
+		}
+		return scanTypeInt16
+
+	case INT:
+		if column.nullable {
+			return scanTypeNullInt
+		}
+
+		return scanTypeInt32
+
+	case BIGINT:
+		if column.nullable {
+			return scanTypeNullInt
+		}
+		return scanTypeInt64
+
+	case REAL:
+		if column.nullable {
+			return scanTypeNullFloat
+		}
+
+		return scanTypeFloat32
+
+	case DOUBLE:
+
+		if strings.ToLower(column.typeName) == "float" {
+			if column.nullable {
+				return scanTypeNullFloat
+			}
+
+			return scanTypeFloat32
+		}
+
+		if column.nullable {
+			return scanTypeNullFloat
+		}
+
+		return scanTypeFloat64
+	case DATE, TIME, DATETIME, DATETIME2:
+		if column.nullable {
+			return scanTypeNullTime
+		}
+
+		return scanTypeTime
+
+	case DECIMAL, BINARY, VARBINARY, BLOB:
+		return scanTypeRawBytes
+
+	case CHAR, VARCHAR2, VARCHAR, CLOB:
+		if column.nullable {
+			return scanTypeNullString
+		}
+		return scanTypeString
 	}
+
+	return scanTypeUnknown
 }
 
-func SetServerGroupProperties(props *Properties, key string, value string) bool {
-	if util.StringUtil.EqualsIgnoreCase(key, "ADDRESS_REMAP") {
-		tmp := props.GetString(AddressRemapKey, "")
-		props.Set(AddressRemapKey, tmp+"("+value+")")
-	} else if util.StringUtil.EqualsIgnoreCase(key, "ALWAYS_ALLOW_COMMIT") {
-		props.Set(AlwayseAllowCommitKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "APP_NAME") {
-		props.Set(AppNameKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "AUTO_COMMIT") {
-		props.Set(AutoCommitKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "BATCH_ALLOW_MAX_ERRORS") {
-		props.Set(BatchAllowMaxErrorsKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "BATCH_CONTINUE_ON_ERROR") ||
-		util.StringUtil.EqualsIgnoreCase(key, "CONTINUE_BATCH_ON_ERROR") {
-		props.Set(ContinueBatchOnErrorKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "BATCH_NOT_ON_CALL") {
-		props.Set(BatchNotOnCallKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "BATCH_TYPE") {
-		props.Set(BatchTypeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "BUF_PREFETCH") {
-		props.Set(BufPrefetchKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "CIPHER_PATH") {
-		props.Set(CipherPathKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "CLUSTER") {
-		props.Set(ClusterKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "COLUMN_NAME_UPPER_CASE") {
-		props.Set(ColumnNameUpperCaseKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "COLUMN_NAME_CASE") {
-		props.Set(ColumnNameCaseKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "COMPATIBLE_MODE") {
-		props.Set(CompatibleModeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "COMPRESS") ||
-		util.StringUtil.EqualsIgnoreCase(key, "COMPRESS_MSG") {
-		props.Set(CompressKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "COMPRESS_ID") {
-		props.Set(CompressIdKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "CONNECT_TIMEOUT") {
-		props.Set(ConnectTimeoutKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "DO_SWITCH") ||
-		util.StringUtil.EqualsIgnoreCase(key, "AUTO_RECONNECT") {
-		props.Set(DoSwitchKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "ENABLE_RS_CACHE") {
-		props.Set(EnRsCacheKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "EP_SELECTION") {
-		props.Set(EpSelectorKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "ESCAPE_PROCESS") {
-		props.Set(EscapeProcessKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "IS_BDTA_RS") {
-		props.Set(IsBdtaRSKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "KEY_WORDS") ||
-		util.StringUtil.EqualsIgnoreCase(key, "KEYWORDS") {
-		props.Set(KeywordsKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LANGUAGE") {
-		props.Set(LanguageKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOB_MODE") {
-		props.Set(LobModeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOG_DIR") {
-		props.Set(LogDirKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOG_FLUSH_FREQ") {
-		props.Set(LogFlushFreqKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOG_LEVEL") {
-		props.Set(LogLevelKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOGIN_DSC_CTRL") {
-		props.Set(LoginDscCtrlKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOGIN_ENCRYPT") {
-		props.Set(LoginEncryptKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOGIN_MODE") {
-		props.Set(LoginModeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "LOGIN_STATUS") {
-		props.Set(LoginStatusKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "MAX_ROWS") {
-		props.Set(MaxRowsKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "MPP_LOCAL") {
-		props.Set(MppLocalKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "OS_NAME") {
-		props.Set(OsNameKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RS_CACHE_SIZE") {
-		props.Set(RsCacheSizeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RS_REFRESH_FREQ") {
-		props.Set(RsRefreshFreqKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RW_HA") {
-		props.Set(RwHAKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RW_IGNORE_SQL") {
-		props.Set(RwIgnoreSqlKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RW_PERCENT") {
-		props.Set(RwPercentKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RW_SEPARATE") {
-		props.Set(RwSeparateKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "RW_STANDBY_RECOVER_TIME") {
-		props.Set(RwStandbyRecoverTimeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SCHEMA") {
-		props.Set(SchemaKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SESS_ENCODE") {
-		if IsSupportedCharset(value) {
-			props.Set("sessEncode", value)
+func (column *column) Length() (length int64, ok bool) {
+
+	switch column.colType {
+	case BINARY:
+	case VARBINARY:
+	case BLOB:
+	case CHAR:
+	case VARCHAR2:
+	case VARCHAR:
+	case CLOB:
+		return int64(column.prec), true
+	}
+
+	return int64(0), false
+}
+
+func (column *column) PrecisionScale() (precision, scale int64, ok bool) {
+	switch column.colType {
+	case DECIMAL:
+		if column.prec == 0 {
+			return 38, int64(column.scale), true
+		} else {
+			return int64(column.prec), int64(column.scale), true
 		}
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SESSION_TIMEOUT") {
-		props.Set(SessionTimeoutKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SOCKET_TIMEOUT") {
-		props.Set(SocketTimeoutKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SSL_FILES_PATH") {
-		props.Set(SslFilesPathKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_DIR") {
-		props.Set(StatDirKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_ENABLE") {
-		props.Set(StatEnableKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_FLUSH_FREQ") {
-		props.Set(StatFlushFreqKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_HIGH_FREQ_SQL_COUNT") {
-		props.Set(StatHighFreqSqlCountKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_SLOW_SQL_COUNT") {
-		props.Set(StatSlowSqlCountKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_SQL_MAX_COUNT") {
-		props.Set(StatSqlMaxCountKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "STAT_SQL_REMOVE_MODE") {
-		props.Set(StatSqlRemoveModeKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SWITCH_INTERVAL") {
-		props.Set(SwitchIntervalKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "SWITCH_TIME") ||
-		util.StringUtil.EqualsIgnoreCase(key, "SWITCH_TIMES") {
-		props.Set(SwitchTimesKey, value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "TIME_ZONE") {
-		props.Set(TimeZoneKey, value)
-		props.Set("localTimezone", value)
-	} else if util.StringUtil.EqualsIgnoreCase(key, "USER_REMAP") {
-		tmp := props.GetString(UserRemapKey, "")
-		props.Set(UserRemapKey, tmp+"("+value+")")
-	} else {
+	}
+
+	return int64(0), int64(0), false
+}
+
+func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Value, error) {
+	if bytes == nil {
+		return nil, nil
+	}
+
+	switch column.colType {
+	case BOOLEAN:
+		return bytes[0] != 0, nil
+	case BIT:
+		if strings.ToLower(column.typeName) == "boolean" {
+			return bytes[0] != 0, nil
+		}
+
+		return int8(bytes[0]), nil
+	case TINYINT:
+		return int8(bytes[0]), nil
+	case SMALLINT:
+		return Dm_build_1.Dm_build_98(bytes, 0), nil
+	case INT:
+		return Dm_build_1.Dm_build_103(bytes, 0), nil
+	case BIGINT:
+		return Dm_build_1.Dm_build_108(bytes, 0), nil
+	case REAL:
+		return Dm_build_1.Dm_build_113(bytes, 0), nil
+	case DOUBLE:
+
+		return Dm_build_1.Dm_build_117(bytes, 0), nil
+	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
+		return DB2G.toTime(bytes, column, conn)
+	case INTERVAL_DT:
+		return newDmIntervalDTByBytes(bytes).String(), nil
+	case INTERVAL_YM:
+		return newDmIntervalYMByBytes(bytes).String(), nil
+	case DECIMAL:
+		tmp, err := DB2G.toDmDecimal(bytes, column, conn)
+		if err != nil {
+			return nil, err
+		}
+		return tmp.String(), nil
+
+	case BINARY, VARBINARY:
+		return bytes, nil
+	case BLOB:
+		if isComplexType(int(column.colType), int(column.scale)) {
+			return DB2G.toComplexType(bytes, column, conn)
+		}
+		blob := DB2G.toDmBlob(bytes, column, conn)
+
+		l, err := blob.GetLength()
+		if err != nil {
+			return nil, err
+		}
+		return blob.getBytes(1, int32(l))
+
+	case CHAR, VARCHAR2, VARCHAR:
+		return Dm_build_1.Dm_build_158(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
+	case CLOB:
+		clob := DB2G.toDmClob(bytes, conn, column)
+
+		l, err := clob.GetLength()
+		if err != nil {
+			return nil, err
+		}
+		return clob.getSubString(1, int32(l))
+
+	}
+
+	return string(bytes), nil
+}
+
+func emptyStringToNil(t int32) bool {
+	switch t {
+	case BOOLEAN, BIT, TINYINT, SMALLINT, INT, BIGINT, REAL, DOUBLE, DECIMAL, DATE, TIME,
+		DATETIME, INTERVAL_DT, INTERVAL_YM, TIME_TZ, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
+		return true
+	default:
 		return false
 	}
-	return true
-}
-
-func parseServerName(name string, value string) *epGroup {
-	values := strings.Split(value, ",")
-
-	var tmpVals []string
-	var tmpName string
-	var tmpPort int
-	var svrList = make([]*ep, 0, len(values))
-
-	for _, v := range values {
-
-		var tmp *ep
-		// 先查找IPV6,以[]包括
-		begin := strings.IndexByte(v, '[')
-		end := -1
-		if begin != -1 {
-			end = strings.IndexByte(v[begin:], ']')
-		}
-		if end != -1 {
-			tmpName = v[begin+1 : end]
-
-			// port
-			if portIndex := strings.IndexByte(v[end:], ':'); portIndex != -1 {
-				tmpPort, _ = strconv.Atoi(strings.TrimSpace(v[portIndex+1:]))
-			} else {
-				tmpPort = int(DEFAULT_PORT)
-			}
-			tmp = newEP(tmpName, int32(tmpPort))
-			svrList = append(svrList, tmp)
-			continue
-		}
-		// IPV4
-		tmpVals = strings.Split(v, ":")
-		tmpName = strings.TrimSpace(tmpVals[0])
-		if len(tmpVals) >= 2 {
-			tmpPort, _ = strconv.Atoi(tmpVals[1])
-		} else {
-			tmpPort = int(DEFAULT_PORT)
-		}
-		tmp = newEP(tmpName, int32(tmpPort))
-		svrList = append(svrList, tmp)
-	}
-
-	if len(svrList) == 0 {
-		return nil
-	}
-	return newEPGroup(name, svrList)
-}
-
-func setDriverAttributes(props *Properties) {
-	if props == nil || props.Len() == 0 {
-		return
-	}
-
-	parseLanguage(props.GetString(LanguageKey, "cn"))
-	DbAliveCheckFreq = props.GetInt(DbAliveCheckFreqKey, DbAliveCheckFreqDef, 1, int(INT32_MAX))
-
-	//// log
-	//LogLevel = ParseLogLevel(props)
-	//LogDir = util.StringUtil.FormatDir(props.GetTrimString(LogDirKey, LogDirDef))
-	//LogBufferSize = props.GetInt(LogBufferSizeKey, LogBufferSizeDef, 1, int(INT32_MAX))
-	//LogFlushFreq = props.GetInt(LogFlushFreqKey, LogFlushFreqDef, 1, int(INT32_MAX))
-	//LogFlushQueueSize = props.GetInt(LogFlusherQueueSizeKey, LogFlushQueueSizeDef, 1, int(INT32_MAX))
-	//
-	//// stat
-	//StatEnable = props.GetBool(StatEnableKey, StatEnableDef)
-	//StatDir = util.StringUtil.FormatDir(props.GetTrimString(StatDirKey, StatDirDef))
-	//StatFlushFreq = props.GetInt(StatFlushFreqKey, StatFlushFreqDef, 1, int(INT32_MAX))
-	//StatHighFreqSqlCount = props.GetInt(StatHighFreqSqlCountKey, StatHighFreqSqlCountDef, 0, 1000)
-	//StatSlowSqlCount = props.GetInt(StatSlowSqlCountKey, StatSlowSqlCountDef, 0, 1000)
-	//StatSqlMaxCount = props.GetInt(StatSqlMaxCountKey, StatSqlMaxCountDef, 0, 100000)
-	//parseStatSqlRemoveMode(props)
-}
-
-func parseLanguage(value string) {
-	if util.StringUtil.EqualsIgnoreCase("cn", value) {
-		Locale = 0
-	} else if util.StringUtil.EqualsIgnoreCase("en", value) {
-		Locale = 1
-	}
-}
-
-func IsSupportedCharset(charset string) bool {
-	if util.StringUtil.EqualsIgnoreCase(ENCODING_UTF8, charset) || util.StringUtil.EqualsIgnoreCase(ENCODING_GB18030, charset) || util.StringUtil.EqualsIgnoreCase(ENCODING_EUCKR, charset) {
-		return true
-	}
-	return false
-}
-
-func ParseLogLevel(props *Properties) int {
-	logLevel := LOG_OFF
-	value := props.GetString(LogLevelKey, "")
-	if value != "" && !util.StringUtil.IsDigit(value) {
-		if util.StringUtil.EqualsIgnoreCase("debug", value) {
-			logLevel = LOG_DEBUG
-		} else if util.StringUtil.EqualsIgnoreCase("info", value) {
-			logLevel = LOG_INFO
-		} else if util.StringUtil.EqualsIgnoreCase("sql", value) {
-			logLevel = LOG_SQL
-		} else if util.StringUtil.EqualsIgnoreCase("warn", value) {
-			logLevel = LOG_WARN
-		} else if util.StringUtil.EqualsIgnoreCase("error", value) {
-			logLevel = LOG_ERROR
-		} else if util.StringUtil.EqualsIgnoreCase("off", value) {
-			logLevel = LOG_OFF
-		} else if util.StringUtil.EqualsIgnoreCase("all", value) {
-			logLevel = LOG_ALL
-		}
-	} else {
-		logLevel = props.GetInt(LogLevelKey, logLevel, LOG_OFF, LOG_INFO)
-	}
-
-	return logLevel
 }

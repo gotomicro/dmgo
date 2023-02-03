@@ -2,107 +2,319 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
-
 package dm
 
 import (
-	"database/sql"
-	"database/sql/driver"
+	"bytes"
+	"strconv"
+	"strings"
+
+	"gitee.com/chunanyong/dm/parser"
+
+	"gitee.com/chunanyong/dm/util"
 )
 
-var SQLName sqlName
-
-type sqlName struct {
-	m_name string // 描述对象自身名称,
-
-	// 若为内置类型，则表示数据库端定义的名称，与dType相对应
-	m_pkgName string // 所在包的名称，适用于包中类型的定义
-
-	m_schName string // 描述对象所在模式名
-
-	m_fulName string // 描述对象完全限定名， 记录用户发送的名称信息；
-
-	// 以及接受服务器响应后，拼成的名称信息
-
-	m_schId int // 保存模式id,模式名无法传出，利用模式id查找
-
-	m_packId int // 保存包的id,包名无法传出，用于查找包名
-
-	m_conn *DmConnection
-}
-
-func (SqlName *sqlName) init() {
-	SqlName.m_name = ""
-	SqlName.m_pkgName = ""
-	SqlName.m_schName = ""
-	SqlName.m_fulName = ""
-	SqlName.m_schId = -1
-	SqlName.m_packId = -1
-	SqlName.m_conn = nil
-}
-
-func newSqlNameByFulName(fulName string) *sqlName {
-	o := new(sqlName)
-	o.init()
-	o.m_fulName = fulName
-	return o
-}
-
-func newSqlNameByConn(conn *DmConnection) *sqlName {
-	o := new(sqlName)
-	o.init()
-	o.m_conn = conn
-	return o
-}
-
-func (SqlName *sqlName) getFulName() (string, error) {
-	// 说明非内嵌式数据类型名称描述信息传入或已经获取过描述信息
-	if len(SqlName.m_fulName) > 0 {
-		return SqlName.m_fulName, nil
-	}
-
-	// 内嵌式数据类型无名称描述信息返回，直接返回null
-	if SqlName.m_name == "" {
-		// DBError.throwUnsupportedSQLException();
-		return "", nil
-	}
-
-	// 其他数据名描述信息
-	if SqlName.m_packId != 0 || SqlName.m_schId != 0 {
-		query := "SELECT NAME INTO ? FROM SYS.SYSOBJECTS WHERE ID=?"
-
-		params := make([]driver.Value, 2)
-		var v string
-		params[0] = sql.Out{Dest: &v}
-		if SqlName.m_packId != 0 {
-			params[1] = SqlName.m_packId
-		} else {
-			params[1] = SqlName.m_schId
-		}
-
-		rs, err := SqlName.m_conn.query(query, params)
-		if err != nil {
-			return "", err
-		}
-		rs.close()
-
-		// 说明是包中定义的对象
-		if SqlName.m_packId != 0 {
-			// pkg全名
-			SqlName.m_pkgName = v
-			SqlName.m_fulName = SqlName.m_pkgName + "." + SqlName.m_name
-		} else {
-			// 非包中定义的对象
-			// schema 名称
-			SqlName.m_schName = v
-			SqlName.m_fulName = SqlName.m_schName + "." + SqlName.m_name
-		}
-	}
-	// 将有效值返回
-	if len(SqlName.m_fulName) > 0 {
-		return SqlName.m_fulName, nil
+func (dc *DmConnection) lex(sql string) ([]*parser.LVal, error) {
+	if dc.lexer == nil {
+		dc.lexer = parser.NewLexer(strings.NewReader(sql), false)
 	} else {
-		return SqlName.m_name, nil
+		dc.lexer.Reset(strings.NewReader(sql))
 	}
 
+	lexer := dc.lexer
+	var lval *parser.LVal
+	var err error
+	lvalList := make([]*parser.LVal, 0, 64)
+	lval, err = lexer.Yylex()
+	if err != nil {
+		return nil, err
+	}
+
+	for lval != nil {
+		lvalList = append(lvalList, lval)
+		lval.Position = len(lvalList)
+		lval, err = lexer.Yylex()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return lvalList, nil
+}
+
+func lexSkipWhitespace(sql string, n int) ([]*parser.LVal, error) {
+	lexer := parser.NewLexer(strings.NewReader(sql), false)
+
+	var lval *parser.LVal
+	var err error
+	lvalList := make([]*parser.LVal, 0, 64)
+	lval, err = lexer.Yylex()
+	if err != nil {
+		return nil, err
+	}
+
+	for lval != nil && n > 0 {
+		lval.Position = len(lvalList)
+		if lval.Tp == parser.WHITESPACE_OR_COMMENT {
+			continue
+		}
+
+		lvalList = append(lvalList, lval)
+		n--
+		lval, err = lexer.Yylex()
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	return lvalList, nil
+}
+
+func (dc *DmConnection) escape(sql string, keywords []string) (string, error) {
+
+	if (keywords == nil || len(keywords) == 0) && strings.Index(sql, "{") == -1 {
+		return sql, nil
+	}
+	var keywordMap map[string]interface{}
+	if keywords != nil && len(keywords) > 0 {
+		keywordMap = make(map[string]interface{}, len(keywords))
+		for _, keyword := range keywords {
+			keywordMap[strings.ToUpper(keyword)] = nil
+		}
+	}
+	nsql := bytes.NewBufferString("")
+	stack := make([]bool, 0, 64)
+	lvalList, err := dc.lex(sql)
+	if err != nil {
+		return "", err
+	}
+
+	for i := 0; i < len(lvalList); i++ {
+		lval0 := lvalList[i]
+		if lval0.Tp == parser.NORMAL {
+			if lval0.Value == "{" {
+				lval1 := next(lvalList, i+1)
+				if lval1 == nil || lval1.Tp != parser.NORMAL {
+					stack = append(stack, false)
+					nsql.WriteString(lval0.Value)
+				} else if util.StringUtil.EqualsIgnoreCase(lval1.Value, "escape") || util.StringUtil.EqualsIgnoreCase(lval1.Value, "call") {
+					stack = append(stack, true)
+				} else if util.StringUtil.EqualsIgnoreCase(lval1.Value, "oj") {
+					stack = append(stack, true)
+					lval1.Value = ""
+					lval1.Tp = parser.WHITESPACE_OR_COMMENT
+				} else if util.StringUtil.EqualsIgnoreCase(lval1.Value, "d") {
+					stack = append(stack, true)
+					lval1.Value = "date"
+				} else if util.StringUtil.EqualsIgnoreCase(lval1.Value, "t") {
+					stack = append(stack, true)
+					lval1.Value = "time"
+				} else if util.StringUtil.EqualsIgnoreCase(lval1.Value, "ts") {
+					stack = append(stack, true)
+					lval1.Value = "datetime"
+				} else if util.StringUtil.EqualsIgnoreCase(lval1.Value, "fn") {
+					stack = append(stack, true)
+					lval1.Value = ""
+					lval1.Tp = parser.WHITESPACE_OR_COMMENT
+					lval2 := next(lvalList, lval1.Position+1)
+					if lval2 != nil && lval2.Tp == parser.NORMAL && util.StringUtil.EqualsIgnoreCase(lval2.Value, "database") {
+						lval2.Value = "cur_database"
+					}
+				} else if util.StringUtil.Equals(lval1.Value, "?") {
+					lval2 := next(lvalList, lval1.Position+1)
+					if lval2 != nil && lval2.Tp == parser.NORMAL && util.StringUtil.EqualsIgnoreCase(lval2.Value, "=") {
+						lval3 := next(lvalList, lval2.Position+1)
+						if lval3 != nil && lval3.Tp == parser.NORMAL && util.StringUtil.EqualsIgnoreCase(lval3.Value, "call") {
+							stack = append(stack, true)
+							lval3.Value = ""
+							lval3.Tp = parser.WHITESPACE_OR_COMMENT
+						} else {
+							stack = append(stack, false)
+							nsql.WriteString(lval0.Value)
+						}
+					} else {
+						stack = append(stack, false)
+						nsql.WriteString(lval0.Value)
+					}
+				} else {
+					stack = append(stack, false)
+					nsql.WriteString(lval0.Value)
+				}
+			} else if util.StringUtil.Equals(lval0.Value, "}") {
+				if len(stack) != 0 && stack[len(stack)-1] {
+
+				} else {
+					nsql.WriteString(lval0.Value)
+				}
+				stack = stack[:len(stack)-1]
+			} else {
+				if keywordMap != nil {
+					_, ok := keywordMap[strings.ToUpper(lval0.Value)]
+					if ok {
+						nsql.WriteString("\"" + util.StringUtil.ProcessDoubleQuoteOfName(strings.ToUpper(lval0.Value)) + "\"")
+					} else {
+						nsql.WriteString(lval0.Value)
+					}
+				} else {
+					nsql.WriteString(lval0.Value)
+				}
+			}
+		} else if lval0.Tp == parser.STRING {
+			nsql.WriteString("'" + util.StringUtil.ProcessSingleQuoteOfName(lval0.Value) + "'")
+		} else {
+			nsql.WriteString(lval0.Value)
+		}
+	}
+
+	return nsql.String(), nil
+}
+
+func next(lvalList []*parser.LVal, start int) *parser.LVal {
+	var lval *parser.LVal
+
+	size := len(lvalList)
+	for i := start; i < size; i++ {
+		lval = lvalList[i]
+		if lval.Tp != parser.WHITESPACE_OR_COMMENT {
+			break
+		}
+	}
+	return lval
+}
+
+func (dc *DmConnection) execOpt(sql string, optParamList []OptParameter, serverEncoding string) (string, []OptParameter, error) {
+	nsql := bytes.NewBufferString("")
+
+	lvalList, err := dc.lex(sql)
+	if err != nil {
+		return "", optParamList, err
+	}
+
+	if nil == lvalList || len(lvalList) == 0 {
+		return sql, optParamList, nil
+	}
+
+	firstWord := lvalList[0].Value
+	if !(util.StringUtil.EqualsIgnoreCase(firstWord, "INSERT") || util.StringUtil.EqualsIgnoreCase(firstWord, "SELECT") ||
+		util.StringUtil.EqualsIgnoreCase(firstWord, "UPDATE") || util.StringUtil.EqualsIgnoreCase(firstWord, "DELETE")) {
+		return sql, optParamList, nil
+	}
+
+	breakIndex := 0
+	for i := 0; i < len(lvalList); i++ {
+		lval := lvalList[i]
+		switch lval.Tp {
+		case parser.NULL:
+			{
+				nsql.WriteString("?")
+				optParamList = append(optParamList, newOptParameter(nil, NULL, NULL_PREC))
+			}
+		case parser.INT:
+			{
+				nsql.WriteString("?")
+				value, err := strconv.Atoi(lval.Value)
+				if err != nil {
+					return "", optParamList, err
+				}
+
+				if value <= int(INT32_MAX) && value >= int(INT32_MIN) {
+					optParamList = append(optParamList, newOptParameter(G2DB.toInt32(int32(value)), INT, INT_PREC))
+
+				} else {
+					optParamList = append(optParamList, newOptParameter(G2DB.toInt64(int64(value)), BIGINT, BIGINT_PREC))
+				}
+			}
+		case parser.DOUBLE:
+			{
+				nsql.WriteString("?")
+				f, err := strconv.ParseFloat(lval.Value, 64)
+				if err != nil {
+					return "", optParamList, err
+				}
+
+				optParamList = append(optParamList, newOptParameter(G2DB.toFloat64(f), DOUBLE, DOUBLE_PREC))
+			}
+		case parser.DECIMAL:
+			{
+				nsql.WriteString("?")
+				bytes, err := G2DB.toDecimal(lval.Value, 0, 0)
+				if err != nil {
+					return "", optParamList, err
+				}
+				optParamList = append(optParamList, newOptParameter(bytes, DECIMAL, 0))
+			}
+		case parser.STRING:
+			{
+
+				if len(lval.Value) > int(INT16_MAX) {
+
+					nsql.WriteString("'" + util.StringUtil.ProcessSingleQuoteOfName(lval.Value) + "'")
+				} else {
+					nsql.WriteString("?")
+					optParamList = append(optParamList, newOptParameter(Dm_build_1.Dm_build_217(lval.Value, serverEncoding, dc), VARCHAR, VARCHAR_PREC))
+				}
+			}
+		case parser.HEX_INT:
+
+			nsql.WriteString(lval.Value)
+		default:
+
+			nsql.WriteString(lval.Value)
+		}
+
+		if breakIndex > 0 {
+			break
+		}
+	}
+
+	if breakIndex > 0 {
+		for i := breakIndex + 1; i < len(lvalList); i++ {
+			nsql.WriteString(lvalList[i].Value)
+		}
+	}
+
+	return nsql.String(), optParamList, nil
+}
+
+func (dc *DmConnection) hasConst(sql string) (bool, error) {
+	lvalList, err := dc.lex(sql)
+	if err != nil {
+		return false, err
+	}
+
+	if nil == lvalList || len(lvalList) == 0 {
+		return false, nil
+	}
+
+	for i := 0; i < len(lvalList); i++ {
+		switch lvalList[i].Tp {
+		case parser.NULL, parser.INT, parser.DOUBLE, parser.DECIMAL, parser.STRING, parser.HEX_INT:
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+type OptParameter struct {
+	bytes  []byte
+	ioType byte
+	tp     int
+	prec   int
+	scale  int
+}
+
+func newOptParameter(bytes []byte, tp int, prec int) OptParameter {
+	o := new(OptParameter)
+	o.bytes = bytes
+	o.tp = tp
+	o.prec = prec
+	return *o
+}
+
+func (parameter *OptParameter) String() string {
+	if parameter.bytes == nil {
+		return ""
+	}
+	return string(parameter.bytes)
 }

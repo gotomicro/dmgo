@@ -5,224 +5,236 @@
 
 package i18n
 
-const Messages_en_US = `{
-  "language": "en-US",
+const Messages_zh_CN = `{
+  "language": "zh-Hans",
   "messages": [
     {
       "id": "error.dsn.invalidSchema",
-      "translation": "DSN must start with dm://"
+      "translation": "DSN串必须以dm://开头"
     },
     {
       "id": "error.unsupported.scan",
-      "translation": "Unsupported scan type"
+      "translation": "Scan类型转换出错"
     },
     {
       "id": "error.invalidParameterNumber",
-      "translation": "Invalid parameter number"
+      "translation": "参数个数不匹配"
     },
     {
       "id": "error.initThirdPartCipherFailed",
-      "translation": "Init third part cipher failed"
+      "translation": "第三方加密初始化失败"
     },
     {
       "id": "error.connectionSwitchFailed",
-      "translation": "Connection switch failed"
+      "translation": "连接重置失败"
     },
     {
       "id": "error.connectionSwitched",
-      "translation": "Connection has been switched"
+      "translation": "连接已重置"
     },
     {
       "id": "error.invalidServerMode",
-      "translation": "Invalid server mode"
+      "translation": "服务器模式不匹配"
     },
     {
       "id": "error.osauthError",
-      "translation": "At the same time using the specifed user login and OS authentication login, please determine a way."
+      "translation": "同时使用了指定用户登录和OS认证登录, 请确定一种方式."
     },
     {
       "id": "error.notQuerySQL",
-      "translation": "The SQL is not a query SQL"
+      "translation": "非查询SQL语句"
     },
     {
       "id": "error.notExecSQL",
-      "translation": "The SQL is not a execute SQL"
+      "translation": "非执行SQL语句"
     },
     {
       "id": "error.invalidTranIsolation",
-      "translation": "invalid Transaltion Isolation"
+      "translation": "非法的事务隔离级"
     },
     {
       "id": "errorCommitInAutoCommitMode",
-      "translation": "Can't commit in Auto commit status"
+      "translation": "自动提交模式下不能手动提交"
     },
     {
-      "id": "errorCommitInAutoCommitMode",
-      "translation": "Can't rollback in Auto commit status"
+      "id": "errorRollbackInAutoCommitMode",
+      "translation": "自动提交模式下不能手动回滚"
     },
     {
       "id": "errorStatementHandleClosed",
-      "translation": "Statement handle is closed"
+      "translation": "语句已经关闭"
     },
     {
       "id": "errorResultSetColsed",
-      "translation": "Resultset is closed"
+      "translation": "结果集已经关闭"
     },
     {
       "id": "error.communicationError",
-      "translation": "Communication  error"
+      "translation": "网络通信异常"
     },
     {
       "id": "error.msgCheckError",
-      "translation": "Message check error"
+      "translation": "消息校验异常"
     },
     {
       "id": "error.unkownNetWork",
-      "translation": "Unkown net work"
+      "translation": "未知的网络"
     },
     {
       "id": "error.serverVersion",
-      "translation": "Server version is too low"
+      "translation": "服务器版本太低"
     },
     {
       "id": "error.usernameTooLong",
-      "translation": "Username is too long."
+      "translation": "用户名超长"
     },
     {
       "id": "error.passwordTooLong",
-      "translation": "Password to login is too long."
+      "translation": "密码超长"
     },
     {
       "id": "error.dataTooLong",
-      "translation": "The data is too large to support."
+      "translation": "数据大小已超过可支持范围"
     },
     {
       "id": "error.invalidColumnType",
-      "translation": "Invalid column type"
+      "translation": "无效的列类型"
     },
     {
       "id": "error.dataConvertionError",
-      "translation": "Data convertion error"
+      "translation": "类型转换异常"
     },
     {
       "id": "error.invalidConn",
-      "translation": "Invalid connection"
+      "translation": "连接失效"
     },
     {
       "id": "error.invalidHex",
-      "translation": "Invalid Hex Number."
+      "translation": "无效的十六进制数字"
     },
 	{
       "id": "error.invalidBFile",
-      "translation": "Invalid BFile format string."
+      "translation": "无效的BFile格式串"
     },
     {
       "id": "error.dataOverflow",
-      "translation": "Digital overflow"
+      "translation": "数字溢出"
     },
     {
       "id": "error.invalidDateTimeFormat",
-      "translation": "Invalid datetime type format"
+      "translation": "错误的日期时间类型格式"
     },
     {
       "id": "error.datetimeOverflow",
-      "translation": "Digital overflow"
+      "translation": "数字溢出"
     },
     {
       "id": "error.invalidTimeInterval",
-      "translation": "Invalid time interval type value"
+      "translation": "错误的时间间隔类型数据"
     },
     {
       "id": "error.unsupportedInparamType",
-      "translation": "Unsupported input parameter type"
+      "translation": "输入参数类型不支持"
     },
     {
       "id": "error.unsupportedOutparamType",
-      "translation": "Unsupported output parameter type"
+      "translation": "输出参数类型不支持"
     },
     {
       "id": "error.unsupportedType",
-      "translation": "Not support this type"
+      "translation": "不支持该数据类型"
     },
     {
       "id": "error.invalidObjBlob",
-      "translation": "invalid Object Blob Data."
+      "translation": "无效的对象BLOB数据"
     },
     {
       "id": "error.structMemNotMatch",
-      "translation": "Members are not matched in Record or Class"
+      "translation": "记录或类数据成员不匹配"
     },
     {
       "id": "error.invalidComplexTypeName",
-      "translation": "Invalid descriptor name."
+      "translation": "无效的类型描述名称"
     },
     {
       "id": "error.invalidParamterValue",
-      "translation": "Invalid parameter value"
+      "translation": "无效的参数值"
     },
     {
       "id": "error.invalidArrayLen",
-      "translation": "the length of static array is bigger than the one when defined."
+      "translation": "静态数组长度大于定义时长度"
     },
     {
       "id": "error.invalidSequenceNumber",
-      "translation": "Invalid sequence no"
+      "translation": "无效的列序号"
     },
     {
       "id": "error.resultsetInReadOnlyStatus",
-      "translation": "Resultset in readonly status"
+      "translation": "结果集处于只读状态"
     },
     {
       "id": "error.SSLInitFailed",
-      "translation": "Failed to initialize SSL"
+      "translation": "初始化SSL环境失败"
     },
     {
       "id": "error.LobDataHasFreed",
-      "translation": "Lob Data has been freed"
+      "translation": "LOB数据已经被释放"
     },
     {
       "id": "error.fatalError",
-      "translation": "Fatal error"
+      "translation": "致命错误"
     },
     {
       "id": "error.invalidLenOrOffset",
-      "translation": "Invalid length or offset"
+      "translation": "长度或偏移错误"
     },
     {
       "id": "error.intervalValueOverflow",
-      "translation": "interval type value overflow"
+      "translation": "时间间隔类型数据溢出"
     },
     {
       "id": "error.invalidCipher",
-      "translation": "Invalid cipher type"
+      "translation": "不支持的加密类型"
     },
     {
       "id": "error.storeInNilPointer",
-      "translation": "Can't store value into a nil pointer"
+      "translation": "无法将数据存入空指针"
     },
 	{
       "id": "error.batchError",
-	  "translation": "Error in executing with batch"
+	  "translation": "批量执行出错"
 	},
 	{
       "id": "warning.bpWithErr",
-	  "translation": "Warning:Partial failure on execute with batch"
+	  "translation": "警告:批量执行部分行产生错误"
 	},
 	{
       "id": "error.invalidSqlType",
-	  "translation": "Invalid sql type"
+	  "translation": "非法的SQL语句类型"
 	},
 	{
       "id": "error.invalidDateTimeValue",
-	  "translation": "Invalid datetime value"
+	  "translation": "无效的日期时间类型值"
 	},
 	{
       "id": "error.msgTooLong",
-	  "translation": "Message too long, limit 512M"
+	  "translation": "消息长度超出限制512M"
 	},
 	{
       "id": "error.isNull",
-	  "translation": "Data is NULL"
+	  "translation": "数据为NULL"
+	},
+	{
+      "id": "error.ParamCountLimit",
+	  "translation": "参数个数超过最大值65536."
+	},
+	{
+      "id": "error.unbindedParameter",
+	  "translation": "有参数未绑定"
+	},
+	{
+      "id": "error.stringCut",
+	  "translation": "字符串截断"
 	}
   ]
 }`

@@ -5,83 +5,60 @@
 
 package security
 
-import (
-	"crypto/rand"
-	"errors"
-	"io"
-	"math/big"
-)
+import "math/big"
 
-type dhGroup struct {
-	p *big.Int
-	g *big.Int
+type DhKey struct {
+	x     *big.Int
+	y     *big.Int
+	group *dhGroup
 }
 
-func newDhGroup(prime, generator *big.Int) *dhGroup {
-	return &dhGroup{
-		p: prime,
-		g: generator,
-	}
-}
-
-func (dg *dhGroup) P() *big.Int {
-	p := new(big.Int)
-	p.Set(dg.p)
-	return p
-}
-
-func (dg *dhGroup) G() *big.Int {
-	g := new(big.Int)
-	g.Set(dg.g)
-	return g
-}
-
-// 生成本地公私钥
-func (dg *dhGroup) GeneratePrivateKey(randReader io.Reader) (key *DhKey, err error) {
-	if randReader == nil {
-		randReader = rand.Reader
-	}
-	// 0 < x < p
-	x, err := rand.Int(randReader, dg.p)
-	if err != nil {
-		return
-	}
-	zero := big.NewInt(0)
-	for x.Cmp(zero) == 0 {
-		x, err = rand.Int(randReader, dg.p)
-		if err != nil {
-			return
-		}
-	}
-	key = new(DhKey)
-	key.x = x
-
-	// y = g ^ x mod p
-	key.y = new(big.Int).Exp(dg.g, x, dg.p)
-	key.group = dg
-	return
-}
-
-func (dg *dhGroup) ComputeKey(pubkey *DhKey, privkey *DhKey) (kye *DhKey, err error) {
-	if dg.p == nil {
-		err = errors.New("DH: invalid group")
-		return
-	}
-	if pubkey.y == nil {
-		err = errors.New("DH: invalid public key")
-		return
-	}
-	if pubkey.y.Sign() <= 0 || pubkey.y.Cmp(dg.p) >= 0 {
-		err = errors.New("DH parameter out of bounds")
-		return
-	}
-	if privkey.x == nil {
-		err = errors.New("DH: invalid private key")
-		return
-	}
-	k := new(big.Int).Exp(pubkey.y, privkey.x, dg.p)
+func newPublicKey(s []byte) *DhKey {
 	key := new(DhKey)
-	key.y = k
-	key.group = dg
-	return
+	key.y = new(big.Int).SetBytes(s)
+	return key
+}
+
+func (dk *DhKey) GetX() *big.Int {
+	x := new(big.Int)
+	x.Set(dk.x)
+	return x
+}
+
+func (dk *DhKey) GetY() *big.Int {
+	y := new(big.Int)
+	y.Set(dk.y)
+	return y
+}
+
+func (dk *DhKey) GetYBytes() []byte {
+	if dk.y == nil {
+		return nil
+	}
+	if dk.group != nil {
+		blen := (dk.group.p.BitLen() + 7) / 8
+		ret := make([]byte, blen)
+		copyWithLeftPad(ret, dk.y.Bytes())
+		return ret
+	}
+	return dk.y.Bytes()
+}
+
+func (dk *DhKey) GetYString() string {
+	if dk.y == nil {
+		return ""
+	}
+	return dk.y.String()
+}
+
+func (dk *DhKey) IsPrivateKey() bool {
+	return dk.x != nil
+}
+
+func copyWithLeftPad(dest, src []byte) {
+	numPaddingBytes := len(dest) - len(src)
+	for i := 0; i < numPaddingBytes; i++ {
+		dest[i] = 0
+	}
+	copy(dest[:numPaddingBytes], src)
 }

@@ -2,252 +2,229 @@
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
  */
-
 package dm
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+	"io"
+)
 
-type DmArray struct {
-	TypeData
-	m_arrDesc *ArrayDescriptor // 数组的描述信息
-
-	m_arrData []TypeData // 数组中各行数据值
-
-	m_objArray interface{} // 从服务端获取的
-
-	m_itemCount int // 本次获取的行数
-
-	m_itemSize int // 数组中一个数组项的大小，单位bytes
-
-	m_objCount int // 一个数组项中存在对象类型的个数（class、动态数组)
-
-	m_strCount int // 一个数组项中存在字符串类型的个数
-
-	m_objStrOffs []int // 对象在前，字符串在后
-
-	typeName string
-
-	elements []interface{}
-
-	// Valid为false代表DmArray数据在数据库中为NULL
-	Valid bool
+type DmBlob struct {
+	lob
+	data   []byte
+	offset int64
 }
 
-func (da *DmArray) init() *DmArray {
-	da.initTypeData()
-	da.m_itemCount = 0
-	da.m_itemSize = 0
-	da.m_objCount = 0
-	da.m_strCount = 0
-	da.m_objStrOffs = nil
-	da.m_dumyData = nil
-	da.m_offset = 0
-
-	da.m_objArray = nil
-	da.Valid = true
-	return da
+func newDmBlob() *DmBlob {
+	return &DmBlob{
+		lob: lob{
+			inRow:            true,
+			groupId:          -1,
+			fileId:           -1,
+			pageNo:           -1,
+			readOver:         false,
+			local:            true,
+			updateable:       true,
+			length:           -1,
+			compatibleOracle: false,
+			fetchAll:         false,
+			freed:            false,
+			modify:           false,
+			Valid:            true,
+		},
+		offset: 1,
+	}
 }
 
-// 数据库自定义数组Array构造函数，typeName为库中定义的数组类型名称，elements为该数组类型的每个值
-//
-// 例如，自定义数组类型语句为：create or replace type myArray is array int[];
-//
-// 则绑入绑出的go对象为: val := dm.NewDmArray("myArray", []interface{} {123, 456})
-func NewDmArray(typeName string, elements []interface{}) *DmArray {
-	da := new(DmArray)
-	da.typeName = typeName
-	da.elements = elements
-	da.Valid = true
-	return da
+func newBlobFromDB(value []byte, conn *DmConnection, column *column, fetchAll bool) *DmBlob {
+	var blob = newDmBlob()
+	blob.connection = conn
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.compatibleOracle = conn.CompatibleOracle()
+	blob.local = false
+	blob.updateable = !column.readonly
+	blob.tabId = column.lobTabId
+	blob.colId = column.lobColId
+
+	blob.inRow = Dm_build_1.Dm_build_94(value, NBLOB_HEAD_IN_ROW_FLAG) == LOB_IN_ROW
+	blob.blobId = Dm_build_1.Dm_build_108(value, NBLOB_HEAD_BLOBID)
+	if !blob.inRow {
+		blob.groupId = Dm_build_1.Dm_build_98(value, NBLOB_HEAD_OUTROW_GROUPID)
+		blob.fileId = Dm_build_1.Dm_build_98(value, NBLOB_HEAD_OUTROW_FILEID)
+		blob.pageNo = Dm_build_1.Dm_build_103(value, NBLOB_HEAD_OUTROW_PAGENO)
+	}
+	if conn.NewLobFlag {
+		blob.tabId = Dm_build_1.Dm_build_103(value, NBLOB_EX_HEAD_TABLE_ID)
+		blob.colId = Dm_build_1.Dm_build_98(value, NBLOB_EX_HEAD_COL_ID)
+		blob.rowId = Dm_build_1.Dm_build_108(value, NBLOB_EX_HEAD_ROW_ID)
+		blob.exGroupId = Dm_build_1.Dm_build_98(value, NBLOB_EX_HEAD_FPA_GRPID)
+		blob.exFileId = Dm_build_1.Dm_build_98(value, NBLOB_EX_HEAD_FPA_FILEID)
+		blob.exPageNo = Dm_build_1.Dm_build_103(value, NBLOB_EX_HEAD_FPA_PAGENO)
+	}
+	blob.resetCurrentInfo()
+
+	blob.length = blob.getLengthFromHead(value)
+	if blob.inRow {
+		blob.data = make([]byte, blob.length)
+		if conn.NewLobFlag {
+			Dm_build_1.Dm_build_57(blob.data, 0, value, NBLOB_EX_HEAD_SIZE, len(blob.data))
+		} else {
+			Dm_build_1.Dm_build_57(blob.data, 0, value, NBLOB_INROW_HEAD_SIZE, len(blob.data))
+		}
+	} else if fetchAll {
+		blob.loadAllData()
+	}
+	return blob
 }
 
-func (da *DmArray) create(dc *DmConnection) (*DmArray, error) {
-	desc, err := newArrayDescriptor(da.typeName, dc)
+func newBlobOfLocal(value []byte, conn *DmConnection) *DmBlob {
+	var blob = newDmBlob()
+	blob.connection = conn
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.data = value
+	blob.length = int64(len(blob.data))
+	return blob
+}
+
+func NewBlob(value []byte) *DmBlob {
+	var blob = newDmBlob()
+
+	blob.lobFlag = LOB_FLAG_BYTE
+	blob.data = value
+	blob.length = int64(len(blob.data))
+	return blob
+}
+
+func (blob *DmBlob) Read(dest []byte) (n int, err error) {
+	if err = blob.checkValid(); err != nil {
+		return
+	}
+	result, err := blob.getBytes(blob.offset, int32(len(dest)))
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return da.createByArrayDescriptor(desc, dc)
+	blob.offset += int64(len(result))
+	copy(dest, result)
+	if len(result) == 0 {
+		return 0, io.EOF
+	}
+	return len(result), nil
 }
 
-func (da *DmArray) createByArrayDescriptor(arrDesc *ArrayDescriptor, conn *DmConnection) (*DmArray, error) {
-
-	if nil == arrDesc {
-		return nil, ECGO_INVALID_PARAMETER_VALUE.throw()
+func (blob *DmBlob) ReadAt(pos int, dest []byte) (n int, err error) {
+	if err = blob.checkValid(); err != nil {
+		return
 	}
+	result, err := blob.getBytes(int64(pos), int32(len(dest)))
+	if err != nil {
+		return 0, err
+	}
+	if len(result) == 0 {
+		return 0, io.EOF
+	}
+	copy(dest[0:len(result)], result)
+	return len(result), nil
+}
 
-	da.init()
-
-	da.m_arrDesc = arrDesc
-	if nil == da.elements {
-		da.m_arrData = make([]TypeData, 0)
+func (blob *DmBlob) Write(pos int, src []byte) (n int, err error) {
+	if err = blob.checkValid(); err != nil {
+		return
+	}
+	if err = blob.checkFreed(); err != nil {
+		return
+	}
+	if pos < 1 {
+		err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+		return
+	}
+	if !blob.updateable {
+		err = ECGO_RESULTSET_IS_READ_ONLY.throw()
+		return
+	}
+	pos -= 1
+	if blob.local || blob.fetchAll {
+		if int64(pos) > blob.length {
+			err = ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+			return
+		}
+		blob.setLocalData(pos, src)
+		n = len(src)
 	} else {
-		// 若为静态数组，判断给定数组长度是否超过静态数组的上限
-		if arrDesc.getMDesc() == nil || (arrDesc.getMDesc().getDType() == SARRAY && len(da.elements) > arrDesc.getMDesc().getStaticArrayLength()) {
-			return nil, ECGO_INVALID_ARRAY_LEN.throw()
+		if err = blob.connection.checkClosed(); err != nil {
+			return -1, err
 		}
-
-		var err error
-		da.m_arrData, err = TypeDataSV.toArray(da.elements, da.m_arrDesc.getMDesc())
+		var writeLen, err = blob.connection.Access.dm_build_907(blob, pos, src)
 		if err != nil {
-			return nil, err
+			return -1, err
 		}
+
+		if blob.groupId == -1 {
+			blob.setLocalData(pos, src)
+		} else {
+			blob.inRow = false
+			blob.length = -1
+		}
+		n = writeLen
+
 	}
-
-	da.m_itemCount = len(da.m_arrData)
-	return da, nil
+	blob.modify = true
+	return
 }
 
-func newDmArrayByTypeData(atData []TypeData, desc *TypeDescriptor) *DmArray {
-	da := new(DmArray)
-	da.init()
-	da.m_arrDesc = newArrayDescriptorByTypeDescriptor(desc)
-	da.m_arrData = atData
-	return da
-}
-
-func (da *DmArray) checkIndex(index int64) error {
-	if index < 0 || index > int64(len(da.m_arrData)-1) {
-		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
-	}
-	return nil
-}
-
-func (da *DmArray) checkIndexAndCount(index int64, count int) error {
-	err := da.checkIndex(index)
-	if err != nil {
+func (blob *DmBlob) Truncate(length int64) error {
+	var err error
+	if err = blob.checkValid(); err != nil {
 		return err
 	}
-
-	if count <= 0 || index+int64(count) > int64(len(da.m_arrData)) {
+	if err = blob.checkFreed(); err != nil {
+		return err
+	}
+	if length < 0 {
 		return ECGO_INVALID_LENGTH_OR_OFFSET.throw()
 	}
+	if !blob.updateable {
+		return ECGO_RESULTSET_IS_READ_ONLY.throw()
+	}
+	if blob.local || blob.fetchAll {
+		if length >= int64(len(blob.data)) {
+			return nil
+		}
+		tmp := make([]byte, length)
+		Dm_build_1.Dm_build_57(tmp, 0, blob.data, 0, len(tmp))
+		blob.data = tmp
+		blob.length = int64(len(tmp))
+	} else {
+		if err = blob.connection.checkClosed(); err != nil {
+			return err
+		}
+		blob.length, err = blob.connection.Access.dm_build_921(&blob.lob, int(length))
+		if err != nil {
+			return err
+		}
+		if blob.groupId == -1 {
+			tmp := make([]byte, blob.length)
+			Dm_build_1.Dm_build_57(tmp, 0, blob.data, 0, int(blob.length))
+			blob.data = tmp
+		}
+	}
+	blob.modify = true
 	return nil
 }
 
-// 获取Array对象在数据库中的类型名称
-func (da *DmArray) GetBaseTypeName() (string, error) {
-	if err := da.checkValid(); err != nil {
-		return "", err
-	}
-	return da.m_arrDesc.m_typeDesc.getFulName()
-}
-
-// 获取Array对象的go数组对象
-func (da *DmArray) GetArray() (interface{}, error) {
-	if da.m_arrData == nil || len(da.m_arrData) <= 0 {
-		return nil, nil;
-	}
-
-	return TypeDataSV.toJavaArray(da, 0, len(da.m_arrData), da.m_arrDesc.getItemDesc().getDType())
-}
-
-// 获取Array对象的指定偏移和执行长度go数据对象 index从0开始
-func (da *DmArray) GetObjArray(index int64, count int) (interface{}, error) {
-	var err error
-	if err = da.checkValid(); err != nil {
-		return nil, err
-	}
-	if err = da.checkIndexAndCount(index, count); err != nil {
-		return nil, err
-	}
-
-	return TypeDataSV.toJavaArray(da, index, count, da.m_arrDesc.getItemDesc().getDType())
-}
-
-func (da *DmArray) GetIntArray(index int64, count int) ([]int, error) {
-	var err error
-	if err = da.checkValid(); err != nil {
-		return nil, err
-	}
-	if err = da.checkIndexAndCount(index, count); err != nil {
-		return nil, err
-	}
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_INTEGER)
-	if err != nil {
-		return nil, err
-	}
-	return tmp.([]int), nil
-}
-
-func (da *DmArray) GetInt16Array(index int64, count int) ([]int16, error) {
-	var err error
-	if err = da.checkValid(); err != nil {
-		return nil, err
-	}
-	if err = da.checkIndexAndCount(index, count); err != nil {
-		return nil, err
-	}
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_SHORT)
-	if err != nil {
-		return nil, err
-	}
-	return tmp.([]int16), nil
-}
-
-func (da *DmArray) GetInt64Array(index int64, count int) ([]int64, error) {
-	var err error
-	if err = da.checkValid(); err != nil {
-		return nil, err
-	}
-	if err = da.checkIndexAndCount(index, count); err != nil {
-		return nil, err
-	}
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_LONG)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp.([]int64), nil
-}
-
-func (da *DmArray) GetFloatArray(index int64, count int) ([]float32, error) {
-	var err error
-	if err = da.checkValid(); err != nil {
-		return nil, err
-	}
-	if err = da.checkIndexAndCount(index, count); err != nil {
-		return nil, err
-	}
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_FLOAT)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp.([]float32), nil
-}
-
-func (da *DmArray) GetDoubleArray(index int64, count int) ([]float64, error) {
-	var err error
-	if err = da.checkValid(); err != nil {
-		return nil, err
-	}
-	if err = da.checkIndexAndCount(index, count); err != nil {
-		return nil, err
-	}
-
-	tmp, err := TypeDataSV.toNumericArray(da, index, count, ARRAY_TYPE_DOUBLE)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp.([]float64), nil
-}
-
-func (dest *DmArray) Scan(src interface{}) error {
+func (dest *DmBlob) Scan(src interface{}) error {
 	if dest == nil {
 		return ECGO_STORE_IN_NIL_POINTER.throw()
 	}
 	switch src := src.(type) {
 	case nil:
-		*dest = *new(DmArray)
-		// 将Valid标志置false表示数据库中该列为NULL
+		*dest = *new(DmBlob)
+
 		(*dest).Valid = false
 		return nil
-	case *DmArray:
+	case []byte:
+		*dest = *NewBlob(src)
+		return nil
+	case *DmBlob:
 		*dest = *src
 		return nil
 	default:
@@ -255,16 +232,59 @@ func (dest *DmArray) Scan(src interface{}) error {
 	}
 }
 
-func (array DmArray) Value() (driver.Value, error) {
-	if !array.Valid {
+func (blob DmBlob) Value() (driver.Value, error) {
+	if !blob.Valid {
 		return nil, nil
 	}
-	return array, nil
+	return blob, nil
 }
 
-func (array *DmArray) checkValid() error {
-	if !array.Valid {
-		return ECGO_IS_NULL.throw()
+func (blob *DmBlob) getBytes(pos int64, length int32) ([]byte, error) {
+	var err error
+	var leaveLength int64
+	if err = blob.checkFreed(); err != nil {
+		return nil, err
 	}
-	return nil
+	if pos < 1 || length < 0 {
+		return nil, ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	pos = pos - 1
+	if leaveLength, err = blob.GetLength(); err != nil {
+		return nil, err
+	}
+	leaveLength -= pos
+	if leaveLength < 0 {
+		return nil, ECGO_INVALID_LENGTH_OR_OFFSET.throw()
+	}
+	if int64(length) > leaveLength {
+		length = int32(leaveLength)
+	}
+	if blob.local || blob.inRow || blob.fetchAll {
+		return blob.data[pos : pos+int64(length)], nil
+	} else {
+
+		return blob.connection.Access.dm_build_870(blob, int32(pos), length)
+	}
+}
+
+func (blob *DmBlob) loadAllData() {
+	blob.checkFreed()
+	if blob.local || blob.inRow || blob.fetchAll {
+		return
+	}
+	len, _ := blob.GetLength()
+	blob.data, _ = blob.getBytes(1, int32(len))
+	blob.fetchAll = true
+}
+
+func (blob *DmBlob) setLocalData(pos int, p []byte) {
+	if pos+len(p) >= int(blob.length) {
+		var tmp = make([]byte, pos+len(p))
+		Dm_build_1.Dm_build_57(tmp, 0, blob.data, 0, pos)
+		Dm_build_1.Dm_build_57(tmp, pos, p, 0, len(p))
+		blob.data = tmp
+	} else {
+		Dm_build_1.Dm_build_57(blob.data, pos, p, 0, len(p))
+	}
+	blob.length = int64(len(blob.data))
 }

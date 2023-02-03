@@ -3,62 +3,67 @@
  * All rights reserved.
  */
 
+// go官方没有实现ecb加密模式
 package security
 
-import "math/big"
+import (
+	"crypto/cipher"
+)
 
-type DhKey struct {
-	x     *big.Int
-	y     *big.Int
-	group *dhGroup
+type ecb struct {
+	b         cipher.Block
+	blockSize int
 }
 
-func newPublicKey(s []byte) *DhKey {
-	key := new(DhKey)
-	key.y = new(big.Int).SetBytes(s)
-	return key
-}
-
-func (dk *DhKey) GetX() *big.Int {
-	x := new(big.Int)
-	x.Set(dk.x)
-	return x
-}
-
-func (dk *DhKey) GetY() *big.Int {
-	y := new(big.Int)
-	y.Set(dk.y)
-	return y
-}
-
-func (dk *DhKey) GetYBytes() []byte {
-	if dk.y == nil {
-		return nil
+func newECB(b cipher.Block) *ecb {
+	return &ecb{
+		b:         b,
+		blockSize: b.BlockSize(),
 	}
-	if dk.group != nil {
-		blen := (dk.group.p.BitLen() + 7) / 8
-		ret := make([]byte, blen)
-		copyWithLeftPad(ret, dk.y.Bytes())
-		return ret
-	}
-	return dk.y.Bytes()
 }
 
-func (dk *DhKey) GetYString() string {
-	if dk.y == nil {
-		return ""
-	}
-	return dk.y.String()
+type ecbEncrypter ecb
+
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return (*ecbEncrypter)(newECB(b))
 }
 
-func (dk *DhKey) IsPrivateKey() bool {
-	return dk.x != nil
+func (x *ecbEncrypter) BlockSize() int { return x.blockSize }
+
+func (x *ecbEncrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%x.blockSize != 0 {
+		panic("dm/security: input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("dm/security: output smaller than input")
+	}
+	if InexactOverlap(dst[:len(src)], src) {
+		panic("dm/security: invalid buffer overlap")
+	}
+	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs+x.blockSize, be+x.blockSize {
+		x.b.Encrypt(dst[bs:be], src[bs:be])
+	}
 }
 
-func copyWithLeftPad(dest, src []byte) {
-	numPaddingBytes := len(dest) - len(src)
-	for i := 0; i < numPaddingBytes; i++ {
-		dest[i] = 0
+type ecbDecrypter ecb
+
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
+	return (*ecbDecrypter)(newECB(b))
+}
+
+func (x *ecbDecrypter) BlockSize() int { return x.blockSize }
+
+func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%x.blockSize != 0 {
+		panic("dm/security: input not full blocks")
 	}
-	copy(dest[:numPaddingBytes], src)
+	if len(dst) < len(src) {
+		panic("dm/security: output smaller than input")
+	}
+	if InexactOverlap(dst[:len(src)], src) {
+		panic("dm/security: invalid buffer overlap")
+	}
+	for bs, be := 0, x.blockSize; bs < len(src); bs, be = bs+x.blockSize, be+x.blockSize {
+		x.b.Decrypt(dst[bs:be], src[bs:be])
+	}
 }

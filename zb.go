@@ -5,130 +5,303 @@
 
 package dm
 
-import (
-	"bytes"
-	"fmt"
-	"runtime"
+const (
+	PARAM_COUNT_LIMIT int32 = 65536
 
-	"gitee.com/chunanyong/dm/i18n"
+	IGNORE_TARGET_LENGTH int32 = -1
+
+	IGNORE_TARGET_SCALE int32 = -1
+
+	IGNORE_TARGET_TYPE = INT32_MIN
+
+	TYPE_FLAG_UNKNOWN byte = 0 // 未知类型
+
+	TYPE_FLAG_EXACT byte = 1 // 精确类型
+
+	TYPE_FLAG_RECOMMEND byte = 2 // 推荐类型
+
+	IO_TYPE_UNKNOWN int8 = -1
+
+	IO_TYPE_IN int8 = 0
+
+	IO_TYPE_OUT int8 = 1
+
+	IO_TYPE_INOUT int8 = 2
+
+	MASK_ORACLE_DATE int32 = 1
+
+	MASK_ORACLE_FLOAT int32 = 2
+
+	MASK_BFILE int32 = 3
+
+	MASK_LOCAL_DATETIME int32 = 4
 )
 
-// 驱动级错误
-var (
-	DSN_INVALID_SCHEMA             = newDmError(9001, "error.dsn.invalidSchema")
-	UNSUPPORTED_SCAN               = newDmError(9002, "error.unsupported.scan")
-	INVALID_PARAMETER_NUMBER       = newDmError(9003, "error.invalidParameterNumber")
-	THIRD_PART_CIPHER_INIT_FAILED  = newDmError(9004, "error.initThirdPartCipherFailed")
-	ECGO_NOT_QUERY_SQL             = newDmError(9005, "error.notQuerySQL")
-	ECGO_NOT_EXEC_SQL              = newDmError(9006, "error.notExecSQL")
-	ECGO_UNKOWN_NETWORK            = newDmError(9007, "error.unkownNetWork")
-	ECGO_INVALID_CONN              = newDmError(9008, "error.invalidConn")
-	ECGO_UNSUPPORTED_INPARAM_TYPE  = newDmError(9009, "error.unsupportedInparamType")
-	ECGO_UNSUPPORTED_OUTPARAM_TYPE = newDmError(9010, "error.unsupportedOutparamType")
-	ECGO_STORE_IN_NIL_POINTER      = newDmError(9011, "error.storeInNilPointer")
-	ECGO_IS_NULL                   = newDmError(9012, "error.isNull")
-)
+type execRetInfo struct {
+	// param
+	outParamDatas [][]byte
 
-var (
-	ECGO_CONNECTION_SWITCH_FAILED    = newDmError(20001, "error.connectionSwitchFailed")
-	ECGO_CONNECTION_SWITCHED         = newDmError(20000, "error.connectionSwitched")
-	ECGO_COMMUNITION_ERROR           = newDmError(6001, "error.communicationError")
-	ECGO_MSG_CHECK_ERROR             = newDmError(6002, "error.msgCheckError")
-	ECGO_INVALID_TIME_INTERVAL       = newDmError(6005, "error.invalidTimeInterval")
-	ECGO_UNSUPPORTED_TYPE            = newDmError(6006, "error.unsupportedType")
-	ECGO_DATA_CONVERTION_ERROR       = newDmError(6007, "error.dataConvertionError")
-	ECGO_INVALID_SQL_TYPE            = newDmError(6009, "error.invalidSqlType")
-	ECGO_INVALID_DATETIME_FORMAT     = newDmError(6015, "error.invalidDateTimeFormat")
-	ECGO_INVALID_COLUMN_TYPE         = newDmError(6016, "error.invalidColumnType")
-	ECGO_RESULTSET_IS_READ_ONLY      = newDmError(6029, "error.resultsetInReadOnlyStatus")
-	ECGO_INVALID_SEQUENCE_NUMBER     = newDmError(6032, "error.invalidSequenceNumber")
-	ECGO_RESULTSET_CLOSED            = newDmError(6034, "errorResultSetColsed")
-	ECGO_STATEMENT_HANDLE_CLOSED     = newDmError(6035, "errorStatementHandleClosed")
-	ECGO_INVALID_PARAMETER_VALUE     = newDmError(6036, "error.invalidParamterValue")
-	ECGO_INVALID_TRAN_ISOLATION      = newDmError(6038, "error.invalidTranIsolation")
-	ECGO_COMMIT_IN_AUTOCOMMIT_MODE   = newDmError(6039, "errorCommitInAutoCommitMode")
-	ECGO_ROLLBACK_IN_AUTOCOMMIT_MODE = newDmError(6040, "errorRollbackInAutoCommitMode")
-	ECGO_INVALID_LENGTH_OR_OFFSET    = newDmError(6057, "error.invalidLenOrOffset")
-	ECGO_INTERVAL_OVERFLOW           = newDmError(6066, "error.intervalValueOverflow")
-	ECGO_INVALID_BFILE_STR           = newDmError(6067, "error.invalidBFile")
-	ECGO_INVALID_HEX                 = newDmError(6068, "error.invalidHex")
-	ECGO_INVALID_CIPHER              = newDmError(6069, "error.invalidCipher")
-	ECGO_OSAUTH_ERROR                = newDmError(6073, "error.osauthError")
-	ECGO_ERROR_SERVER_VERSION        = newDmError(6074, "error.serverVersion")
-	ECGO_USERNAME_TOO_LONG           = newDmError(6075, "error.usernameTooLong")
-	ECGO_PASSWORD_TOO_LONG           = newDmError(6076, "error.passwordTooLong")
-	ECGO_INVALID_COMPLEX_TYPE_NAME   = newDmError(6079, "error.invalidComplexTypeName")
-	ECGO_STRUCT_MEM_NOT_MATCH        = newDmError(6080, "error.structMemNotMatch")
-	ECGO_INVALID_OBJ_BLOB            = newDmError(6081, "error.invalidObjBlob")
-	ECGO_INVALID_ARRAY_LEN           = newDmError(6082, "error.invalidArrayLen")
-	ECGO_INVALID_SERVER_MODE         = newDmError(6091, "error.invalidServerMode")
-	ECGO_DATA_TOO_LONG               = newDmError(6092, "error.dataTooLong")
-	ECGO_BATCH_ERROR                 = newDmError(6093, "error.batchError")
-	ECGO_MSG_TOO_LONG                = newDmError(6101, "error.msgTooLong")
-	ECGO_INVALID_DATETIME_VALUE      = newDmError(6103, "error.invalidDateTimeValue")
+	// rs
+	hasResultSet bool
 
-	ECGO_INIT_SSL_FAILED = newDmError(20002, "error.SSLInitFailed")
-	ECGO_LOB_FREED       = newDmError(20003, "error.LobDataHasFreed")
-	ECGO_FATAL_ERROR     = newDmError(20004, "error.fatalError")
-)
+	rsDatas [][][]byte
 
-//Svr Msg Err
-var (
-	ECGO_DATA_OVERFLOW       = newDmError(-6102, "error.dataOverflow")
-	ECGO_DATETIME_OVERFLOW   = newDmError(-6112, "error.datetimeOverflow")
-	EC_RN_EXCEED_ROWSET_SIZE = newDmError(-7036, "")
-	EC_BP_WITH_ERROR         = newDmError(121, "warning.bpWithErr")
-)
+	rsSizeof int // 结果集数据占用多少空间，（消息中结果集起始位置到 rsCacheOffset
+	// 的空间大小，这和实际的rsDatas占用空间大小有一定出入，这里粗略估算，用于结果集缓存时的空间管理）
 
-type DmError struct {
-	ErrCode int32
-	ErrText string
-	stack   []uintptr
-	detail  string
+	rsCacheOffset int32 // 缓存信息，在响应消息体中的偏移，0表示不存在，仅结果集缓存中可以用
+
+	rsBdta bool
+
+	rsUpdatable bool
+
+	rsRowIds []int64
+
+	// rs cache
+	tbIds []int32
+
+	tbTss []int64
+
+	// print
+	printLen int32
+
+	printMsg string
+
+	// explain
+	explain string
+
+	// 影响行数
+	updateCount int64 // Insert/Update/Delet影响行数， select结果集的总行数
+
+	updateCounts []int64 // 批量影响行数
+
+	// 键
+	rowid int64
+
+	lastInsertId int64
+
+	// other
+	retSqlType int16 // 执行返回的语句类型
+
+	execId int32
 }
 
-func newDmError(errCode int32, errText string) *DmError {
-	de := new(DmError)
-	de.ErrCode = errCode
-	de.ErrText = errText
-	de.stack = nil
-	de.detail = ""
-	return de
+type column struct {
+	typeName string
+
+	colType int32
+
+	prec int32
+
+	scale int32
+
+	name string
+
+	tableName string
+
+	schemaName string
+
+	nullable bool
+
+	identity bool
+
+	readonly bool // 是否只读
+
+	baseName string
+
+	// lob info
+	lob bool
+
+	lobTabId int32
+
+	lobColId int16
+
+	// 用于描述ARRAY、STRUCT类型的特有描述信息
+	typeDescriptor *TypeDescriptor
+
+	isBdta bool
+
+	mask int32
 }
 
-func (dmError *DmError) throw() *DmError {
-	var pcs [32]uintptr
-	n := runtime.Callers(2, pcs[:])
-	dmError.stack = pcs[0:n]
-	return dmError
+type parameter struct {
+	column
+
+	typeFlag byte
+
+	ioType int8
+
+	outJType int32
+
+	outScale int32
+
+	outObjectName string
+
+	cursorStmt *DmStatement
+
+	hasDefault bool
 }
 
-func (dmError *DmError) FormatStack() string {
-	if dmError == nil || dmError.stack == nil {
-		return ""
+func (column *column) InitColumn() *column {
+	column.typeName = ""
+
+	column.colType = 0
+
+	column.prec = 0
+
+	column.scale = 0
+
+	column.name = ""
+
+	column.tableName = ""
+
+	column.schemaName = ""
+
+	column.nullable = false
+
+	column.identity = false
+
+	column.readonly = false
+
+	column.baseName = ""
+
+	// lob info
+	column.lob = false
+
+	column.lobTabId = 0
+
+	column.lobColId = 0
+
+	// 用于描述ARRAY、STRUCT类型的特有描述信息
+	column.typeDescriptor = nil
+
+	column.isBdta = false
+
+	return column
+}
+
+func (parameter *parameter) InitParameter() *parameter {
+	parameter.InitColumn()
+
+	parameter.typeFlag = TYPE_FLAG_UNKNOWN
+
+	parameter.ioType = IO_TYPE_UNKNOWN
+
+	parameter.outJType = IGNORE_TARGET_TYPE
+
+	parameter.outScale = IGNORE_TARGET_SCALE
+
+	parameter.outObjectName = ""
+
+	parameter.cursorStmt = nil
+
+	return parameter
+}
+
+func (parameter *parameter) resetType(colType int32) {
+	parameter.colType = colType
+	parameter.scale = 0
+	switch colType {
+	case BIT, BOOLEAN:
+		parameter.prec = BIT_PREC
+	case TINYINT:
+		parameter.prec = TINYINT_PREC
+	case SMALLINT:
+		parameter.prec = SMALLINT_PREC
+	case INT:
+		parameter.prec = INT_PREC
+	case BIGINT:
+		parameter.prec = BIGINT_PREC
+	case CHAR, VARCHAR, VARCHAR2:
+		parameter.prec = VARCHAR_PREC
+	case CLOB:
+		parameter.prec = CLOB_PREC
+	case BINARY, VARBINARY:
+		parameter.prec = VARBINARY_PREC
+	case BLOB:
+		parameter.prec = BLOB_PREC
+	case DATE:
+		parameter.prec = DATE_PREC
+	case TIME:
+		parameter.prec = TIME_PREC
+		parameter.scale = 6
+	case TIME_TZ:
+		parameter.prec = TIME_TZ_PREC
+		parameter.scale = 6
+	case DATETIME:
+		parameter.prec = DATETIME_PREC
+		parameter.scale = 6
+	case DATETIME_TZ:
+		parameter.prec = DATETIME_TZ_PREC
+		parameter.scale = 6
+	case DATETIME2:
+		parameter.prec = DATETIME2_PREC
+		parameter.scale = 9
+	case DATETIME2_TZ:
+		parameter.prec = DATETIME2_TZ_PREC
+		parameter.scale = 9
+	case REAL,DOUBLE,DECIMAL,INTERVAL_YM,INTERVAL_DT,ARRAY,CLASS,PLTYPE_RECORD,SARRAY:
+		parameter.prec = 0
+	case UNKNOWN, NULL:
+		// UNKNOWN 导致服务器断言 // setNull导致服务器报错“字符转换失败”
+		parameter.colType = VARCHAR
+		parameter.prec = VARCHAR_PREC
+	default:
 	}
-	buffer := bytes.NewBuffer(nil)
-	index := 1
-	space := "  "
-	for _, p := range dmError.stack {
-		if fn := runtime.FuncForPC(p - 1); fn != nil {
-			file, line := fn.FileLine(p - 1)
-			buffer.WriteString(fmt.Sprintf("   %d).%s%s\n    \t%s:%d\n", index, space, fn.Name(), file, line))
-			index++
-		}
+}
+
+func (execInfo *execRetInfo) union(other *execRetInfo, startRow int, count int) {
+	if count == 1 {
+		execInfo.updateCounts[startRow] = other.updateCount
+	} else if execInfo.updateCounts != nil {
+		copy(execInfo.updateCounts[startRow:startRow+count], other.updateCounts[0:count])
 	}
-	return buffer.String()
+	if execInfo.outParamDatas != nil {
+		execInfo.outParamDatas = append(execInfo.outParamDatas, other.outParamDatas...)
+	}
 }
 
-func (dmError *DmError) Error() string {
-	return fmt.Sprintf("Error %d: %s", dmError.ErrCode, i18n.Get(dmError.ErrText, Locale)) + dmError.detail + "\n" + "stack info:\n" + dmError.FormatStack()
-}
+func NewExceInfo() *execRetInfo {
 
-// 扩充ErrText
-func (dmError *DmError) addDetail(detail string) *DmError {
-	dmError.detail = detail
-	return dmError
-}
-func (dmError *DmError) addDetailln(detail string) *DmError {
-	return dmError.addDetail("\n" + detail)
+	execInfo := execRetInfo{}
+
+	execInfo.outParamDatas = nil
+
+	execInfo.hasResultSet = false
+
+	execInfo.rsDatas = nil
+
+	execInfo.rsSizeof = 0
+
+	execInfo.rsCacheOffset = 0
+
+	execInfo.rsBdta = false
+
+	execInfo.rsUpdatable = false
+
+	execInfo.rsRowIds = nil
+
+	execInfo.tbIds = nil
+
+	execInfo.tbTss = nil
+
+	execInfo.printLen = 0
+
+	execInfo.printMsg = ""
+
+	execInfo.explain = ""
+
+	execInfo.updateCount = 0
+
+	execInfo.updateCounts = nil
+
+	execInfo.rowid = -1
+
+	execInfo.lastInsertId = 0
+	// other
+	execInfo.retSqlType = -1 // 执行返回的语句类型
+
+	execInfo.execId = 0
+
+	return &execInfo
 }
