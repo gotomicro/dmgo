@@ -224,3 +224,8 @@ func (dmTimestamp *DmTimestamp) checkValid() error {
 	}
 	return nil
 }
+
+/* for gorm v2 */
+func (d *DmTimestamp) GormDataType() string {
+	return "TIMESTAMP"
+}

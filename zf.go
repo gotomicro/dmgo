@@ -32,8 +32,15 @@ type reconnectFilter struct {
 // 一定抛错
 func (rf *reconnectFilter) autoReconnect(connection *DmConnection, err error) error {
 	if dmErr, ok := err.(*DmError); ok {
-		if dmErr.ErrCode == ECGO_COMMUNITION_ERROR.ErrCode {
-			return rf.reconnect(connection, dmErr.Error())
+		if dmErr.ErrCode == ECGO_COMMUNITION_ERROR.ErrCode || dmErr.ErrCode == ECGO_CONNECTION_CLOSED.ErrCode {
+
+			if connection.dmConnector.driverReconnect {
+				return rf.reconnect(connection, dmErr.getErrText())
+			} else {
+				connection.Access.Close()
+				connection.closed.Set(true)
+				return driver.ErrBadConn
+			}
 		}
 	}
 	return err
@@ -50,10 +57,12 @@ func (rf *reconnectFilter) reconnect(connection *DmConnection, reason string) er
 	}
 
 	if err != nil {
+		connection.closed.Set(true)
 		return ECGO_CONNECTION_SWITCH_FAILED.addDetailln(reason).throw()
 	}
 
 	// 重连成功
+	connection.closed.Set(false)
 	return ECGO_CONNECTION_SWITCHED.addDetailln(reason).throw()
 }
 
@@ -122,8 +131,18 @@ func (rf *reconnectFilter) checkAndRecover(conn *DmConnection) error {
 	if !recover {
 		return nil
 	}
+
+	if conn.dmConnector.driverReconnect {
+		return conn.reconnect()
+	} else {
+		conn.Access.Close()
+		conn.closed.Set(false)
+		return ECGO_CONNECTION_CLOSED.throw()
+	}
+
+	//return driver.ErrBadConn
 	// do reconnect
-	return conn.reconnect()
+	//return conn.reconnect()
 }
 
 // DmDriver

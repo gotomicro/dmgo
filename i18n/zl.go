@@ -235,6 +235,10 @@ const Messages_zh_CN = `{
 	{
       "id": "error.stringCut",
 	  "translation": "字符串截断"
+	},
+	{
+      "id": "error.connectionClosedOrNotBuild",
+	  "translation": "连接尚未建立或已经关闭"
 	}
   ]
 }`

@@ -12,7 +12,14 @@ const (
 	 */
 	ParamDataEnum_OFF_ROW = 1
 )
+
 // JDBC中的Data
 type lobCtl struct {
 	value []byte
+}
+
+// lob数据返回信息，自bug610335后，服务器不光返回字节数组，还返回字符数
+type lobRetInfo struct {
+	charLen int64  // 字符长度
+	data    []byte //lob数据
 }

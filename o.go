@@ -391,7 +391,7 @@ func decodeDecimal(values []byte, prec int, scale int) (*DmDecimal, error) {
 		decimal.sign = -1
 	}
 
-	var flag = int(Dm_build_1.Dm_build_121(values, 0))
+	var flag = int(Dm_build_649.Dm_build_769(values, 0))
 	var exp int
 	if decimal.sign > 0 {
 		exp = flag - FLAG_POSITIVE
@@ -440,4 +440,8 @@ func (d *DmDecimal) checkValid() error {
 		return ECGO_IS_NULL.throw()
 	}
 	return nil
+}
+
+func (d *DmDecimal) GormDataType() string {
+	return "DECIMAL"
 }

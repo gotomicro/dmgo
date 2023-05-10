@@ -319,7 +319,7 @@ func (column *column) ScanType() reflect.Type {
 		}
 
 		return scanTypeFloat64
-	case DATE, TIME, DATETIME, DATETIME2:
+	case DATE, TIME, TIME_TZ, DATETIME, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
 		if column.nullable {
 			return scanTypeNullTime
 		}
@@ -340,15 +340,8 @@ func (column *column) ScanType() reflect.Type {
 }
 
 func (column *column) Length() (length int64, ok bool) {
-
 	switch column.colType {
-	case BINARY:
-	case VARBINARY:
-	case BLOB:
-	case CHAR:
-	case VARCHAR2:
-	case VARCHAR:
-	case CLOB:
+	case BINARY, VARBINARY, BLOB, CHAR, VARCHAR2, VARCHAR, CLOB:
 		return int64(column.prec), true
 	}
 
@@ -385,16 +378,16 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 	case TINYINT:
 		return int8(bytes[0]), nil
 	case SMALLINT:
-		return Dm_build_1.Dm_build_98(bytes, 0), nil
+		return Dm_build_649.Dm_build_746(bytes, 0), nil
 	case INT:
-		return Dm_build_1.Dm_build_103(bytes, 0), nil
+		return Dm_build_649.Dm_build_751(bytes, 0), nil
 	case BIGINT:
-		return Dm_build_1.Dm_build_108(bytes, 0), nil
+		return Dm_build_649.Dm_build_756(bytes, 0), nil
 	case REAL:
-		return Dm_build_1.Dm_build_113(bytes, 0), nil
+		return Dm_build_649.Dm_build_761(bytes, 0), nil
 	case DOUBLE:
 
-		return Dm_build_1.Dm_build_117(bytes, 0), nil
+		return Dm_build_649.Dm_build_765(bytes, 0), nil
 	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
 		return DB2G.toTime(bytes, column, conn)
 	case INTERVAL_DT:
@@ -423,7 +416,7 @@ func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Va
 		return blob.getBytes(1, int32(l))
 
 	case CHAR, VARCHAR2, VARCHAR:
-		return Dm_build_1.Dm_build_158(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
+		return Dm_build_649.Dm_build_806(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
 	case CLOB:
 		clob := DB2G.toDmClob(bytes, conn, column)
 

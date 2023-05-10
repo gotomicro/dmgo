@@ -8,6 +8,8 @@ package dm
 import (
 	"context"
 	"database/sql/driver"
+	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"time"
@@ -18,7 +20,7 @@ import (
 type logFilter struct{}
 
 func (filter *logFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (ret *DmConnection, err error) {
-	var logRecord = d.logInfo.logRecord
+	var logRecord = d.logInfo.logRecord.Reset()
 	logRecord.Set(d, "open", dsn)
 	defer func() {
 		filter.doLog(logRecord)
@@ -33,7 +35,7 @@ func (filter *logFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn
 }
 
 func (filter *logFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (ret *DmConnector, err error) {
-	var logRecord = d.logInfo.logRecord
+	var logRecord = d.logInfo.logRecord.Reset()
 	logRecord.Set(d, "openConnector", dsn)
 	defer func() {
 		filter.doLog(logRecord)
@@ -48,7 +50,7 @@ func (filter *logFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDr
 }
 
 func (filter *logFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (ret *DmConnection, err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "connect")
 	defer func() {
 		filter.doLog(logRecord)
@@ -63,7 +65,7 @@ func (filter *logFilter) DmConnectorConnect(filterChain *filterChain, c *DmConne
 }
 
 func (filter *logFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnector) (ret *DmDriver) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "driver")
 	defer func() {
 		filter.doLog(logRecord)
@@ -74,7 +76,7 @@ func (filter *logFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnec
 }
 
 func (filter *logFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection) (ret *DmConnection, err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "begin")
 	defer func() {
 		filter.doLog(logRecord)
@@ -89,7 +91,7 @@ func (filter *logFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnec
 }
 
 func (filter *logFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (ret *DmConnection, err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "beginTx", opts)
 	defer func() {
 		filter.doLog(logRecord)
@@ -104,7 +106,7 @@ func (filter *logFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConn
 }
 
 func (filter *logFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnection) (err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "commit")
 	defer func() {
 		filter.doLog(logRecord)
@@ -118,7 +120,7 @@ func (filter *logFilter) DmConnectionCommit(filterChain *filterChain, c *DmConne
 }
 
 func (filter *logFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnection) (err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "rollback")
 	defer func() {
 		filter.doLog(logRecord)
@@ -132,7 +134,7 @@ func (filter *logFilter) DmConnectionRollback(filterChain *filterChain, c *DmCon
 }
 
 func (filter *logFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection) (err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "close")
 	defer func() {
 		filter.doLog(logRecord)
@@ -146,7 +148,7 @@ func (filter *logFilter) DmConnectionClose(filterChain *filterChain, c *DmConnec
 }
 
 func (filter *logFilter) DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) (err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "ping")
 	defer func() {
 		filter.doLog(logRecord)
@@ -160,13 +162,13 @@ func (filter *logFilter) DmConnectionPing(filterChain *filterChain, c *DmConnect
 }
 
 func (filter *logFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (ret *DmResult, err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "executeByStmt", query, args)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "exec", convertParams2(args)...)
 	defer func() {
 		filter.executeAfter(c.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(query)
+	logRecord.SetSql(query, true)
 	filter.executeBefore(c.logInfo)
 	ret, err = filterChain.DmConnectionExec(c, query, args)
 	if err != nil {
@@ -178,13 +180,13 @@ func (filter *logFilter) DmConnectionExec(filterChain *filterChain, c *DmConnect
 }
 
 func (filter *logFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (ret *DmResult, err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "executeCtx", query, args)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "execCtx", convertParams1(args)...)
 	defer func() {
 		filter.executeAfter(c.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(query)
+	logRecord.SetSql(query, true)
 	filter.executeBefore(c.logInfo)
 	ret, err = filterChain.DmConnectionExecContext(c, ctx, query, args)
 	if err != nil {
@@ -196,13 +198,13 @@ func (filter *logFilter) DmConnectionExecContext(filterChain *filterChain, c *Dm
 }
 
 func (filter *logFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (ret *DmRows, err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "query", query, args)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "query", convertParams2(args)...)
 	defer func() {
 		filter.executeAfter(c.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(query)
+	logRecord.SetSql(query, true)
 	filter.executeBefore(c.logInfo)
 	ret, err = filterChain.DmConnectionQuery(c, query, args)
 	if err != nil {
@@ -214,13 +216,13 @@ func (filter *logFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnec
 }
 
 func (filter *logFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (ret *DmRows, err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "queryCtx", query, args)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "queryCtx", convertParams1(args)...)
 	defer func() {
 		filter.executeAfter(c.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(query)
+	logRecord.SetSql(query, true)
 	filter.executeBefore(c.logInfo)
 	ret, err = filterChain.DmConnectionQueryContext(c, ctx, query, args)
 	if err != nil {
@@ -232,12 +234,12 @@ func (filter *logFilter) DmConnectionQueryContext(filterChain *filterChain, c *D
 }
 
 func (filter *logFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (ret *DmStatement, err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "prepareStatement", query)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "prepare", query)
 	defer func() {
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(query)
+	logRecord.SetSql(query, false)
 	ret, err = filterChain.DmConnectionPrepare(c, query)
 	if err != nil {
 		logRecord.SetError(err)
@@ -248,12 +250,12 @@ func (filter *logFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConn
 }
 
 func (filter *logFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (ret *DmStatement, err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "prepareStatementCtx", query)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "prepareCtx", query)
 	defer func() {
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(query)
+	logRecord.SetSql(query, false)
 	ret, err = filterChain.DmConnectionPrepareContext(c, ctx, query)
 	if err != nil {
 		logRecord.SetError(err)
@@ -264,7 +266,7 @@ func (filter *logFilter) DmConnectionPrepareContext(filterChain *filterChain, c 
 }
 
 func (filter *logFilter) DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) (err error) {
-	var logRecord = c.logInfo.logRecord
+	var logRecord = c.logInfo.logRecord.Reset()
 	logRecord.Set(c, "resetSession")
 	defer func() {
 		filter.doLog(logRecord)
@@ -278,8 +280,8 @@ func (filter *logFilter) DmConnectionResetSession(filterChain *filterChain, c *D
 }
 
 func (filter *logFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) (err error) {
-	var logRecord = c.logInfo.logRecord
-	logRecord.Set(c, "checkNamedValue", nv)
+	var logRecord = c.logInfo.logRecord.Reset()
+	logRecord.Set(c, "checkNamedValue", nv.Value)
 	defer func() {
 		filter.doLog(logRecord)
 	}()
@@ -292,7 +294,7 @@ func (filter *logFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c
 }
 
 func (filter *logFilter) DmStatementClose(filterChain *filterChain, s *DmStatement) (err error) {
-	var logRecord = s.logInfo.logRecord
+	var logRecord = s.logInfo.logRecord.Reset()
 	logRecord.Set(s, "close")
 	defer func() {
 		filter.doLog(logRecord)
@@ -306,7 +308,7 @@ func (filter *logFilter) DmStatementClose(filterChain *filterChain, s *DmStateme
 }
 
 func (filter *logFilter) DmStatementNumInput(filterChain *filterChain, s *DmStatement) (ret int) {
-	var logRecord = s.logInfo.logRecord
+	var logRecord = s.logInfo.logRecord.Reset()
 	logRecord.Set(s, "numInput")
 	defer func() {
 		filter.doLog(logRecord)
@@ -317,13 +319,13 @@ func (filter *logFilter) DmStatementNumInput(filterChain *filterChain, s *DmStat
 }
 
 func (filter *logFilter) DmStatementExec(filterChain *filterChain, s *DmStatement, args []driver.Value) (ret *DmResult, err error) {
-	var logRecord = s.logInfo.logRecord
-	logRecord.Set(s, "executeByStmt", args)
+	var logRecord = s.logInfo.logRecord.Reset()
+	logRecord.Set(s, "exec", convertParams2(args)...)
 	defer func() {
 		filter.executeAfter(s.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(s.nativeSql)
+	logRecord.SetSql(s.nativeSql, true)
 	filter.executeBefore(s.logInfo)
 	ret, err = filterChain.DmStatementExec(s, args)
 	if err != nil {
@@ -335,13 +337,13 @@ func (filter *logFilter) DmStatementExec(filterChain *filterChain, s *DmStatemen
 }
 
 func (filter *logFilter) DmStatementExecContext(filterChain *filterChain, s *DmStatement, ctx context.Context, args []driver.NamedValue) (ret *DmResult, err error) {
-	var logRecord = s.logInfo.logRecord
-	logRecord.Set(s, "executeCtx", args)
+	var logRecord = s.logInfo.logRecord.Reset()
+	logRecord.Set(s, "execCtx", convertParams1(args)...)
 	defer func() {
 		filter.executeAfter(s.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(s.nativeSql)
+	logRecord.SetSql(s.nativeSql, true)
 	filter.executeBefore(s.logInfo)
 	ret, err = filterChain.DmStatementExecContext(s, ctx, args)
 	if err != nil {
@@ -353,13 +355,13 @@ func (filter *logFilter) DmStatementExecContext(filterChain *filterChain, s *DmS
 }
 
 func (filter *logFilter) DmStatementQuery(filterChain *filterChain, s *DmStatement, args []driver.Value) (ret *DmRows, err error) {
-	var logRecord = s.logInfo.logRecord
-	logRecord.Set(s, "query", args)
+	var logRecord = s.logInfo.logRecord.Reset()
+	logRecord.Set(s, "query", convertParams2(args)...)
 	defer func() {
 		filter.executeAfter(s.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(s.nativeSql)
+	logRecord.SetSql(s.nativeSql, true)
 	filter.executeBefore(s.logInfo)
 	ret, err = filterChain.DmStatementQuery(s, args)
 	if err != nil {
@@ -371,13 +373,13 @@ func (filter *logFilter) DmStatementQuery(filterChain *filterChain, s *DmStateme
 }
 
 func (filter *logFilter) DmStatementQueryContext(filterChain *filterChain, s *DmStatement, ctx context.Context, args []driver.NamedValue) (ret *DmRows, err error) {
-	var logRecord = s.logInfo.logRecord
-	logRecord.Set(s, "queryCtx", args)
+	var logRecord = s.logInfo.logRecord.Reset()
+	logRecord.Set(s, "queryCtx", convertParams1(args)...)
 	defer func() {
 		filter.executeAfter(s.logInfo, logRecord)
 		filter.doLog(logRecord)
 	}()
-	logRecord.SetSql(s.nativeSql)
+	logRecord.SetSql(s.nativeSql, true)
 	filter.executeBefore(s.logInfo)
 	ret, err = filterChain.DmStatementQueryContext(s, ctx, args)
 	if err != nil {
@@ -389,8 +391,8 @@ func (filter *logFilter) DmStatementQueryContext(filterChain *filterChain, s *Dm
 }
 
 func (filter *logFilter) DmStatementCheckNamedValue(filterChain *filterChain, s *DmStatement, nv *driver.NamedValue) (err error) {
-	var logRecord = s.logInfo.logRecord
-	logRecord.Set(s, "checkNamedValue", nv)
+	var logRecord = s.logInfo.logRecord.Reset()
+	logRecord.Set(s, "checkNamedValue", nv.Value)
 	defer func() {
 		filter.doLog(logRecord)
 	}()
@@ -403,7 +405,7 @@ func (filter *logFilter) DmStatementCheckNamedValue(filterChain *filterChain, s 
 }
 
 func (filter *logFilter) DmResultLastInsertId(filterChain *filterChain, r *DmResult) (ret int64, err error) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "lastInsertId")
 	defer func() {
 		filter.doLog(logRecord)
@@ -418,7 +420,7 @@ func (filter *logFilter) DmResultLastInsertId(filterChain *filterChain, r *DmRes
 }
 
 func (filter *logFilter) DmResultRowsAffected(filterChain *filterChain, r *DmResult) (ret int64, err error) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "rowsAffected")
 	defer func() {
 		filter.doLog(logRecord)
@@ -433,7 +435,7 @@ func (filter *logFilter) DmResultRowsAffected(filterChain *filterChain, r *DmRes
 }
 
 func (filter *logFilter) DmRowsColumns(filterChain *filterChain, r *DmRows) (ret []string) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "columns")
 	defer func() {
 		filter.doLog(logRecord)
@@ -444,7 +446,7 @@ func (filter *logFilter) DmRowsColumns(filterChain *filterChain, r *DmRows) (ret
 }
 
 func (filter *logFilter) DmRowsClose(filterChain *filterChain, r *DmRows) (err error) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "close")
 	defer func() {
 		filter.doLog(logRecord)
@@ -458,13 +460,13 @@ func (filter *logFilter) DmRowsClose(filterChain *filterChain, r *DmRows) (err e
 }
 
 func (filter *logFilter) DmRowsNext(filterChain *filterChain, r *DmRows, dest []driver.Value) (err error) {
-	var logRecord = r.logInfo.logRecord
-	logRecord.Set(r, "next", dest)
+	var logRecord = r.logInfo.logRecord.Reset()
+	logRecord.Set(r, "next", convertParams2(dest)...)
 	defer func() {
 		filter.doLog(logRecord)
 	}()
 	err = filterChain.DmRowsNext(r, dest)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		logRecord.SetError(err)
 		return
 	}
@@ -472,7 +474,7 @@ func (filter *logFilter) DmRowsNext(filterChain *filterChain, r *DmRows, dest []
 }
 
 func (filter *logFilter) DmRowsHasNextResultSet(filterChain *filterChain, r *DmRows) (ret bool) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "hasNextResultSet")
 	defer func() {
 		filter.doLog(logRecord)
@@ -483,13 +485,13 @@ func (filter *logFilter) DmRowsHasNextResultSet(filterChain *filterChain, r *DmR
 }
 
 func (filter *logFilter) DmRowsNextResultSet(filterChain *filterChain, r *DmRows) (err error) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "nextResultSet")
 	defer func() {
 		filter.doLog(logRecord)
 	}()
 	err = filterChain.DmRowsNextResultSet(r)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		logRecord.SetError(err)
 		return
 	}
@@ -497,7 +499,7 @@ func (filter *logFilter) DmRowsNextResultSet(filterChain *filterChain, r *DmRows
 }
 
 func (filter *logFilter) DmRowsColumnTypeScanType(filterChain *filterChain, r *DmRows, index int) (ret reflect.Type) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "columnTypeScanType", index)
 	defer func() {
 		filter.doLog(logRecord)
@@ -508,7 +510,7 @@ func (filter *logFilter) DmRowsColumnTypeScanType(filterChain *filterChain, r *D
 }
 
 func (filter *logFilter) DmRowsColumnTypeDatabaseTypeName(filterChain *filterChain, r *DmRows, index int) (ret string) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "columnTypeDatabaseTypeName", index)
 	defer func() {
 		filter.doLog(logRecord)
@@ -519,7 +521,7 @@ func (filter *logFilter) DmRowsColumnTypeDatabaseTypeName(filterChain *filterCha
 }
 
 func (filter *logFilter) DmRowsColumnTypeLength(filterChain *filterChain, r *DmRows, index int) (length int64, ok bool) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "columnTypeLength", index)
 	defer func() {
 		filter.doLog(logRecord)
@@ -534,7 +536,7 @@ func (filter *logFilter) DmRowsColumnTypeLength(filterChain *filterChain, r *DmR
 }
 
 func (filter *logFilter) DmRowsColumnTypeNullable(filterChain *filterChain, r *DmRows, index int) (nullable, ok bool) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "columnTypeNullable", index)
 	defer func() {
 		filter.doLog(logRecord)
@@ -549,7 +551,7 @@ func (filter *logFilter) DmRowsColumnTypeNullable(filterChain *filterChain, r *D
 }
 
 func (filter *logFilter) DmRowsColumnTypePrecisionScale(filterChain *filterChain, r *DmRows, index int) (precision, scale int64, ok bool) {
-	var logRecord = r.logInfo.logRecord
+	var logRecord = r.logInfo.logRecord.Reset()
 	logRecord.Set(r, "columnTypePrecisionScale", index)
 	defer func() {
 		filter.doLog(logRecord)
@@ -642,11 +644,11 @@ func (logger Logger) Warn(msg string) {
 	}
 }
 func (logger Logger) ErrorWithErr(msg string, err error) {
-	if e, ok := err.(*DmError); ok {
-		logger.println(logger.formatHead("ERROR") + msg + util.LINE_SEPARATOR + e.FormatStack())
-	} else {
-		logger.println(logger.formatHead("ERROR") + msg + util.LINE_SEPARATOR + err.Error())
-	}
+	//if e, ok := err.(*DmError); ok {
+	//	logger.println(logger.formatHead("ERROR") + msg + util.LINE_SEPARATOR + e.FormatStack())
+	//} else {
+	logger.println(logger.formatHead("ERROR") + msg + util.LINE_SEPARATOR + err.Error())
+	//}
 }
 
 // TODO: 获取goroutine objId
@@ -706,14 +708,14 @@ func formatContor(contor *DmConnector) string {
 
 func formatConn(conn *DmConnection) string {
 	if conn != nil && conn.logInfo != nil {
-		return "conn-" + strconv.FormatInt(conn.getID(), 10)
+		return "conn-0x" + strconv.FormatInt(conn.SessionID, 16)
 	}
 	return "conn-nil"
 }
 
 func formatStmt(stmt *DmStatement) string {
 	if stmt != nil && stmt.logInfo != nil {
-		return "stmt-" + strconv.FormatInt(stmt.getID(), 10)
+		return "stmt-" + strconv.Itoa(int(stmt.id))
 	}
 	return "stmt-nil"
 }
@@ -732,7 +734,7 @@ func formatRows(rows *DmRows) string {
 	return "rows-nil"
 }
 
-func formatTrace(source string, method string, returnValue interface{}, params ...interface{}) string {
+func formatTrace(source string, sql string, method string, returnValue interface{}, params ...interface{}) string {
 	var str string
 	if source != "" {
 		str += "{ " + source + " } "
@@ -755,21 +757,26 @@ func formatTrace(source string, method string, returnValue interface{}, params .
 	if returnValue != nil {
 		str += ": " + formatReturn(returnValue)
 	}
-	str += ";  "
+	str += "; "
 	if params != nil && len(params) > paramStartIndex {
 		str += "[PARAMS]: "
 		for i := paramStartIndex; i < len(params); i++ {
 			if i != 0 {
 				str += ", "
 			}
-			if s, ok := params[i].(string); ok {
-				str += "\"" + s + "\""
-			} else {
-				str += reflect.ValueOf(params[i]).String()
-			}
+			//if s, ok := params[i].(driver.NamedValue); ok {
+			//	str += fmt.Sprintf("%v", s.Value)
+			//} else {
+			str += fmt.Sprintf("%v", params[i])
+			//}
 		}
 		str += "; "
 	}
+
+	if sql != "" {
+		str += "[SQL]: " + sql + "; "
+	}
+
 	return str
 }
 
@@ -778,13 +785,8 @@ func formatReturn(returnObj interface{}) string {
 	switch o := returnObj.(type) {
 	case *DmConnection:
 		str = formatConn(o)
-		sessID := o.SessionID
-		if sessID != -1 {
-			str += ", sessionID-0x" + strconv.FormatInt(sessID, 16)
-		}
 	case *DmStatement:
 		str = formatStmt(o)
-		str += ", handle-" + strconv.Itoa(int(o.id))
 	case *DmResult:
 		str = formatRs(o)
 	case *DmRows:
@@ -817,6 +819,19 @@ type LogRecord struct {
 	e           error
 	usedTime    time.Duration
 	sql         string
+	logSql      bool // 是否需要记录sql(exec,query等需要在日志中记录sql语句)
+}
+
+func (record *LogRecord) Reset() *LogRecord {
+	record.source = ""
+	record.method = ""
+	record.params = nil
+	record.returnValue = nil
+	record.e = nil
+	record.usedTime = 0
+	record.sql = ""
+	record.logSql = false
+	return record
 }
 
 func (record *LogRecord) Set(source interface{}, method string, params ...interface{}) {
@@ -837,8 +852,9 @@ func (record *LogRecord) GetReturnValue() interface{} {
 	return record.returnValue
 }
 
-func (record *LogRecord) SetSql(sql string) {
+func (record *LogRecord) SetSql(sql string, logSql bool) {
 	record.sql = sql
+	record.logSql = logSql
 }
 
 func (record *LogRecord) GetSql() string {
@@ -862,10 +878,30 @@ func (record *LogRecord) GetError() error {
 }
 
 func (record *LogRecord) ToString() string {
+	var sql string
+	if record.logSql && record.sql != "" {
+		sql = record.sql
+	}
 	var str string
-	str += formatTrace(record.source, record.method, record.returnValue, record.params...)
+	str += formatTrace(record.source, sql, record.method, record.returnValue, record.params...)
 	if record.usedTime > 0 {
 		str += formatUsedTime(record.usedTime)
 	}
 	return str
+}
+
+func convertParams1(args []driver.NamedValue) []interface{} {
+	tmp := make([]interface{}, len(args))
+	for i := 0; i < len(tmp); i++ {
+		tmp[i] = args[i].Value
+	}
+	return tmp
+}
+
+func convertParams2(args []driver.Value) []interface{} {
+	tmp := make([]interface{}, len(args))
+	for i := 0; i < len(tmp); i++ {
+		tmp[i] = args[i]
+	}
+	return tmp
 }

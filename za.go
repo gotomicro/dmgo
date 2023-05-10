@@ -51,6 +51,7 @@ var (
 	ECGO_UNBINDED_PARAMETER          = newDmError(6054, "error.unbindedParameter")
 	ECGO_PARAM_COUNT_LIMIT           = newDmError(6056, "error.ParamCountLimit")
 	ECGO_INVALID_LENGTH_OR_OFFSET    = newDmError(6057, "error.invalidLenOrOffset")
+	ECGO_CONNECTION_CLOSED           = newDmError(6060, "error.error.connectionClosedOrNotBuild")
 	ECGO_INTERVAL_OVERFLOW           = newDmError(6066, "error.intervalValueOverflow")
 	ECGO_STRING_CUT                  = newDmError(6067, "error.stringCut")
 	ECGO_INVALID_HEX                 = newDmError(6068, "error.invalidHex")
@@ -123,8 +124,12 @@ func (dmError *DmError) FormatStack() string {
 	return buffer.String()
 }
 
+func (dmError *DmError) getErrText() string {
+	return i18n.Get(dmError.ErrText, Locale)
+}
+
 func (dmError *DmError) Error() string {
-	return fmt.Sprintf("Error %d: %s", dmError.ErrCode, i18n.Get(dmError.ErrText, Locale)) + dmError.detail + "\n" + "stack info:\n" + dmError.FormatStack()
+	return fmt.Sprintf("Error %d: %s", dmError.ErrCode, dmError.getErrText()) + dmError.detail + "\n" + "stack info:\n" + dmError.FormatStack()
 }
 
 // 扩充ErrText

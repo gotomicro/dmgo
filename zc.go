@@ -105,7 +105,7 @@ func runLog() {
 			flushFreq:  LogFlushFreq,
 			filePath:   LogDir,
 			filePrefix: "dm_go",
-			buffer:     Dm_build_287(),
+			buffer:     Dm_build_935(),
 		}
 		go goMap["log"].doRun()
 	}
@@ -145,6 +145,7 @@ func (f *filterable) createFilterChain(bc *DmConnector, props *Properties) {
 
 		if bc.doSwitch != DO_SWITCH_OFF {
 			filters = append(filters, &reconnectFilter{})
+			f.recoverInfo = newRecoverInfo()
 		}
 
 		if bc.rwSeparate {
@@ -190,7 +191,7 @@ func (f *filterable) resetFilterable(src *filterable) {
 	f.statInfo = src.statInfo
 }
 
-func (f filterable) getID() int64 {
+func (f *filterable) getID() int64 {
 	if f.objId < 0 {
 		f.objId = f.idGenerator.incrementAndGet()
 	}

@@ -235,6 +235,10 @@ const Messages_en_US = `{
 	{
       "id": "error.stringCut",
 	  "translation": "The string is cut"
+	},
+	{
+      "id": "error.connectionClosedOrNotBuild",
+	  "translation": "Connection is colsed or not build"
 	}
   ]
 }`

@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gitee.com/chunanyong/dm/util"
@@ -48,6 +49,7 @@ const (
 	CompatibleOraKey         = "comOra"
 	CipherPathKey            = "cipherPath"
 	DoSwitchKey              = "doSwitch"
+	DriverReconnectKey       = "driverReconnect"
 	ClusterKey               = "cluster"
 	LanguageKey              = "language"
 	DbAliveCheckFreqKey      = "dbAliveCheckFreq"
@@ -159,8 +161,8 @@ const (
 
 	COLUMN_NAME_LOWER_CASE = 2
 
-	compressDef   = Dm_build_1053
-	compressIDDef = Dm_build_1054
+	compressDef   = Dm_build_91
+	compressIDDef = Dm_build_92
 
 	charCodeDef = ""
 
@@ -214,7 +216,7 @@ const (
 
 	sessionTimeoutDef = 0
 
-	osAuthTypeDef = Dm_build_1036
+	osAuthTypeDef = Dm_build_74
 
 	continueBatchOnErrorDef = false
 
@@ -224,7 +226,7 @@ const (
 
 	maxRowsDef = 0
 
-	rowPrefetchDef = Dm_build_1037
+	rowPrefetchDef = Dm_build_75
 
 	bufPrefetchDef = 0
 
@@ -253,6 +255,8 @@ const (
 
 type DmConnector struct {
 	filterable
+
+	mu sync.Mutex
 
 	dmDriver *DmDriver
 
@@ -305,6 +309,8 @@ type DmConnector struct {
 	rwIgnoreSql bool
 
 	doSwitch int32
+
+	driverReconnect bool
 
 	cluster int32
 
@@ -388,8 +394,6 @@ type DmConnector struct {
 
 	schema string
 
-	reConnection *DmConnection
-
 	logLevel int
 
 	logDir string
@@ -439,7 +443,8 @@ func (c *DmConnector) init() *DmConnector {
 	c.rwAutoDistribute = rwAutoDistributeDef
 	c.rwStandbyRecoverTime = rwStandbyRecoverTimeDef
 	c.rwIgnoreSql = false
-	c.doSwitch = DO_SWITCH_OFF
+	c.doSwitch = DO_SWITCH_WHEN_CONN_ERROR
+	c.driverReconnect = false
 	c.cluster = CLUSTER_TYPE_NORMAL
 	c.cipherPath = cipherPathDef
 	c.url = urlDef
@@ -505,7 +510,7 @@ func (c *DmConnector) setAttributes(props *Properties) error {
 	c.rwStandby = props.GetBool(RwStandbyKey, c.rwStandby)
 
 	if b := props.GetBool(IsCompressKey, false); b {
-		c.compress = Dm_build_1052
+		c.compress = Dm_build_90
 	}
 
 	c.compress = props.GetInt(CompressKey, c.compress, 0, 2)
@@ -531,6 +536,7 @@ func (c *DmConnector) setAttributes(props *Properties) error {
 	c.rwStandbyRecoverTime = props.GetInt(RwStandbyRecoverTimeKey, c.rwStandbyRecoverTime, 0, int(INT32_MAX))
 	c.rwIgnoreSql = props.GetBool(RwIgnoreSqlKey, c.rwIgnoreSql)
 	c.doSwitch = int32(props.GetInt(DoSwitchKey, int(c.doSwitch), 0, 2))
+	c.driverReconnect = props.GetBool(DriverReconnectKey, c.driverReconnect)
 	c.parseCluster(props)
 	c.cipherPath = props.GetTrimString(CipherPathKey, c.cipherPath)
 
@@ -557,7 +563,7 @@ func (c *DmConnector) setAttributes(props *Properties) error {
 	c.autoCommit = props.GetBool(AutoCommitKey, c.autoCommit)
 	c.maxRows = props.GetInt(MaxRowsKey, c.maxRows, 0, int(INT32_MAX))
 	c.rowPrefetch = props.GetInt(RowPrefetchKey, c.rowPrefetch, 0, int(INT32_MAX))
-	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_1038), int(Dm_build_1039))
+	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_76), int(Dm_build_77))
 	c.lobMode = props.GetInt(LobModeKey, c.lobMode, 1, 2)
 	c.stmtPoolMaxSize = props.GetInt(StmtPoolSizeKey, c.stmtPoolMaxSize, 0, int(INT32_MAX))
 	c.ignoreCase = props.GetBool(IgnoreCaseKey, c.ignoreCase)
@@ -626,26 +632,26 @@ func (c *DmConnector) parseOsAuthType(props *Properties) error {
 	value := props.GetString(OsAuthTypeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase(value, "ON") {
-			c.osAuthType = Dm_build_1036
+			c.osAuthType = Dm_build_74
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSDBA") {
-			c.osAuthType = Dm_build_1032
+			c.osAuthType = Dm_build_70
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSAUDITOR") {
-			c.osAuthType = Dm_build_1034
+			c.osAuthType = Dm_build_72
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSSSO") {
-			c.osAuthType = Dm_build_1033
+			c.osAuthType = Dm_build_71
 		} else if util.StringUtil.EqualsIgnoreCase(value, "AUTO") {
-			c.osAuthType = Dm_build_1035
+			c.osAuthType = Dm_build_73
 		} else if util.StringUtil.EqualsIgnoreCase(value, "OFF") {
-			c.osAuthType = Dm_build_1031
+			c.osAuthType = Dm_build_69
 		}
 	} else {
 		c.osAuthType = byte(props.GetInt(OsAuthTypeKey, int(c.osAuthType), 0, 4))
 	}
-	if c.user == "" && c.osAuthType == Dm_build_1031 {
+	if c.user == "" && c.osAuthType == Dm_build_69 {
 		c.user = "SYSDBA"
-	} else if c.osAuthType != Dm_build_1031 && c.user != "" {
+	} else if c.osAuthType != Dm_build_69 && c.user != "" {
 		return ECGO_OSAUTH_ERROR.throw()
-	} else if c.osAuthType != Dm_build_1031 {
+	} else if c.osAuthType != Dm_build_69 {
 		c.user = os.Getenv("user")
 		c.password = ""
 	}
@@ -824,10 +830,14 @@ func (c *DmConnector) remap(origin string, cfgStr string) string {
 }
 
 func (c *DmConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.filterChain.reset().DmConnectorConnect(c, ctx)
 }
 
 func (c *DmConnector) Driver() driver.Driver {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.filterChain.reset().DmConnectorDriver(c)
 }
 
@@ -845,23 +855,17 @@ func (c *DmConnector) driver() *DmDriver {
 
 func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) {
 	var err error
-	var dc *DmConnection
-	if c.reConnection == nil {
-		dc = &DmConnection{
-			closech: make(chan struct{}),
-		}
-		dc.dmConnector = c
-		dc.autoCommit = c.autoCommit
-		dc.createFilterChain(c, nil)
-
-		dc.objId = -1
-		dc.init()
-	} else {
-		dc = c.reConnection
-		dc.reset()
+	var dc = &DmConnection{
+		closech:     make(chan struct{}),
+		dmConnector: c,
+		autoCommit:  c.autoCommit,
 	}
 
-	dc.Access, err = dm_build_709(dc)
+	dc.createFilterChain(c, nil)
+	dc.objId = -1
+	dc.init()
+
+	dc.Access, err = dm_build_1357(dc)
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +876,7 @@ func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) 
 	}
 	defer dc.finish()
 
-	if err = dc.Access.dm_build_750(); err != nil {
+	if err = dc.Access.dm_build_1399(); err != nil {
 
 		if !dc.closed.IsSet() {
 			close(dc.closech)
