@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 type ExecuteTypeEnum int

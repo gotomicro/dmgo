@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 type logFilter struct{}
@@ -644,11 +644,11 @@ func (logger Logger) Warn(msg string) {
 	}
 }
 func (logger Logger) ErrorWithErr(msg string, err error) {
-	//if e, ok := err.(*DmError); ok {
+	// if e, ok := err.(*DmError); ok {
 	//	logger.println(logger.formatHead("ERROR") + msg + util.LINE_SEPARATOR + e.FormatStack())
-	//} else {
+	// } else {
 	logger.println(logger.formatHead("ERROR") + msg + util.LINE_SEPARATOR + err.Error())
-	//}
+	// }
 }
 
 // TODO: 获取goroutine objId
@@ -764,11 +764,11 @@ func formatTrace(source string, sql string, method string, returnValue interface
 			if i != 0 {
 				str += ", "
 			}
-			//if s, ok := params[i].(driver.NamedValue); ok {
+			// if s, ok := params[i].(driver.NamedValue); ok {
 			//	str += fmt.Sprintf("%v", s.Value)
-			//} else {
+			// } else {
 			str += fmt.Sprintf("%v", params[i])
-			//}
+			// }
 		}
 		str += "; "
 	}

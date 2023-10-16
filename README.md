@@ -2,7 +2,7 @@
 
 ### 介绍
 ``` 
-go get gitee.com/chunanyong/dm 
+go get github.com/gotomicro/dmgo 
 ```  
 达梦数据库官方Go驱动,本项目和官方驱动版本同步,方便go mod 使用.  
 安装达梦数据库(版本>=8.1.1.126),安装目录下 drivers/go/dm-go-driver.zip    

@@ -14,7 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 type oracleDateFormat struct {
@@ -671,7 +671,7 @@ func (OracleDateFormat *oracleDateFormat) parse(str string) (ret []int, err erro
 		}
 	}
 	if offset < len(str) {
-		//[6103]:文字与格式字符串不匹配.
+		// [6103]:文字与格式字符串不匹配.
 		return nil, ECGO_INVALID_DATETIME_VALUE.throw()
 	}
 

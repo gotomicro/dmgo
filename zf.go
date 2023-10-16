@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"time"
 
-	"gitee.com/chunanyong/dm/util"
+	"github.com/gotomicro/dmgo/util"
 )
 
 const SQL_GET_DSC_EP_SITE = "SELECT " +
@@ -140,9 +140,9 @@ func (rf *reconnectFilter) checkAndRecover(conn *DmConnection) error {
 		return ECGO_CONNECTION_CLOSED.throw()
 	}
 
-	//return driver.ErrBadConn
+	// return driver.ErrBadConn
 	// do reconnect
-	//return conn.reconnect()
+	// return conn.reconnect()
 }
 
 // DmDriver

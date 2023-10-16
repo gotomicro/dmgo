@@ -13,10 +13,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"gitee.com/chunanyong/dm/parser"
+	"github.com/gotomicro/dmgo/parser"
 
-	"gitee.com/chunanyong/dm/util"
 	"golang.org/x/text/encoding"
+
+	"github.com/gotomicro/dmgo/util"
 )
 
 type DmConnection struct {
