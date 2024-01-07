@@ -326,6 +326,10 @@ func SetServerGroupProperties(props *Properties, key string, value string) bool 
 	return true
 }
 
+func ParseServerName(name string, value string) *epGroup {
+	return parseServerName(name, value)
+}
+
 func parseServerName(name string, value string) *epGroup {
 	values := strings.Split(value, ",")
 
