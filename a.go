@@ -808,9 +808,10 @@ func (dm_build_1600 *dm_build_1345) dm_build_1599(dm_build_1601 int, dm_build_16
 	if dm_build_1601 > 0 && dm_build_1601 < security.MIN_EXTERNAL_CIPHER_ID && dm_build_1602 != nil {
 		dm_build_1600.dm_build_1350, dm_build_1605 = security.NewSymmCipher(dm_build_1601, dm_build_1602)
 	} else if dm_build_1601 >= security.MIN_EXTERNAL_CIPHER_ID {
-		if dm_build_1600.dm_build_1350, dm_build_1605 = security.NewThirdPartCipher(dm_build_1601, dm_build_1602, dm_build_1603, dm_build_1604); dm_build_1605 != nil {
-			dm_build_1605 = THIRD_PART_CIPHER_INIT_FAILED.addDetailln(dm_build_1605.Error()).throw()
-		}
+		panic("Unsupported cipher.")
+		// if dm_build_1600.dm_build_1350, dm_build_1605 = security.NewThirdPartCipher(dm_build_1601, dm_build_1602, dm_build_1603, dm_build_1604); dm_build_1605 != nil {
+		// 	dm_build_1605 = THIRD_PART_CIPHER_INIT_FAILED.addDetailln(dm_build_1605.Error()).throw()
+		// }
 	}
 	return
 }
