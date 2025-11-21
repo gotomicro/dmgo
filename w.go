@@ -6,6 +6,7 @@
 package dm
 
 import (
+	"database/sql/driver"
 	"strings"
 	"time"
 )
@@ -25,13 +26,17 @@ const (
 
 	OFFSET_SECOND = 5
 
-	OFFSET_MILLISECOND = 6
+	OFFSET_NANOSECOND = 6
 
 	OFFSET_TIMEZONE = 7
 
 	DT_LEN = 8
 
 	INVALID_VALUE = int(INT32_MIN)
+
+	NANOSECOND_DIGITS = 9
+
+	NANOSECOND_POW = 1000000000
 )
 
 type DmTimestamp struct {
@@ -40,19 +45,24 @@ type DmTimestamp struct {
 	scale               int
 	oracleFormatPattern string
 	oracleDateLanguage  int
+
+	// Valid为false代表DmArray数据在数据库中为NULL
+	Valid bool
 }
 
 func newDmTimestampFromDt(dt []int, dtype int, scale int) *DmTimestamp {
 	dmts := new(DmTimestamp)
+	dmts.Valid = true
 	dmts.dt = dt
 	dmts.dtype = dtype
 	dmts.scale = scale
 	return dmts
 }
 
-func newDmTimestampFromBytes(bytes []byte, column column, conn *Connection) *DmTimestamp {
+func newDmTimestampFromBytes(bytes []byte, column column, conn *DmConnection) *DmTimestamp {
 	dmts := new(DmTimestamp)
-	dmts.dt = decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+	dmts.Valid = true
+	dmts.dt = decode(bytes, column.isBdta, column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 
 	if isLocalTimeZone(int(column.colType), int(column.scale)) {
 		dmts.scale = getLocalTimeZoneScale(int(column.colType), int(column.scale))
@@ -70,9 +80,9 @@ func newDmTimestampFromBytes(bytes []byte, column column, conn *Connection) *DmT
 		dmts.oracleFormatPattern = conn.FormatTime
 	case TIME_TZ:
 		dmts.oracleFormatPattern = conn.FormatTimeTZ
-	case DATETIME:
+	case DATETIME, DATETIME2:
 		dmts.oracleFormatPattern = conn.FormatTimestamp
-	case DATETIME_TZ:
+	case DATETIME_TZ, DATETIME2_TZ:
 		dmts.oracleFormatPattern = conn.FormatTimestampTZ
 	}
 	return dmts
@@ -117,7 +127,7 @@ func (dmTimestamp *DmTimestamp) CompareTo(ts DmTimestamp) int {
 
 func (dmTimestamp *DmTimestamp) String() string {
 	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
+		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, int32(dmTimestamp.scale), dmTimestamp.oracleDateLanguage)
 	}
 	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
 }
@@ -129,6 +139,8 @@ func (dest *DmTimestamp) Scan(src interface{}) error {
 	switch src := src.(type) {
 	case nil:
 		*dest = *new(DmTimestamp)
+		// 将Valid标志置false表示数据库中该列为NULL
+		(*dest).Valid = false
 		return nil
 	case *DmTimestamp:
 		*dest = *src
@@ -137,14 +149,28 @@ func (dest *DmTimestamp) Scan(src interface{}) error {
 		ret := NewDmTimestampFromTime(src)
 		*dest = *ret
 		return nil
+	case string:
+		ret, err := NewDmTimestampFromString(src)
+		if err != nil {
+			return err
+		}
+		*dest = *ret
+		return nil
 	default:
-		return UNSUPPORTED_SCAN
+		return UNSUPPORTED_SCAN.throw()
 	}
 }
 
-func (dmTimestamp *DmTimestamp) toBytes() ([]byte, error) {
-	return encode(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale, dmTimestamp.dt[OFFSET_TIMEZONE])
+func (dmTimestamp DmTimestamp) Value() (driver.Value, error) {
+	if !dmTimestamp.Valid {
+		return nil, nil
+	}
+	return dmTimestamp, nil
 }
+
+//func (dmTimestamp *DmTimestamp) toBytes() ([]byte, error) {
+//	return encode(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale, dmTimestamp.dt[OFFSET_TIMEZONE])
+//}
 
 /**
  * 获取当前对象的年月日时分秒，如果原来没有decode会先decode;
@@ -155,7 +181,7 @@ func (dmTimestamp *DmTimestamp) getDt() []int {
 
 func (dmTimestamp *DmTimestamp) getTime() int64 {
 	sec := toTimeFromDT(dmTimestamp.dt, 0).Unix()
-	return sec + int64(dmTimestamp.dt[OFFSET_MILLISECOND])
+	return sec + int64(dmTimestamp.dt[OFFSET_NANOSECOND])
 }
 
 func (dmTimestamp *DmTimestamp) setTime(time int64) {
@@ -178,16 +204,28 @@ func (dmTimestamp *DmTimestamp) setTimezone(tz int) error {
 }
 
 func (dmTimestamp *DmTimestamp) getNano() int64 {
-	return int64(dmTimestamp.dt[OFFSET_MILLISECOND] * 1000)
+	return int64(dmTimestamp.dt[OFFSET_NANOSECOND] * 1000)
 }
 
 func (dmTimestamp *DmTimestamp) setNano(nano int64) {
-	dmTimestamp.dt[OFFSET_MILLISECOND] = (int)(nano / 1000)
+	dmTimestamp.dt[OFFSET_NANOSECOND] = (int)(nano / 1000)
 }
 
 func (dmTimestamp *DmTimestamp) string() string {
 	if dmTimestamp.oracleFormatPattern != "" {
-		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, dmTimestamp.oracleDateLanguage)
+		return dtToStringByOracleFormat(dmTimestamp.dt, dmTimestamp.oracleFormatPattern, int32(dmTimestamp.scale), dmTimestamp.oracleDateLanguage)
 	}
 	return dtToString(dmTimestamp.dt, dmTimestamp.dtype, dmTimestamp.scale)
+}
+
+func (dmTimestamp *DmTimestamp) checkValid() error {
+	if !dmTimestamp.Valid {
+		return ECGO_IS_NULL.throw()
+	}
+	return nil
+}
+
+/* for gorm v2 */
+func (d *DmTimestamp) GormDataType() string {
+	return "TIMESTAMP"
 }

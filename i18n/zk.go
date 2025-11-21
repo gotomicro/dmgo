@@ -215,6 +215,30 @@ const Messages_en_US = `{
 	{
       "id": "error.invalidDateTimeValue",
 	  "translation": "Invalid datetime value"
+	},
+	{
+      "id": "error.msgTooLong",
+	  "translation": "Message too long, limit 512M"
+	},
+	{
+      "id": "error.isNull",
+	  "translation": "Data is NULL"
+	},
+	{
+      "id": "error.ParamCountLimit",
+	  "translation": "Parameter count limit is 65536."
+	},
+	{
+      "id": "error.unbindedParameter",
+	  "translation": "Unbound parameter"
+	},
+	{
+      "id": "error.stringCut",
+	  "translation": "The string is cut"
+	},
+	{
+      "id": "error.connectionClosedOrNotBuild",
+	  "translation": "Connection is colsed or not build"
 	}
   ]
 }`

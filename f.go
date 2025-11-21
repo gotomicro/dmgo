@@ -11,14 +11,14 @@ import (
 )
 
 func Compress(srcBuffer *Dm_build_0, offset int, length int, compressID int) ([]byte, error) {
-	if compressID == Dm_build_682 {
-		return snappy.Encode(nil, srcBuffer.Dm_build_290(offset, length)), nil
+	if compressID == Dm_build_700 {
+		return snappy.Encode(nil, srcBuffer.Dm_build_294(offset, length)), nil
 	}
 	return GzlibCompress(srcBuffer, offset, length)
 }
 
 func UnCompress(srcBytes []byte, compressID int) ([]byte, error) {
-	if compressID == Dm_build_682 {
+	if compressID == Dm_build_700 {
 		return snappy.Decode(nil, srcBytes)
 	}
 	return GzlibUncompress(srcBytes)
@@ -27,7 +27,7 @@ func UnCompress(srcBytes []byte, compressID int) ([]byte, error) {
 func GzlibCompress(srcBuffer *Dm_build_0, offset int, length int) ([]byte, error) {
 	var ret bytes.Buffer
 	var w = zlib.NewWriter(&ret)
-	w.Write(srcBuffer.Dm_build_290(offset, length))
+	w.Write(srcBuffer.Dm_build_294(offset, length))
 	w.Close()
 	return ret.Bytes(), nil
 }

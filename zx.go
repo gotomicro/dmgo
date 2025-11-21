@@ -37,7 +37,7 @@ type rwUtil struct {
 
 var RWUtil = rwUtil{}
 
-func (RWUtil rwUtil) connect(c *Connector, ctx context.Context) (*Connection, error) {
+func (RWUtil rwUtil) connect(c *DmConnector, ctx context.Context) (*DmConnection, error) {
 	c.loginMode = LOGIN_MODE_PRIMARY_ONLY
 	connection, err := c.connect(ctx)
 	if err != nil {
@@ -50,7 +50,7 @@ func (RWUtil rwUtil) connect(c *Connector, ctx context.Context) (*Connection, er
 	return connection, err
 }
 
-func (RWUtil rwUtil) reconnect(connection *Connection) error {
+func (RWUtil rwUtil) reconnect(connection *DmConnection) error {
 	if connection.rwInfo == nil {
 		return nil
 	}
@@ -69,7 +69,7 @@ func (RWUtil rwUtil) reconnect(connection *Connection) error {
 	return err
 }
 
-func (RWUtil rwUtil) recoverStandby(connection *Connection) error {
+func (RWUtil rwUtil) recoverStandby(connection *DmConnection) error {
 	if connection.closed.IsSet() || RWUtil.isStandbyAlive(connection) {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (RWUtil rwUtil) recoverStandby(connection *Connection) error {
 	return err
 }
 
-func (RWUtil rwUtil) connectStandby(connection *Connection) error {
+func (RWUtil rwUtil) connectStandby(connection *DmConnection) error {
 	var err error
 	db, err := RWUtil.chooseValidStandby(connection)
 	if err != nil {
@@ -116,7 +116,7 @@ func (RWUtil rwUtil) connectStandby(connection *Connection) error {
 	return nil
 }
 
-func (RWUtil rwUtil) chooseValidStandby(connection *Connection) (*ep, error) {
+func (RWUtil rwUtil) chooseValidStandby(connection *DmConnection) (*ep, error) {
 	stmt, rs, err := connection.driverQuery(SQL_SELECT_STANDBY2)
 	if err != nil {
 		stmt, rs, err = connection.driverQuery(SQL_SELECT_STANDBY)
@@ -151,13 +151,13 @@ func (RWUtil rwUtil) chooseValidStandby(connection *Connection) (*ep, error) {
 	return nil, nil
 }
 
-func (RWUtil rwUtil) afterExceptionOnStandby(connection *Connection, e error) {
+func (RWUtil rwUtil) afterExceptionOnStandby(connection *DmConnection, e error) {
 	if e.(*DmError).ErrCode == ECGO_COMMUNITION_ERROR.ErrCode {
 		RWUtil.removeStandby(connection)
 	}
 }
 
-func (RWUtil rwUtil) removeStandby(connection *Connection) {
+func (RWUtil rwUtil) removeStandby(connection *DmConnection) {
 	if connection.rwInfo.connStandby != nil {
 		connection.rwInfo.connStandby.close()
 		connection.rwInfo.connStandby = nil
@@ -168,7 +168,7 @@ func (RWUtil rwUtil) isCreateStandbyStmt(stmt *DmStatement) bool {
 	return stmt != nil && stmt.rwInfo.readOnly && RWUtil.isStandbyAlive(stmt.dmConn)
 }
 
-func (RWUtil rwUtil) executeByConn(conn *Connection, query string, execute1 func() (interface{}, error), execute2 func(otherConn *Connection) (interface{}, error)) (interface{}, error) {
+func (RWUtil rwUtil) executeByConn(conn *DmConnection, query string, execute1 func() (interface{}, error), execute2 func(otherConn *DmConnection) (interface{}, error)) (interface{}, error) {
 
 	if err := RWUtil.recoverStandby(conn); err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (RWUtil rwUtil) executeByConn(conn *Connection, query string, execute1 func
 	}
 
 	curConn := conn.rwInfo.connCurrent
-	var otherConn *Connection
+	var otherConn *DmConnection
 	if curConn != conn {
 		otherConn = conn
 	} else {
@@ -198,14 +198,14 @@ func (RWUtil rwUtil) executeByConn(conn *Connection, query string, execute1 func
 	}
 
 	switch curConn.lastExecInfo.retSqlType {
-	case Dm_build_690, Dm_build_691, Dm_build_695, Dm_build_702, Dm_build_701, Dm_build_693:
+	case Dm_build_708, Dm_build_709, Dm_build_713, Dm_build_720, Dm_build_719, Dm_build_711:
 		{
 
 			if otherConn != nil {
 				execute2(otherConn)
 			}
 		}
-	case Dm_build_700:
+	case Dm_build_718:
 		{
 
 			sqlhead := regexp.MustCompile("[ (]").Split(strings.TrimSpace(query), 2)[0]
@@ -215,7 +215,7 @@ func (RWUtil rwUtil) executeByConn(conn *Connection, query string, execute1 func
 				}
 			}
 		}
-	case Dm_build_699:
+	case Dm_build_717:
 		{
 
 			if conn.dmConnector.rwHA && curConn == conn.rwInfo.connStandby &&
@@ -269,7 +269,7 @@ func (RWUtil rwUtil) executeByStmt(stmt *DmStatement, execute1 func() (interface
 	}
 
 	switch curStmt.execInfo.retSqlType {
-	case Dm_build_690, Dm_build_691, Dm_build_695, Dm_build_702, Dm_build_701, Dm_build_693:
+	case Dm_build_708, Dm_build_709, Dm_build_713, Dm_build_720, Dm_build_719, Dm_build_711:
 		{
 
 			if otherStmt != nil {
@@ -277,7 +277,7 @@ func (RWUtil rwUtil) executeByStmt(stmt *DmStatement, execute1 func() (interface
 				execute2(otherStmt)
 			}
 		}
-	case Dm_build_700:
+	case Dm_build_718:
 		{
 
 			var tmpsql string
@@ -296,7 +296,7 @@ func (RWUtil rwUtil) executeByStmt(stmt *DmStatement, execute1 func() (interface
 				}
 			}
 		}
-	case Dm_build_699:
+	case Dm_build_717:
 		{
 
 			if stmt.dmConn.dmConnector.rwHA && curStmt == stmt.rwInfo.stmtStandby &&
@@ -317,7 +317,7 @@ func (RWUtil rwUtil) executeByStmt(stmt *DmStatement, execute1 func() (interface
 	return ret, nil
 }
 
-func (RWUtil rwUtil) checkReadonlyByConn(conn *Connection, sql string) bool {
+func (RWUtil rwUtil) checkReadonlyByConn(conn *DmConnection, sql string) bool {
 	readonly := true
 
 	if sql != "" && !conn.dmConnector.rwIgnoreSql {
@@ -342,7 +342,7 @@ func (RWUtil rwUtil) checkReadonlyByStmt(stmt *DmStatement) bool {
 	return RWUtil.checkReadonlyByConn(stmt.dmConn, stmt.nativeSql)
 }
 
-func (RWUtil rwUtil) distributeSqlByConn(conn *Connection, query string) RWSiteEnum {
+func (RWUtil rwUtil) distributeSqlByConn(conn *DmConnection, query string) RWSiteEnum {
 	var dest RWSiteEnum
 	if !RWUtil.isStandbyAlive(conn) {
 
@@ -405,7 +405,7 @@ func (RWUtil rwUtil) distributeSqlByStmt(stmt *DmStatement) RWSiteEnum {
 	return dest
 }
 
-func (RWUtil rwUtil) isStandbyAlive(connection *Connection) bool {
+func (RWUtil rwUtil) isStandbyAlive(connection *DmConnection) bool {
 	return connection.rwInfo.connStandby != nil && !connection.rwInfo.connStandby.closed.IsSet()
 }
 
@@ -415,7 +415,7 @@ func (RWUtil rwUtil) isStandbyStatementValid(statement *DmStatement) bool {
 
 func (RWUtil rwUtil) copyStatement(srcStmt *DmStatement, destStmt *DmStatement) {
 	destStmt.nativeSql = srcStmt.nativeSql
-	destStmt.params = srcStmt.params
+	destStmt.serverParams = srcStmt.serverParams
+	destStmt.bindParams = srcStmt.bindParams
 	destStmt.paramCount = srcStmt.paramCount
-	destStmt.curRowBindIndicator = srcStmt.curRowBindIndicator
 }

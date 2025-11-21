@@ -95,7 +95,7 @@ func (G2DB g2db) checkReal(val interface{}) error {
 	return nil
 }
 
-func (G2DB g2db) fromBool(val bool, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromBool(val bool, param parameter, conn *DmConnection) ([]byte, error) {
 	switch param.colType {
 	case BOOLEAN, BIT, TINYINT, SMALLINT, INT, BIGINT, REAL, DOUBLE, DECIMAL, CHAR,
 		VARCHAR2, VARCHAR, CLOB:
@@ -106,23 +106,23 @@ func (G2DB g2db) fromBool(val bool, param parameter, conn *Connection) ([]byte, 
 		}
 	case BINARY, VARBINARY, BLOB:
 		if val {
-			return Dm_build_1219.Dm_build_1397(byte(1)), nil
+			return Dm_build_1257.Dm_build_1435(byte(1)), nil
 		} else {
-			return Dm_build_1219.Dm_build_1397(byte(0)), nil
+			return Dm_build_1257.Dm_build_1435(byte(0)), nil
 		}
 	}
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromInt64(val int64, param parameter, conn *DmConnection) ([]byte, error) {
 
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val == 0 {
-			return Dm_build_1219.Dm_build_1397(byte(0)), nil
+			return Dm_build_1257.Dm_build_1435(byte(0)), nil
 		}
 
-		return Dm_build_1219.Dm_build_1397(byte(1)), nil
+		return Dm_build_1257.Dm_build_1435(byte(1)), nil
 
 	case TINYINT:
 		err := G2DB.checkTinyint(float64(val))
@@ -131,7 +131,7 @@ func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1397(byte(val)), nil
+		return Dm_build_1257.Dm_build_1435(byte(val)), nil
 	case SMALLINT:
 		err := G2DB.checkSmallint(float64(val))
 
@@ -139,7 +139,7 @@ func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1400(int16(val)), nil
+		return Dm_build_1257.Dm_build_1441(int16(val)), nil
 	case INT:
 		err := G2DB.checkInt(float64(val))
 
@@ -147,7 +147,7 @@ func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1403(int32(val)), nil
+		return Dm_build_1257.Dm_build_1444(int32(val)), nil
 	case BIGINT:
 		err := G2DB.checkBigint(float64(val))
 
@@ -155,7 +155,7 @@ func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1406(int64(val)), nil
+		return Dm_build_1257.Dm_build_1447(int64(val)), nil
 	case REAL:
 		err := G2DB.checkReal(float64(val))
 
@@ -163,9 +163,9 @@ func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1409(float32(val)), nil
+		return Dm_build_1257.Dm_build_1450(float32(val)), nil
 	case DOUBLE:
-		return Dm_build_1219.Dm_build_1412(float64(val)), nil
+		return Dm_build_1257.Dm_build_1453(float64(val)), nil
 	case DECIMAL:
 		d, err := newDecimal(big.NewInt(val), int(param.prec), int(param.scale))
 		if err != nil {
@@ -173,14 +173,14 @@ func (G2DB g2db) fromInt64(val int64, param parameter, conn *Connection) ([]byte
 		}
 		return d.encodeDecimal()
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		return Dm_build_1219.Dm_build_1432(strconv.FormatInt(val, 10), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(strconv.FormatInt(val, 10), conn.getServerEncoding(), conn), nil
 	case BINARY, VARBINARY, BLOB:
 		return G2DB.ToBinary(val, int(param.prec)), nil
-	case DATE, TIME, DATETIME:
+	case DATE, TIME, DATETIME, DATETIME2:
 		if err := G2DB.checkInt(float64(val)); err != nil {
 			return nil, err
 		}
-		return encodeByDateNumber(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), conn.DbTimezone)
+		return toDate(val, param.column, *conn)
 	}
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
@@ -204,40 +204,40 @@ func (G2DB g2db) ToBinary(x int64, prec int) []byte {
 	return b
 }
 
-func (G2DB g2db) fromFloat32(val float32, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromFloat32(val float32, param parameter, conn *DmConnection) ([]byte, error) {
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val == 0.0 {
-			return Dm_build_1219.Dm_build_1397(0), nil
+			return Dm_build_1257.Dm_build_1435(0), nil
 		}
-		return Dm_build_1219.Dm_build_1397(1), nil
+		return Dm_build_1257.Dm_build_1435(1), nil
 	case TINYINT:
 		if err := G2DB.checkTinyint(float64(val)); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1397(byte(val)), nil
+		return Dm_build_1257.Dm_build_1435(byte(val)), nil
 	case SMALLINT:
 		if err := G2DB.checkSmallint(float64(val)); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1400(int16(val)), nil
+		return Dm_build_1257.Dm_build_1441(int16(val)), nil
 	case INT:
 		if err := G2DB.checkInt(float64(val)); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1403(int32(val)), nil
+		return Dm_build_1257.Dm_build_1444(int32(val)), nil
 	case BIGINT:
 		if err := G2DB.checkBigint(float64(val)); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1406(int64(val)), nil
+		return Dm_build_1257.Dm_build_1447(int64(val)), nil
 	case REAL:
 		if err := G2DB.checkReal(float64(val)); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1409(val), nil
+		return Dm_build_1257.Dm_build_1450(val), nil
 	case DOUBLE:
-		return Dm_build_1219.Dm_build_1412(float64(val)), nil
+		return Dm_build_1257.Dm_build_1453(float64(val)), nil
 	case DECIMAL:
 		d, err := newDecimal(big.NewFloat(float64(val)), int(param.prec), int(param.scale))
 		if err != nil {
@@ -245,19 +245,19 @@ func (G2DB g2db) fromFloat32(val float32, param parameter, conn *Connection) ([]
 		}
 		return d.encodeDecimal()
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		return Dm_build_1219.Dm_build_1432(strconv.FormatFloat(float64(val), 'f', -1, 32), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(strconv.FormatFloat(float64(val), 'f', -1, 32), conn.getServerEncoding(), conn), nil
 	}
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromFloat64(val float64, param parameter, conn *DmConnection) ([]byte, error) {
 
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val == 0.0 {
-			return Dm_build_1219.Dm_build_1397(0), nil
+			return Dm_build_1257.Dm_build_1435(0), nil
 		}
-		return Dm_build_1219.Dm_build_1397(1), nil
+		return Dm_build_1257.Dm_build_1435(1), nil
 
 	case TINYINT:
 		err := G2DB.checkTinyint(val)
@@ -266,7 +266,7 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1397(byte(val)), nil
+		return Dm_build_1257.Dm_build_1435(byte(val)), nil
 	case SMALLINT:
 		err := G2DB.checkSmallint(val)
 
@@ -274,7 +274,7 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1400(int16(val)), nil
+		return Dm_build_1257.Dm_build_1441(int16(val)), nil
 	case INT:
 		err := G2DB.checkInt(val)
 
@@ -282,7 +282,7 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1403(int32(val)), nil
+		return Dm_build_1257.Dm_build_1444(int32(val)), nil
 	case BIGINT:
 		err := G2DB.checkBigint(val)
 
@@ -290,7 +290,7 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1406(int64(val)), nil
+		return Dm_build_1257.Dm_build_1447(int64(val)), nil
 	case REAL:
 		err := G2DB.checkReal(val)
 
@@ -298,9 +298,9 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1409(float32(val)), nil
+		return Dm_build_1257.Dm_build_1450(float32(val)), nil
 	case DOUBLE:
-		return Dm_build_1219.Dm_build_1412(float64(val)), nil
+		return Dm_build_1257.Dm_build_1453(float64(val)), nil
 	case DECIMAL:
 		d, err := newDecimal(big.NewFloat(val), int(param.prec), int(param.scale))
 		if err != nil {
@@ -308,12 +308,12 @@ func (G2DB g2db) fromFloat64(val float64, param parameter, conn *Connection) ([]
 		}
 		return d.encodeDecimal()
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		return Dm_build_1219.Dm_build_1432(strconv.FormatFloat(val, 'f', -1, 64), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(strconv.FormatFloat(val, 'f', -1, 64), conn.getServerEncoding(), conn), nil
 	}
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromBytes(val []byte, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) fromBytes(val []byte, param parameter, conn *DmConnection) (interface{}, error) {
 	switch param.colType {
 	case CHAR, VARCHAR2, VARCHAR:
 		return G2DB.toVarchar(val)
@@ -384,7 +384,7 @@ func (G2DB g2db) getCharByNumVal(val byte) (byte, error) {
 	return 0, ECGO_INVALID_HEX.throw()
 }
 
-func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) fromString(val string, param parameter, conn *DmConnection) (interface{}, error) {
 	switch param.colType {
 	case BOOLEAN, BIT:
 		ret, err := G2DB.toBool(val)
@@ -393,9 +393,9 @@ func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (inte
 		}
 
 		if ret {
-			return Dm_build_1219.Dm_build_1397(byte(1)), nil
+			return Dm_build_1257.Dm_build_1435(byte(1)), nil
 		} else {
-			return Dm_build_1219.Dm_build_1397(byte(0)), nil
+			return Dm_build_1257.Dm_build_1435(byte(0)), nil
 		}
 
 	case TINYINT, SMALLINT, INT, BIGINT:
@@ -419,10 +419,10 @@ func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (inte
 		}
 
 	case CHAR, VARCHAR2, VARCHAR:
-		if isBFile(int(param.colType), int(param.prec), int(param.scale)) && !checkBFileStr(val) {
+		if param.mask == MASK_BFILE && !isValidBFileStr(val) {
 			return nil, ECGO_INVALID_BFILE_STR.throw()
 		}
-		return Dm_build_1219.Dm_build_1432(val, conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(val, conn.getServerEncoding(), conn), nil
 	case CLOB:
 		return G2DB.string2Clob(val, param, conn)
 	case BINARY, VARBINARY:
@@ -436,10 +436,10 @@ func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (inte
 				return nil, err
 			}
 
-			return encode(dt, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone))
+			return encode(dt, param.column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		}
 
-		return encodeByString(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		return encodeByString(val, param.column, *conn)
 	case TIME:
 		if conn.FormatTime != "" {
 			dt, err := parse(val, conn.FormatTime, int(conn.OracleDateLanguage))
@@ -447,21 +447,21 @@ func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (inte
 				return nil, err
 			}
 
-			return encode(dt, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone))
+			return encode(dt, param.column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		}
 
-		return encodeByString(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
-	case DATETIME:
+		return encodeByString(val, param.column, *conn)
+	case DATETIME, DATETIME2:
 		if conn.FormatTimestamp != "" {
 			dt, err := parse(val, conn.FormatTimestamp, int(conn.OracleDateLanguage))
 			if err != nil {
 				return nil, err
 			}
 
-			return encode(dt, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone))
+			return encode(dt, param.column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		}
 
-		return encodeByString(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		return encodeByString(val, param.column, *conn)
 	case TIME_TZ:
 		dt, err := parse(val, conn.FormatTimeTZ, int(conn.OracleDateLanguage))
 		if err != nil {
@@ -469,21 +469,21 @@ func (G2DB g2db) fromString(val string, param parameter, conn *Connection) (inte
 		}
 
 		if conn.FormatTimeTZ != "" {
-			return encode(dt, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone))
+			return encode(dt, param.column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		}
 
-		return encodeByString(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
-	case DATETIME_TZ:
+		return encodeByString(val, param.column, *conn)
+	case DATETIME_TZ, DATETIME2_TZ:
 		if conn.FormatTimestampTZ != "" {
 			dt, err := parse(val, conn.FormatTimestampTZ, int(conn.OracleDateLanguage))
 			if err != nil {
 				return nil, err
 			}
 
-			return encode(dt, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone))
+			return encode(dt, param.column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		}
 
-		return encodeByString(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		return encodeByString(val, param.column, *conn)
 	case INTERVAL_DT:
 		dt, err := NewDmIntervalDTByString(val)
 		if err != nil {
@@ -512,14 +512,14 @@ func (G2DB g2db) toBool(str string) (bool, error) {
 	return strings.ToLower(str) == "true", nil
 }
 
-func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *DmConnection) ([]byte, error) {
 	var ret []byte
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val.Sign() == 0 {
-			ret = Dm_build_1219.Dm_build_1397(0)
+			ret = Dm_build_1257.Dm_build_1435(0)
 		} else {
-			ret = Dm_build_1219.Dm_build_1397(1)
+			ret = Dm_build_1257.Dm_build_1435(1)
 		}
 	case TINYINT:
 		err := G2DB.checkTinyint(float64(val.Int64()))
@@ -528,7 +528,7 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1397(byte(val.Int64()))
+		ret = Dm_build_1257.Dm_build_1435(byte(val.Int64()))
 	case SMALLINT:
 		err := G2DB.checkSmallint(float64(val.Int64()))
 
@@ -536,7 +536,7 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1400(int16(val.Int64()))
+		ret = Dm_build_1257.Dm_build_1441(int16(val.Int64()))
 	case INT:
 		err := G2DB.checkInt(float64(val.Int64()))
 
@@ -544,7 +544,7 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1403(int32(val.Int64()))
+		ret = Dm_build_1257.Dm_build_1444(int32(val.Int64()))
 	case BIGINT:
 		err := G2DB.checkBigint(float64(val.Int64()))
 
@@ -552,7 +552,7 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1406(val.Int64())
+		ret = Dm_build_1257.Dm_build_1447(val.Int64())
 	case REAL:
 		err := G2DB.checkReal(float64(val.Int64()))
 
@@ -560,9 +560,9 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1409(float32(val.Int64()))
+		ret = Dm_build_1257.Dm_build_1450(float32(val.Int64()))
 	case DOUBLE:
-		ret = Dm_build_1219.Dm_build_1412(float64(val.Int64()))
+		ret = Dm_build_1257.Dm_build_1453(float64(val.Int64()))
 	case DECIMAL, BINARY, VARBINARY, BLOB:
 		d, err := newDecimal(val, int(param.prec), int(param.scale))
 		if err != nil {
@@ -573,21 +573,21 @@ func (G2DB g2db) fromBigInt(val *big.Int, param parameter, conn *Connection) ([]
 			return nil, err
 		}
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		ret = Dm_build_1219.Dm_build_1432(val.String(), conn.getServerEncoding(), conn)
+		ret = Dm_build_1257.Dm_build_1473(val.String(), conn.getServerEncoding(), conn)
 	default:
 		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 	}
 	return ret, nil
 }
 
-func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *DmConnection) ([]byte, error) {
 	var ret []byte
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val.Sign() == 0 {
-			ret = Dm_build_1219.Dm_build_1397(0)
+			ret = Dm_build_1257.Dm_build_1435(0)
 		} else {
-			ret = Dm_build_1219.Dm_build_1397(1)
+			ret = Dm_build_1257.Dm_build_1435(1)
 		}
 	case TINYINT:
 		f, _ := val.Float64()
@@ -598,7 +598,7 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection)
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1397(byte(f))
+		ret = Dm_build_1257.Dm_build_1435(byte(f))
 	case SMALLINT:
 		f, _ := val.Float64()
 
@@ -608,7 +608,7 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection)
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1400(int16(f))
+		ret = Dm_build_1257.Dm_build_1441(int16(f))
 	case INT:
 		f, _ := val.Float64()
 
@@ -618,7 +618,7 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection)
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1403(int32(f))
+		ret = Dm_build_1257.Dm_build_1444(int32(f))
 	case BIGINT:
 		f, _ := val.Float64()
 
@@ -628,7 +628,7 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection)
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1406(int64(f))
+		ret = Dm_build_1257.Dm_build_1447(int64(f))
 	case REAL:
 		f, _ := val.Float64()
 
@@ -638,10 +638,10 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection)
 			return nil, err
 		}
 
-		ret = Dm_build_1219.Dm_build_1409(float32(f))
+		ret = Dm_build_1257.Dm_build_1450(float32(f))
 	case DOUBLE:
 		f, _ := val.Float64()
-		ret = Dm_build_1219.Dm_build_1412(f)
+		ret = Dm_build_1257.Dm_build_1453(f)
 	case DECIMAL:
 		d, err := newDecimal(val, int(param.prec), int(param.scale))
 		if err != nil {
@@ -652,51 +652,51 @@ func (G2DB g2db) fromBigFloat(val *big.Float, param parameter, conn *Connection)
 			return nil, err
 		}
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		ret = Dm_build_1219.Dm_build_1432(val.Text('f', int(param.scale)), conn.getServerEncoding(), conn)
+		ret = Dm_build_1257.Dm_build_1473(val.Text('f', int(param.scale)), conn.getServerEncoding(), conn)
 	default:
 		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 	}
 	return ret, nil
 }
 
-func (G2DB g2db) fromDecimal(val DmDecimal, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromDecimal(val DmDecimal, param parameter, conn *DmConnection) ([]byte, error) {
 	var ret []byte
 	switch param.colType {
 	case BOOLEAN, BIT:
 		if val.Sign() == 0 {
-			ret = Dm_build_1219.Dm_build_1397(0)
+			ret = Dm_build_1257.Dm_build_1435(0)
 		} else {
-			ret = Dm_build_1219.Dm_build_1397(1)
+			ret = Dm_build_1257.Dm_build_1435(1)
 		}
 	case TINYINT:
 		if err := G2DB.checkTinyint(val); err != nil {
 			return nil, err
 		}
-		ret = Dm_build_1219.Dm_build_1397(byte(val.ToBigInt().Int64()))
+		ret = Dm_build_1257.Dm_build_1435(byte(val.ToBigInt().Int64()))
 	case SMALLINT:
 		if err := G2DB.checkSmallint(val); err != nil {
 			return nil, err
 		}
-		ret = Dm_build_1219.Dm_build_1400(int16(val.ToBigInt().Int64()))
+		ret = Dm_build_1257.Dm_build_1441(int16(val.ToBigInt().Int64()))
 	case INT:
 		if err := G2DB.checkInt(val); err != nil {
 			return nil, err
 		}
-		ret = Dm_build_1219.Dm_build_1403(int32(val.ToBigInt().Int64()))
+		ret = Dm_build_1257.Dm_build_1444(int32(val.ToBigInt().Int64()))
 	case BIGINT:
 		if err := G2DB.checkBigint(val); err != nil {
 			return nil, err
 		}
-		ret = Dm_build_1219.Dm_build_1406(int64(val.ToBigInt().Int64()))
+		ret = Dm_build_1257.Dm_build_1447(int64(val.ToBigInt().Int64()))
 	case REAL:
 		if err := G2DB.checkReal(val); err != nil {
 			return nil, err
 		}
 		f, _ := val.ToBigFloat().Float32()
-		ret = Dm_build_1219.Dm_build_1409(f)
+		ret = Dm_build_1257.Dm_build_1450(f)
 	case DOUBLE:
 		f, _ := val.ToBigFloat().Float64()
-		ret = Dm_build_1219.Dm_build_1412(f)
+		ret = Dm_build_1257.Dm_build_1453(f)
 	case DECIMAL:
 		var err error
 		ret, err = val.encodeDecimal()
@@ -704,29 +704,29 @@ func (G2DB g2db) fromDecimal(val DmDecimal, param parameter, conn *Connection) (
 			return nil, err
 		}
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		ret = Dm_build_1219.Dm_build_1432(val.ToBigFloat().Text('f', -1), conn.getServerEncoding(), conn)
+		ret = Dm_build_1257.Dm_build_1473(val.ToBigFloat().Text('f', -1), conn.getServerEncoding(), conn)
 	default:
 		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 	}
 	return ret, nil
 }
 
-func (G2DB g2db) fromTime(val time.Time, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromTime(val time.Time, param parameter, conn *DmConnection) ([]byte, error) {
 
 	switch param.colType {
-	case DATE, DATETIME, DATETIME_TZ, TIME, TIME_TZ:
-		return encodeByTime(val, int(param.colType), int(param.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+	case DATE, DATETIME, DATETIME_TZ, TIME, TIME_TZ, DATETIME2, DATETIME2_TZ:
+		return encodeByTime(val, param.column, *conn)
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		return Dm_build_1219.Dm_build_1432(val.Format("2006-01-02 15:04:05.999999999 -07:00"), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(val.Format("2006-01-02 15:04:05.999999999 -07:00"), conn.getServerEncoding(), conn), nil
 	}
 
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (G2DB g2db) fromDmIntervalDT(val DmIntervalDT, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromDmIntervalDT(val DmIntervalDT, param parameter, conn *DmConnection) ([]byte, error) {
 	switch param.colType {
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
-		return Dm_build_1219.Dm_build_1432(val.String(), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(val.String(), conn.getServerEncoding(), conn), nil
 	case INTERVAL_DT:
 		return val.encode(int(param.scale))
 	default:
@@ -734,11 +734,11 @@ func (G2DB g2db) fromDmIntervalDT(val DmIntervalDT, param parameter, conn *Conne
 	}
 }
 
-func (G2DB g2db) fromDmdbIntervalYM(val DmIntervalYM, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromDmdbIntervalYM(val DmIntervalYM, param parameter, conn *DmConnection) ([]byte, error) {
 
 	switch param.colType {
 	case CHAR, VARCHAR, VARCHAR2, CLOB:
-		return Dm_build_1219.Dm_build_1432(val.String(), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(val.String(), conn.getServerEncoding(), conn), nil
 	case INTERVAL_YM:
 		return val.encode(int(param.scale))
 	default:
@@ -746,7 +746,7 @@ func (G2DB g2db) fromDmdbIntervalYM(val DmIntervalYM, param parameter, conn *Con
 	}
 }
 
-func (G2DB g2db) fromBlob(val DmBlob, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) fromBlob(val DmBlob, param parameter, conn *DmConnection) (interface{}, error) {
 	var ret interface{}
 	switch param.colType {
 	case BINARY, VARBINARY:
@@ -772,7 +772,7 @@ func (G2DB g2db) fromBlob(val DmBlob, param parameter, conn *Connection) (interf
 	return ret, nil
 }
 
-func (G2DB g2db) fromClob(val DmClob, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) fromClob(val DmClob, param parameter, conn *DmConnection) (interface{}, error) {
 	var ret interface{}
 	switch param.colType {
 	case CHAR, VARCHAR, VARCHAR2:
@@ -800,7 +800,7 @@ func (G2DB g2db) fromClob(val DmClob, param parameter, conn *Connection) (interf
 	return ret, nil
 }
 
-func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *DmConnection) (interface{}, error) {
 	var ret interface{}
 	switch param.colType {
 	case CHAR, VARCHAR2, VARCHAR:
@@ -808,7 +808,7 @@ func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *Connection) (i
 		if _, err := bytesBuf.ReadFrom(val); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1432(string(bytesBuf.Bytes()), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(string(bytesBuf.Bytes()), conn.getServerEncoding(), conn), nil
 	case BINARY, VARBINARY:
 		var bytesBuf = new(bytes.Buffer)
 		if _, err := bytesBuf.ReadFrom(val); err != nil {
@@ -828,15 +828,15 @@ func (G2DB g2db) fromReader(val io.Reader, param parameter, conn *Connection) (i
 	return ret, nil
 }
 
-func (G2DB g2db) string2Clob(val string, param parameter, conn *Connection) (interface{}, error) {
-	return G2DB.changeOffRowData(param, Dm_build_1219.Dm_build_1432(val, conn.getServerEncoding(), conn), conn.getServerEncoding())
+func (G2DB g2db) string2Clob(val string, param parameter, conn *DmConnection) (interface{}, error) {
+	return G2DB.changeOffRowData(param, Dm_build_1257.Dm_build_1473(val, conn.getServerEncoding(), conn), conn.getServerEncoding())
 }
 
-func (G2DB g2db) bytes2Blob(val []byte, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) bytes2Blob(val []byte, param parameter, conn *DmConnection) (interface{}, error) {
 	return G2DB.changeOffRowData(param, val, conn.getServerEncoding())
 }
 
-func (G2DB g2db) clob2Clob(val DmClob, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) clob2Clob(val DmClob, param parameter, conn *DmConnection) (interface{}, error) {
 	var clobLen int64
 	var err error
 	if clobLen, err = val.GetLength(); err != nil {
@@ -853,11 +853,11 @@ func (G2DB g2db) clob2Clob(val DmClob, param parameter, conn *Connection) (inter
 		if str, err = val.getSubString(1, int32(length)); err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1432(str, conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(str, conn.getServerEncoding(), conn), nil
 	}
 }
 
-func (G2DB g2db) blob2Blob(val DmBlob, param parameter, conn *Connection) (interface{}, error) {
+func (G2DB g2db) blob2Blob(val DmBlob, param parameter, conn *DmConnection) (interface{}, error) {
 	var clobLen int64
 	var err error
 	if clobLen, err = val.GetLength(); err != nil {
@@ -883,24 +883,26 @@ func (G2DB g2db) changeOffRowData(paramDesc parameter, paramData []byte, encodin
 }
 
 func (G2DB g2db) isOffRow(dtype int32, length int64) bool {
-	return (dtype == BLOB || dtype == CLOB) && length > Dm_build_713
+	return (dtype == BLOB || dtype == CLOB) && length > Dm_build_731
 }
 
-func (G2DB g2db) fromObject(mem interface{}, param parameter, conn *Connection) ([]byte, error) {
+func (G2DB g2db) fromObject(mem interface{}, param parameter, conn *DmConnection) ([]byte, error) {
 	switch v := mem.(type) {
 	case bool:
 		return G2DB.fromBool(v, param, conn)
-	case rune:
-		val, err := G2DB.fromString(string(v), param, conn)
-		return val.([]byte), err
 	case string:
 		val, err := G2DB.fromString(v, param, conn)
+		if err != nil {
+			return nil, err
+		}
 		return val.([]byte), err
 	case byte:
 		return G2DB.fromInt64(int64(v), param, conn)
 	case int:
 		return G2DB.fromInt64(int64(v), param, conn)
 	case int16:
+		return G2DB.fromInt64(int64(v), param, conn)
+	case int32:
 		return G2DB.fromInt64(int64(v), param, conn)
 	case int64:
 		return G2DB.fromInt64(v, param, conn)
@@ -925,7 +927,7 @@ func (G2DB g2db) fromObject(mem interface{}, param parameter, conn *Connection) 
 		if err != nil {
 			return nil, err
 		}
-		return Dm_build_1219.Dm_build_1432(str, conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(str, conn.getServerEncoding(), conn), nil
 	default:
 		return nil, ECGO_UNSUPPORTED_TYPE.throw()
 	}
@@ -934,25 +936,25 @@ func (G2DB g2db) fromObject(mem interface{}, param parameter, conn *Connection) 
 
 func (G2DB g2db) toInt32(val int32) []byte {
 	bytes := make([]byte, 4)
-	Dm_build_1219.Dm_build_1235(bytes, 0, val)
+	Dm_build_1257.Dm_build_1273(bytes, 0, val)
 	return bytes
 }
 
 func (G2DB g2db) toInt64(val int64) []byte {
 	bytes := make([]byte, 8)
-	Dm_build_1219.Dm_build_1240(bytes, 0, val)
+	Dm_build_1257.Dm_build_1278(bytes, 0, val)
 	return bytes
 }
 
 func (G2DB g2db) toFloat32(val float32) []byte {
 	bytes := make([]byte, 4)
-	Dm_build_1219.Dm_build_1245(bytes, 0, val)
+	Dm_build_1257.Dm_build_1283(bytes, 0, val)
 	return bytes
 }
 
 func (G2DB g2db) toFloat64(val float64) []byte {
 	bytes := make([]byte, 8)
-	Dm_build_1219.Dm_build_1250(bytes, 0, val)
+	Dm_build_1257.Dm_build_1288(bytes, 0, val)
 	return bytes
 }
 
@@ -964,7 +966,7 @@ func (G2DB g2db) toDecimal(val string, prec int, scale int) ([]byte, error) {
 	return d.encodeDecimal()
 }
 
-func (G2DB g2db) fromArray(x *DmArray, param parameter, connection *Connection) (interface{}, error) {
+func (G2DB g2db) fromArray(x *DmArray, param parameter, connection *DmConnection) (interface{}, error) {
 	var ret interface{}
 	var err error
 	switch param.colType {
@@ -983,7 +985,7 @@ func (G2DB g2db) fromArray(x *DmArray, param parameter, connection *Connection) 
 	return ret, err
 }
 
-func (G2DB g2db) fromStruct(x *DmStruct, param parameter, connection *Connection) (interface{}, error) {
+func (G2DB g2db) fromStruct(x *DmStruct, param parameter, connection *DmConnection) (interface{}, error) {
 	var ret interface{}
 	var err error
 	switch param.colType {
@@ -1003,12 +1005,12 @@ func (G2DB g2db) fromStruct(x *DmStruct, param parameter, connection *Connection
 	return ret, err
 }
 
-func checkBFileStr(s string) bool {
+func isValidBFileStr(s string) bool {
 	strs := strings.Split(strings.TrimSpace(s), ":")
 	if len(strs) != 2 {
 		return false
 	}
-	if len(strs[0]) > 128 || len(strs[1]) > 256 {
+	if len(strs[0]) > Dm_build_659 || len(strs[1]) > Dm_build_660 {
 		return false
 	}
 	return true

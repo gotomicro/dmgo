@@ -25,7 +25,7 @@ func (DB2G db2g) processVarchar2(bytes []byte, prec int) []byte {
 	return rbytes
 }
 
-func (DB2G db2g) charToString(bytes []byte, column *column, conn *Connection) string {
+func (DB2G db2g) charToString(bytes []byte, column *column, conn *DmConnection) string {
 	if column.colType == VARCHAR2 {
 		bytes = DB2G.processVarchar2(bytes, int(column.prec))
 	} else if column.colType == CLOB {
@@ -34,10 +34,10 @@ func (DB2G db2g) charToString(bytes []byte, column *column, conn *Connection) st
 		clobStr, _ := clob.getSubString(1, int32(clobLen))
 		return clobStr
 	}
-	return Dm_build_1219.Dm_build_1469(bytes, conn.serverEncoding, conn)
+	return Dm_build_1257.Dm_build_1509(bytes, conn.serverEncoding, conn)
 }
 
-func (DB2G db2g) charToFloat64(bytes []byte, column *column, conn *Connection) (float64, error) {
+func (DB2G db2g) charToFloat64(bytes []byte, column *column, conn *DmConnection) (float64, error) {
 	str := DB2G.charToString(bytes, column, conn)
 	val, err := strconv.ParseFloat(str, 64)
 	if err != nil {
@@ -47,12 +47,12 @@ func (DB2G db2g) charToFloat64(bytes []byte, column *column, conn *Connection) (
 	return val, nil
 }
 
-func (DB2G db2g) charToDeciaml(bytes []byte, column *column, conn *Connection) (*DmDecimal, error) {
+func (DB2G db2g) charToDeciaml(bytes []byte, column *column, conn *DmConnection) (*DmDecimal, error) {
 	str := DB2G.charToString(bytes, column, conn)
 	return NewDecimalFromString(str)
 }
 
-func (DB2G db2g) BinaryToInt64(bytes []byte, column *column, conn *Connection) (int64, error) {
+func (DB2G db2g) BinaryToInt64(bytes []byte, column *column, conn *DmConnection) (int64, error) {
 	if column.colType == BLOB {
 		blob := newBlobFromDB(bytes, conn, column, true)
 		blobLen, err := blob.GetLength()
@@ -99,8 +99,8 @@ func (DB2G db2g) decToDecimal(bytes []byte, prec int, scale int, compatibleOracl
 	return newDecimal(bytes, prec, scale)
 }
 
-func (DB2G db2g) toBytes(bytes []byte, column *column, conn *Connection) ([]byte, error) {
-	retBytes := Dm_build_1219.Dm_build_1370(bytes, 0, len(bytes))
+func (DB2G db2g) toBytes(bytes []byte, column *column, conn *DmConnection) ([]byte, error) {
+	retBytes := Dm_build_1257.Dm_build_1408(bytes, 0, len(bytes))
 	switch column.colType {
 	case CLOB:
 		clob := newClobFromDB(retBytes, conn, column, true)
@@ -109,7 +109,7 @@ func (DB2G db2g) toBytes(bytes []byte, column *column, conn *Connection) ([]byte
 			return nil, err
 		}
 
-		return Dm_build_1219.Dm_build_1432(str, conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1473(str, conn.getServerEncoding(), conn), nil
 	case BLOB:
 		blob := newBlobFromDB(retBytes, conn, column, true)
 		bs, err := blob.getBytes(1, int32(blob.length))
@@ -122,22 +122,22 @@ func (DB2G db2g) toBytes(bytes []byte, column *column, conn *Connection) ([]byte
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toString(bytes []byte, column *column, conn *Connection) string {
+func (DB2G db2g) toString(bytes []byte, column *column, conn *DmConnection) string {
 	switch column.colType {
 	case CHAR, VARCHAR, VARCHAR2:
 		return DB2G.charToString(bytes, column, conn)
 	case BIT, BOOLEAN, TINYINT:
 		return strconv.FormatInt(int64(bytes[0]), 10)
 	case SMALLINT:
-		return strconv.FormatInt(int64(Dm_build_1219.Dm_build_1440(bytes)), 10)
+		return strconv.FormatInt(int64(Dm_build_1257.Dm_build_1481(bytes)), 10)
 	case INT:
-		return strconv.FormatInt(int64(Dm_build_1219.Dm_build_1443(bytes)), 10)
+		return strconv.FormatInt(int64(Dm_build_1257.Dm_build_1484(bytes)), 10)
 	case BIGINT:
-		return strconv.FormatInt(int64(Dm_build_1219.Dm_build_1446(bytes)), 10)
+		return strconv.FormatInt(int64(Dm_build_1257.Dm_build_1487(bytes)), 10)
 	case REAL:
-		return strconv.FormatFloat(float64(Dm_build_1219.Dm_build_1449(bytes)), 'f', -1, 32)
+		return strconv.FormatFloat(float64(Dm_build_1257.Dm_build_1490(bytes)), 'f', -1, 32)
 	case DOUBLE:
-		return strconv.FormatFloat(float64(Dm_build_1219.Dm_build_1452(bytes)), 'f', -1, 64)
+		return strconv.FormatFloat(float64(Dm_build_1257.Dm_build_1493(bytes)), 'f', -1, 64)
 	case DECIMAL:
 
 	case BINARY, VARBINARY:
@@ -147,29 +147,29 @@ func (DB2G db2g) toString(bytes []byte, column *column, conn *Connection) string
 	case CLOB:
 
 	case DATE:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		if conn.FormatDate != "" {
-			return dtToStringByOracleFormat(dt, conn.FormatDate, int(conn.OracleDateLanguage))
+			return dtToStringByOracleFormat(dt, conn.FormatDate, column.scale, int(conn.OracleDateLanguage))
 		}
 	case TIME:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		if conn.FormatTime != "" {
-			return dtToStringByOracleFormat(dt, conn.FormatTime, int(conn.OracleDateLanguage))
+			return dtToStringByOracleFormat(dt, conn.FormatTime, column.scale, int(conn.OracleDateLanguage))
 		}
-	case DATETIME:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+	case DATETIME, DATETIME2:
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		if conn.FormatTimestamp != "" {
-			return dtToStringByOracleFormat(dt, conn.FormatTimestamp, int(conn.OracleDateLanguage))
+			return dtToStringByOracleFormat(dt, conn.FormatTimestamp, column.scale, int(conn.OracleDateLanguage))
 		}
 	case TIME_TZ:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		if conn.FormatTimeTZ != "" {
-			return dtToStringByOracleFormat(dt, conn.FormatTimeTZ, int(conn.OracleDateLanguage))
+			return dtToStringByOracleFormat(dt, conn.FormatTimeTZ, column.scale, int(conn.OracleDateLanguage))
 		}
-	case DATETIME_TZ:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+	case DATETIME_TZ, DATETIME2_TZ:
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		if conn.FormatTimestampTZ != "" {
-			return dtToStringByOracleFormat(dt, conn.FormatTimestampTZ, int(conn.OracleDateLanguage))
+			return dtToStringByOracleFormat(dt, conn.FormatTimestampTZ, column.scale, int(conn.OracleDateLanguage))
 		}
 	case INTERVAL_DT:
 		return newDmIntervalDTByBytes(bytes).String()
@@ -187,20 +187,20 @@ func (DB2G db2g) toString(bytes []byte, column *column, conn *Connection) string
 	return ""
 }
 
-func (DB2G db2g) toBool(bytes []byte, column *column, conn *Connection) (bool, error) {
+func (DB2G db2g) toBool(bytes []byte, column *column, conn *DmConnection) (bool, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		return bytes[0] != 0, nil
 	case SMALLINT:
-		return Dm_build_1219.Dm_build_1316(bytes, 0) != 0, nil
+		return Dm_build_1257.Dm_build_1354(bytes, 0) != 0, nil
 	case INT:
-		return Dm_build_1219.Dm_build_1321(bytes, 0) != 0, nil
+		return Dm_build_1257.Dm_build_1359(bytes, 0) != 0, nil
 	case BIGINT:
-		return Dm_build_1219.Dm_build_1326(bytes, 0) != 0, nil
+		return Dm_build_1257.Dm_build_1364(bytes, 0) != 0, nil
 	case REAL:
-		return Dm_build_1219.Dm_build_1331(bytes, 0) != 0, nil
+		return Dm_build_1257.Dm_build_1369(bytes, 0) != 0, nil
 	case DOUBLE:
-		return Dm_build_1219.Dm_build_1335(bytes, 0) != 0, nil
+		return Dm_build_1257.Dm_build_1373(bytes, 0) != 0, nil
 	case DECIMAL:
 
 	case CHAR, VARCHAR, VARCHAR2, CLOB:
@@ -210,7 +210,7 @@ func (DB2G db2g) toBool(bytes []byte, column *column, conn *Connection) (bool, e
 	return false, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toByte(bytes []byte, column *column, conn *Connection) (byte, error) {
+func (DB2G db2g) toByte(bytes []byte, column *column, conn *DmConnection) (byte, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 
@@ -220,31 +220,31 @@ func (DB2G db2g) toByte(bytes []byte, column *column, conn *Connection) (byte, e
 			return bytes[0], nil
 		}
 	case SMALLINT:
-		tval := Dm_build_1219.Dm_build_1316(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1354(bytes, 0)
 		if tval < int16(BYTE_MIN) || tval > int16(BYTE_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return byte(tval), nil
 	case INT:
-		tval := Dm_build_1219.Dm_build_1321(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1359(bytes, 0)
 		if tval < int32(BYTE_MIN) || tval > int32(BYTE_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return byte(tval), nil
 	case BIGINT:
-		tval := Dm_build_1219.Dm_build_1326(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1364(bytes, 0)
 		if tval < int64(BYTE_MIN) || tval > int64(BYTE_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return byte(tval), nil
 	case REAL:
-		tval := Dm_build_1219.Dm_build_1331(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1369(bytes, 0)
 		if tval < float32(BYTE_MIN) || tval > float32(BYTE_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return byte(tval), nil
 	case DOUBLE:
-		tval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		if tval < float64(BYTE_MIN) || tval > float64(BYTE_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
@@ -278,7 +278,7 @@ func (DB2G db2g) toByte(bytes []byte, column *column, conn *Connection) (byte, e
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt8(bytes []byte, column *column, conn *Connection) (int8, error) {
+func (DB2G db2g) toInt8(bytes []byte, column *column, conn *DmConnection) (int8, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -287,32 +287,32 @@ func (DB2G db2g) toInt8(bytes []byte, column *column, conn *Connection) (int8, e
 
 		return int8(bytes[0]), nil
 	case SMALLINT:
-		tval := Dm_build_1219.Dm_build_1316(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1354(bytes, 0)
 		if tval < int16(INT8_MIN) || tval < int16(INT8_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int8(tval), nil
 	case INT:
 
-		tval := Dm_build_1219.Dm_build_1321(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1359(bytes, 0)
 		if tval < int32(INT8_MIN) || tval > int32(INT8_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int8(tval), nil
 	case BIGINT:
-		tval := Dm_build_1219.Dm_build_1326(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1364(bytes, 0)
 		if tval < int64(INT8_MIN) || tval > int64(INT8_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int8(tval), nil
 	case REAL:
-		tval := Dm_build_1219.Dm_build_1331(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1369(bytes, 0)
 		if tval < float32(INT8_MIN) || tval > float32(INT8_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int8(tval), nil
 	case DOUBLE:
-		tval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		if tval < float64(INT8_MIN) || tval > float64(INT8_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
@@ -346,7 +346,7 @@ func (DB2G db2g) toInt8(bytes []byte, column *column, conn *Connection) (int8, e
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt16(bytes []byte, column *column, conn *Connection) (int16, error) {
+func (DB2G db2g) toInt16(bytes []byte, column *column, conn *DmConnection) (int16, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -355,28 +355,28 @@ func (DB2G db2g) toInt16(bytes []byte, column *column, conn *Connection) (int16,
 
 		return int16(bytes[0]), nil
 	case SMALLINT:
-		return Dm_build_1219.Dm_build_1316(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1354(bytes, 0), nil
 	case INT:
 
-		tval := Dm_build_1219.Dm_build_1321(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1359(bytes, 0)
 		if tval < int32(INT16_MIN) || tval > int32(INT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int16(tval), nil
 	case BIGINT:
-		tval := Dm_build_1219.Dm_build_1326(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1364(bytes, 0)
 		if tval < int64(INT16_MIN) || tval > int64(INT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int16(tval), nil
 	case REAL:
-		tval := Dm_build_1219.Dm_build_1331(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1369(bytes, 0)
 		if tval < float32(INT16_MIN) || tval > float32(INT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int16(tval), nil
 	case DOUBLE:
-		tval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		if tval < float64(INT16_MIN) || tval > float64(INT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
@@ -410,7 +410,7 @@ func (DB2G db2g) toInt16(bytes []byte, column *column, conn *Connection) (int16,
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *Connection) (uint16, error) {
+func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *DmConnection) (uint16, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -419,27 +419,27 @@ func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *Connection) (uint1
 
 		return uint16(bytes[0]), nil
 	case SMALLINT:
-		return uint16(Dm_build_1219.Dm_build_1316(bytes, 0)), nil
+		return uint16(Dm_build_1257.Dm_build_1354(bytes, 0)), nil
 	case INT:
-		tval := Dm_build_1219.Dm_build_1321(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1359(bytes, 0)
 		if tval < int32(UINT16_MIN) || tval > int32(UINT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return uint16(tval), nil
 	case BIGINT:
-		tval := Dm_build_1219.Dm_build_1326(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1364(bytes, 0)
 		if tval < int64(UINT16_MIN) || tval > int64(UINT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return uint16(tval), nil
 	case REAL:
-		tval := Dm_build_1219.Dm_build_1331(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1369(bytes, 0)
 		if tval < float32(UINT16_MIN) || tval > float32(UINT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return uint16(tval), nil
 	case DOUBLE:
-		tval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		if tval < float64(UINT16_MIN) || tval > float64(UINT16_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
@@ -473,7 +473,7 @@ func (DB2G db2g) toUInt16(bytes []byte, column *column, conn *Connection) (uint1
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt32(bytes []byte, column *column, conn *Connection) (int32, error) {
+func (DB2G db2g) toInt32(bytes []byte, column *column, conn *DmConnection) (int32, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -482,23 +482,23 @@ func (DB2G db2g) toInt32(bytes []byte, column *column, conn *Connection) (int32,
 
 		return int32(bytes[0]), nil
 	case SMALLINT:
-		return int32(Dm_build_1219.Dm_build_1316(bytes, 0)), nil
+		return int32(Dm_build_1257.Dm_build_1354(bytes, 0)), nil
 	case INT:
-		return Dm_build_1219.Dm_build_1321(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1359(bytes, 0), nil
 	case BIGINT:
-		tval := Dm_build_1219.Dm_build_1326(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1364(bytes, 0)
 		if tval < int64(INT32_MIN) || tval > int64(INT32_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int32(tval), nil
 	case REAL:
-		tval := Dm_build_1219.Dm_build_1331(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1369(bytes, 0)
 		if tval < float32(INT32_MIN) || tval > float32(INT32_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return int32(tval), nil
 	case DOUBLE:
-		tval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		if tval < float64(INT32_MIN) || tval > float64(INT32_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
@@ -532,7 +532,7 @@ func (DB2G db2g) toInt32(bytes []byte, column *column, conn *Connection) (int32,
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *Connection) (uint32, error) {
+func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *DmConnection) (uint32, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -541,23 +541,23 @@ func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *Connection) (uint3
 
 		return uint32(bytes[0]), nil
 	case SMALLINT:
-		return uint32(Dm_build_1219.Dm_build_1316(bytes, 0)), nil
+		return uint32(Dm_build_1257.Dm_build_1354(bytes, 0)), nil
 	case INT:
-		return uint32(Dm_build_1219.Dm_build_1321(bytes, 0)), nil
+		return uint32(Dm_build_1257.Dm_build_1359(bytes, 0)), nil
 	case BIGINT:
-		tval := Dm_build_1219.Dm_build_1326(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1364(bytes, 0)
 		if tval < int64(UINT32_MIN) || tval > int64(UINT32_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return uint32(tval), nil
 	case REAL:
-		tval := Dm_build_1219.Dm_build_1331(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1369(bytes, 0)
 		if tval < float32(UINT32_MIN) || tval > float32(UINT32_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
 		return uint32(tval), nil
 	case DOUBLE:
-		tval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		tval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		if tval < float64(UINT32_MIN) || tval > float64(UINT32_MAX) {
 			return 0, ECGO_DATA_OVERFLOW.throw()
 		}
@@ -591,7 +591,7 @@ func (DB2G db2g) toUInt32(bytes []byte, column *column, conn *Connection) (uint3
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt64(bytes []byte, column *column, conn *Connection) (int64, error) {
+func (DB2G db2g) toInt64(bytes []byte, column *column, conn *DmConnection) (int64, error) {
 	switch column.colType {
 	case BOOLEAN, BIT, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -600,15 +600,15 @@ func (DB2G db2g) toInt64(bytes []byte, column *column, conn *Connection) (int64,
 			return int64(bytes[0]), nil
 		}
 	case SMALLINT:
-		return int64(Dm_build_1219.Dm_build_1440(bytes)), nil
+		return int64(Dm_build_1257.Dm_build_1481(bytes)), nil
 	case INT:
-		return int64(Dm_build_1219.Dm_build_1443(bytes)), nil
+		return int64(Dm_build_1257.Dm_build_1484(bytes)), nil
 	case BIGINT:
-		return int64(Dm_build_1219.Dm_build_1446(bytes)), nil
+		return int64(Dm_build_1257.Dm_build_1487(bytes)), nil
 	case REAL:
-		return int64(Dm_build_1219.Dm_build_1449(bytes)), nil
+		return int64(Dm_build_1257.Dm_build_1490(bytes)), nil
 	case DOUBLE:
-		return int64(Dm_build_1219.Dm_build_1452(bytes)), nil
+		return int64(Dm_build_1257.Dm_build_1493(bytes)), nil
 
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
 		tval, err := DB2G.charToFloat64(bytes, column, conn)
@@ -631,7 +631,7 @@ func (DB2G db2g) toInt64(bytes []byte, column *column, conn *Connection) (int64,
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *Connection) (uint64, error) {
+func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *DmConnection) (uint64, error) {
 	switch column.colType {
 	case BOOLEAN, BIT, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -640,15 +640,15 @@ func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *Connection) (uint6
 			return uint64(bytes[0]), nil
 		}
 	case SMALLINT:
-		return uint64(Dm_build_1219.Dm_build_1440(bytes)), nil
+		return uint64(Dm_build_1257.Dm_build_1481(bytes)), nil
 	case INT:
-		return uint64(Dm_build_1219.Dm_build_1443(bytes)), nil
+		return uint64(Dm_build_1257.Dm_build_1484(bytes)), nil
 	case BIGINT:
-		return uint64(Dm_build_1219.Dm_build_1446(bytes)), nil
+		return uint64(Dm_build_1257.Dm_build_1487(bytes)), nil
 	case REAL:
-		return uint64(Dm_build_1219.Dm_build_1449(bytes)), nil
+		return uint64(Dm_build_1257.Dm_build_1490(bytes)), nil
 	case DOUBLE:
-		return uint64(Dm_build_1219.Dm_build_1452(bytes)), nil
+		return uint64(Dm_build_1257.Dm_build_1493(bytes)), nil
 
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
 		tval, err := DB2G.charToFloat64(bytes, column, conn)
@@ -671,7 +671,7 @@ func (DB2G db2g) toUInt64(bytes []byte, column *column, conn *Connection) (uint6
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toInt(bytes []byte, column *column, conn *Connection) (int, error) {
+func (DB2G db2g) toInt(bytes []byte, column *column, conn *DmConnection) (int, error) {
 	if strconv.IntSize == 32 {
 		tmp, err := DB2G.toInt32(bytes, column, conn)
 		return int(tmp), err
@@ -681,7 +681,7 @@ func (DB2G db2g) toInt(bytes []byte, column *column, conn *Connection) (int, err
 	}
 }
 
-func (DB2G db2g) toUInt(bytes []byte, column *column, conn *Connection) (uint, error) {
+func (DB2G db2g) toUInt(bytes []byte, column *column, conn *DmConnection) (uint, error) {
 	if strconv.IntSize == 32 {
 		tmp, err := DB2G.toUInt32(bytes, column, conn)
 		return uint(tmp), err
@@ -691,7 +691,7 @@ func (DB2G db2g) toUInt(bytes []byte, column *column, conn *Connection) (uint, e
 	}
 }
 
-func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *Connection) (float32, error) {
+func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *DmConnection) (float32, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -699,15 +699,15 @@ func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *Connection) (floa
 		}
 		return float32(bytes[0]), nil
 	case SMALLINT:
-		return float32(Dm_build_1219.Dm_build_1316(bytes, 0)), nil
+		return float32(Dm_build_1257.Dm_build_1354(bytes, 0)), nil
 	case INT:
-		return float32(Dm_build_1219.Dm_build_1321(bytes, 0)), nil
+		return float32(Dm_build_1257.Dm_build_1359(bytes, 0)), nil
 	case BIGINT:
-		return float32(Dm_build_1219.Dm_build_1326(bytes, 0)), nil
+		return float32(Dm_build_1257.Dm_build_1364(bytes, 0)), nil
 	case REAL:
-		return Dm_build_1219.Dm_build_1331(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1369(bytes, 0), nil
 	case DOUBLE:
-		dval := Dm_build_1219.Dm_build_1335(bytes, 0)
+		dval := Dm_build_1257.Dm_build_1373(bytes, 0)
 		return float32(dval), nil
 	case DECIMAL:
 		dval, err := DB2G.decToDecimal(bytes, int(column.prec), int(column.scale), conn.CompatibleOracle())
@@ -725,7 +725,7 @@ func (DB2G db2g) toFloat32(bytes []byte, column *column, conn *Connection) (floa
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *Connection) (float64, error) {
+func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *DmConnection) (float64, error) {
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
 		if bytes == nil || len(bytes) == 0 {
@@ -733,15 +733,15 @@ func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *Connection) (floa
 		}
 		return float64(bytes[0]), nil
 	case SMALLINT:
-		return float64(Dm_build_1219.Dm_build_1316(bytes, 0)), nil
+		return float64(Dm_build_1257.Dm_build_1354(bytes, 0)), nil
 	case INT:
-		return float64(Dm_build_1219.Dm_build_1321(bytes, 0)), nil
+		return float64(Dm_build_1257.Dm_build_1359(bytes, 0)), nil
 	case BIGINT:
-		return float64(Dm_build_1219.Dm_build_1326(bytes, 0)), nil
+		return float64(Dm_build_1257.Dm_build_1364(bytes, 0)), nil
 	case REAL:
-		return float64(Dm_build_1219.Dm_build_1331(bytes, 0)), nil
+		return float64(Dm_build_1257.Dm_build_1369(bytes, 0)), nil
 	case DOUBLE:
-		return Dm_build_1219.Dm_build_1335(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1373(bytes, 0), nil
 	case DECIMAL:
 		dval, err := DB2G.decToDecimal(bytes, int(column.prec), int(column.scale), conn.CompatibleOracle())
 		if err != nil {
@@ -759,27 +759,27 @@ func (DB2G db2g) toFloat64(bytes []byte, column *column, conn *Connection) (floa
 	return 0, ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toDmBlob(value []byte, column *column, conn *Connection) *DmBlob {
+func (DB2G db2g) toDmBlob(value []byte, column *column, conn *DmConnection) *DmBlob {
 
 	switch column.colType {
 	case BLOB:
 		return newBlobFromDB(value, conn, column, conn.lobFetchAll())
+	default:
+		return newBlobOfLocal(value, conn)
 	}
-
-	return nil
 }
 
-func (DB2G db2g) toDmClob(value []byte, conn *Connection, column *column) *DmClob {
+func (DB2G db2g) toDmClob(value []byte, conn *DmConnection, column *column) *DmClob {
 
 	switch column.colType {
 	case CLOB:
 		return newClobFromDB(value, conn, column, conn.lobFetchAll())
+	default:
+		return newClobOfLocal(DB2G.toString(value, column, conn), conn)
 	}
-
-	return nil
 }
 
-func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *Connection) (*DmDecimal, error) {
+func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *DmConnection) (*DmDecimal, error) {
 
 	switch column.colType {
 	case BIT, BOOLEAN, TINYINT:
@@ -789,15 +789,15 @@ func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *Connection) (*D
 			return NewDecimalFromInt64(int64(value[0]))
 		}
 	case SMALLINT:
-		return NewDecimalFromInt64(int64(Dm_build_1219.Dm_build_1316(value, 0)))
+		return NewDecimalFromInt64(int64(Dm_build_1257.Dm_build_1354(value, 0)))
 	case INT:
-		return NewDecimalFromInt64(int64(Dm_build_1219.Dm_build_1321(value, 0)))
+		return NewDecimalFromInt64(int64(Dm_build_1257.Dm_build_1359(value, 0)))
 	case BIGINT:
-		return NewDecimalFromInt64(Dm_build_1219.Dm_build_1326(value, 0))
+		return NewDecimalFromInt64(Dm_build_1257.Dm_build_1364(value, 0))
 	case REAL:
-		return NewDecimalFromFloat64(float64(Dm_build_1219.Dm_build_1331(value, 0)))
+		return NewDecimalFromFloat64(float64(Dm_build_1257.Dm_build_1369(value, 0)))
 	case DOUBLE:
-		return NewDecimalFromFloat64(Dm_build_1219.Dm_build_1335(value, 0))
+		return NewDecimalFromFloat64(Dm_build_1257.Dm_build_1373(value, 0))
 	case DECIMAL:
 		return decodeDecimal(value, int(column.prec), int(column.scale))
 	case CHAR, VARCHAR, VARCHAR2, CLOB:
@@ -807,10 +807,10 @@ func (DB2G db2g) toDmDecimal(value []byte, column *column, conn *Connection) (*D
 	return nil, ECGO_DATA_CONVERTION_ERROR
 }
 
-func (DB2G db2g) toTime(bytes []byte, column *column, conn *Connection) (time.Time, error) {
+func (DB2G db2g) toTime(bytes []byte, column *column, conn *DmConnection) (time.Time, error) {
 	switch column.colType {
-	case DATE, TIME, TIME_TZ, DATETIME_TZ, DATETIME:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+	case DATE, TIME, TIME_TZ, DATETIME_TZ, DATETIME, DATETIME2_TZ, DATETIME2:
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		return toTimeFromDT(dt, int(conn.dmConnector.localTimezone)), nil
 	case CHAR, VARCHAR2, VARCHAR, CLOB:
 		return toTimeFromString(DB2G.charToString(bytes, column, conn), int(conn.dmConnector.localTimezone)), nil
@@ -818,7 +818,7 @@ func (DB2G db2g) toTime(bytes []byte, column *column, conn *Connection) (time.Ti
 	return time.Now(), ECGO_DATA_CONVERTION_ERROR.throw()
 }
 
-func (DB2G db2g) toObject(bytes []byte, column *column, conn *Connection) (interface{}, error) {
+func (DB2G db2g) toObject(bytes []byte, column *column, conn *DmConnection) (interface{}, error) {
 
 	switch column.colType {
 	case BIT, BOOLEAN:
@@ -826,21 +826,21 @@ func (DB2G db2g) toObject(bytes []byte, column *column, conn *Connection) (inter
 
 	case TINYINT:
 
-		return Dm_build_1219.Dm_build_1312(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1350(bytes, 0), nil
 	case SMALLINT:
-		return Dm_build_1219.Dm_build_1316(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1354(bytes, 0), nil
 	case INT:
-		return Dm_build_1219.Dm_build_1321(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1359(bytes, 0), nil
 	case BIGINT:
-		return Dm_build_1219.Dm_build_1326(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1364(bytes, 0), nil
 	case DECIMAL:
-
+		return DB2G.decToDecimal(bytes, int(column.prec), int(column.scale), conn.CompatibleOracle())
 	case REAL:
-		return Dm_build_1219.Dm_build_1331(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1369(bytes, 0), nil
 	case DOUBLE:
-		return Dm_build_1219.Dm_build_1335(bytes, 0), nil
-	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ:
-		dt := decode(bytes, column.isBdta, int(column.colType), int(column.scale), int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+		return Dm_build_1257.Dm_build_1373(bytes, 0), nil
+	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
+		dt := decode(bytes, column.isBdta, *column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 		return toTimeFromDT(dt, int(conn.dmConnector.localTimezone)), nil
 	case BINARY, VARBINARY:
 		return bytes, nil
@@ -859,7 +859,7 @@ func (DB2G db2g) toObject(bytes []byte, column *column, conn *Connection) (inter
 		}
 	case CHAR, VARCHAR, VARCHAR2:
 		val := DB2G.charToString(bytes, column, conn)
-		if isBFile(int(column.colType), int(column.prec), int(column.scale)) {
+		if column.mask == MASK_BFILE {
 
 		}
 
@@ -893,4 +893,25 @@ func (DB2G db2g) toObject(bytes []byte, column *column, conn *Connection) (inter
 	}
 
 	return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+}
+
+func (DB2G db2g) toComplexType(bytes []byte, column *column, conn *DmConnection) (interface{}, error) {
+	switch column.colType {
+	case BLOB:
+		if !isComplexType(int(column.colType), int(column.scale)) {
+			return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+		}
+		blob := newBlobFromDB(bytes, conn, column, true)
+		return TypeDataSV.objBlobToObj(blob, column.typeDescriptor)
+	case ARRAY:
+		return TypeDataSV.bytesToArray(bytes, nil, column.typeDescriptor)
+	case SARRAY:
+		return TypeDataSV.bytesToSArray(bytes, nil, column.typeDescriptor)
+	case CLASS:
+		return TypeDataSV.bytesToObj(bytes, nil, column.typeDescriptor)
+	case PLTYPE_RECORD:
+		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+	default:
+		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+	}
 }

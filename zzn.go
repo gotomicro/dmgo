@@ -106,7 +106,15 @@ const (
 
 	DATETIME_TZ = 23
 
-	NULL = 25
+	XDEC_INT32 = 24
+
+	XDEC_INT64 = 25
+
+	DATETIME2 = 26
+
+	DATETIME2_TZ = 27
+
+	NULL = 28
 
 	ANY = 31
 
@@ -154,13 +162,17 @@ const (
 
 	DATETIME_PREC = 8
 
+	DATETIME2_PREC = 9
+
+	TIME_TZ_PREC = TIME_PREC + 2
+
+	DATETIME_TZ_PREC = DATETIME_PREC + 2
+
+	DATETIME2_TZ_PREC = DATETIME2_PREC + 2
+
 	INTERVAL_YM_PREC = 3 * ULINT_SIZE
 
 	INTERVAL_DT_PREC = 6 * ULINT_SIZE
-
-	TIME_TZ_PREC = 12
-
-	DATETIME_TZ_PREC = 12
 
 	VARCHAR_PREC = 8188
 
@@ -184,54 +196,19 @@ const (
 
 	CURRENCY_SCALE = 4
 
-	FLOAT_SCALE_MASK = 0x81
+	LOCAL_DATETIME_SCALE_MASK int32 = 0x00001000
+
+	ORACLE_FLOAT_SCALE_MASK int32 = 0x81
+
+	ORACLE_DATE_SCALE_MASK int32 = 0x00002000
 )
-
-func resetColType(stmt *DmStatement, i int, colType int32) bool {
-
-	parameter := &stmt.params[i]
-
-	if parameter.ioType == IO_TYPE_OUT {
-		stmt.curRowBindIndicator[i] |= BIND_OUT
-		return false
-	} else if parameter.ioType == IO_TYPE_IN {
-		stmt.curRowBindIndicator[i] |= BIND_IN
-	} else {
-		stmt.curRowBindIndicator[i] |= BIND_IN
-		stmt.curRowBindIndicator[i] |= BIND_OUT
-	}
-
-	if parameter.typeFlag != TYPE_FLAG_EXACT {
-
-		parameter.colType = colType
-		parameter.scale = 0
-		switch colType {
-		case CHAR, VARCHAR, VARCHAR2:
-			parameter.prec = VARCHAR_PREC
-		case CLOB:
-			parameter.prec = CLOB_PREC
-		case BINARY, VARBINARY:
-			parameter.prec = VARBINARY_PREC
-		case BLOB:
-			parameter.prec = BLOB_PREC
-		case BOOLEAN, BIT:
-			parameter.prec = BIT_PREC
-		}
-	}
-
-	return true
-}
-
-func isBFile(colType int, prec int, scale int) bool {
-	return colType == VARCHAR && prec == BFILE_PREC && scale == BFILE_SCALE
-}
 
 func isComplexType(colType int, scale int) bool {
 	return (colType == BLOB && scale == COMPLEX_SCALE) || colType == ARRAY || colType == SARRAY || colType == CLASS || colType == PLTYPE_RECORD
 }
 
 func isLocalTimeZone(colType int, scale int) bool {
-	return colType == DATETIME && (scale&LOCAL_TIME_ZONE_SCALE_MASK) != 0
+	return (colType == DATETIME || colType == DATETIME2) && (scale&LOCAL_TIME_ZONE_SCALE_MASK) != 0
 }
 
 func getLocalTimeZoneScale(colType int, scale int) int {
@@ -239,7 +216,7 @@ func getLocalTimeZoneScale(colType int, scale int) int {
 }
 
 func isFloat(colType int, scale int) bool {
-	return colType == DECIMAL && scale == FLOAT_SCALE_MASK
+	return colType == DECIMAL && scale == int(ORACLE_FLOAT_SCALE_MASK)
 }
 
 func getFloatPrec(prec int) int {
@@ -247,7 +224,7 @@ func getFloatPrec(prec int) int {
 }
 
 func getFloatScale(scale int) int {
-	return scale & (^FLOAT_SCALE_MASK)
+	return scale & (^int(ORACLE_FLOAT_SCALE_MASK))
 }
 
 var (
@@ -342,7 +319,7 @@ func (column *column) ScanType() reflect.Type {
 		}
 
 		return scanTypeFloat64
-	case DATE, TIME, DATETIME:
+	case DATE, TIME, TIME_TZ, DATETIME, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
 		if column.nullable {
 			return scanTypeNullTime
 		}
@@ -363,15 +340,8 @@ func (column *column) ScanType() reflect.Type {
 }
 
 func (column *column) Length() (length int64, ok bool) {
-
 	switch column.colType {
-	case BINARY:
-	case VARBINARY:
-	case BLOB:
-	case CHAR:
-	case VARCHAR2:
-	case VARCHAR:
-	case CLOB:
+	case BINARY, VARBINARY, BLOB, CHAR, VARCHAR2, VARCHAR, CLOB:
 		return int64(column.prec), true
 	}
 
@@ -381,13 +351,17 @@ func (column *column) Length() (length int64, ok bool) {
 func (column *column) PrecisionScale() (precision, scale int64, ok bool) {
 	switch column.colType {
 	case DECIMAL:
-		return int64(column.prec), int64(column.scale), true
+		if column.prec == 0 {
+			return 38, int64(column.scale), true
+		} else {
+			return int64(column.prec), int64(column.scale), true
+		}
 	}
 
 	return int64(0), int64(0), false
 }
 
-func (column *column) getColumnData(bytes []byte, conn *Connection) (driver.Value, error) {
+func (column *column) getColumnData(bytes []byte, conn *DmConnection) (driver.Value, error) {
 	if bytes == nil {
 		return nil, nil
 	}
@@ -404,17 +378,17 @@ func (column *column) getColumnData(bytes []byte, conn *Connection) (driver.Valu
 	case TINYINT:
 		return int8(bytes[0]), nil
 	case SMALLINT:
-		return Dm_build_1219.Dm_build_1316(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1354(bytes, 0), nil
 	case INT:
-		return Dm_build_1219.Dm_build_1321(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1359(bytes, 0), nil
 	case BIGINT:
-		return Dm_build_1219.Dm_build_1326(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1364(bytes, 0), nil
 	case REAL:
-		return Dm_build_1219.Dm_build_1331(bytes, 0), nil
+		return Dm_build_1257.Dm_build_1369(bytes, 0), nil
 	case DOUBLE:
 
-		return Dm_build_1219.Dm_build_1335(bytes, 0), nil
-	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ:
+		return Dm_build_1257.Dm_build_1373(bytes, 0), nil
+	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
 		return DB2G.toTime(bytes, column, conn)
 	case INTERVAL_DT:
 		return newDmIntervalDTByBytes(bytes).String(), nil
@@ -430,11 +404,28 @@ func (column *column) getColumnData(bytes []byte, conn *Connection) (driver.Valu
 	case BINARY, VARBINARY:
 		return bytes, nil
 	case BLOB:
-		return DB2G.toDmBlob(bytes, column, conn), nil
+		if isComplexType(int(column.colType), int(column.scale)) {
+			return DB2G.toComplexType(bytes, column, conn)
+		}
+		blob := DB2G.toDmBlob(bytes, column, conn)
+
+		l, err := blob.GetLength()
+		if err != nil {
+			return nil, err
+		}
+		return blob.getBytes(1, int32(l))
+
 	case CHAR, VARCHAR2, VARCHAR:
-		return Dm_build_1219.Dm_build_1376(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
+		return Dm_build_1257.Dm_build_1414(bytes, 0, len(bytes), conn.getServerEncoding(), conn), nil
 	case CLOB:
-		return DB2G.toDmClob(bytes, conn, column), nil
+		clob := DB2G.toDmClob(bytes, conn, column)
+
+		l, err := clob.GetLength()
+		if err != nil {
+			return nil, err
+		}
+		return clob.getSubString(1, int32(l))
+
 	}
 
 	return string(bytes), nil
@@ -442,8 +433,8 @@ func (column *column) getColumnData(bytes []byte, conn *Connection) (driver.Valu
 
 func emptyStringToNil(t int32) bool {
 	switch t {
-	case BOOLEAN, BIT, TINYINT, SMALLINT, INT, BIGINT, REAL, DOUBLE, DECIMAL,
-		DATE, TIME, DATETIME, INTERVAL_DT, INTERVAL_YM, TIME_TZ, DATETIME_TZ:
+	case BOOLEAN, BIT, TINYINT, SMALLINT, INT, BIGINT, REAL, DOUBLE, DECIMAL, DATE, TIME,
+		DATETIME, INTERVAL_DT, INTERVAL_YM, TIME_TZ, DATETIME_TZ, DATETIME2, DATETIME2_TZ:
 		return true
 	default:
 		return false

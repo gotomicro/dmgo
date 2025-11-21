@@ -16,6 +16,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gotomicro/dmgo/util"
 )
@@ -47,6 +49,7 @@ const (
 	CompatibleOraKey         = "comOra"
 	CipherPathKey            = "cipherPath"
 	DoSwitchKey              = "doSwitch"
+	DriverReconnectKey       = "driverReconnect"
 	ClusterKey               = "cluster"
 	LanguageKey              = "language"
 	DbAliveCheckFreqKey      = "dbAliveCheckFreq"
@@ -73,6 +76,7 @@ const (
 	PortKey                  = "port"
 	UserKey                  = "user"
 	PasswordKey              = "password"
+	DialNameKey              = "dialName"
 	RwStandbyKey             = "rwStandby"
 	IsCompressKey            = "isCompress"
 	RwHAKey                  = "rwHA"
@@ -108,8 +112,6 @@ const (
 	DatabaseProductNameKey   = "databaseProductName"
 	OsAuthTypeKey            = "osAuthType"
 	SchemaKey                = "schema"
-
-	TIME_ZONE_DEFAULT int16 = 480
 
 	DO_SWITCH_OFF             int32 = 0
 	DO_SWITCH_WHEN_CONN_ERROR int32 = 1
@@ -154,14 +156,16 @@ const (
 
 	LANGUAGE_EN int = 1
 
+	LANGUAGE_CNT_HK = 2
+
 	COLUMN_NAME_NATURAL_CASE = 0
 
 	COLUMN_NAME_UPPER_CASE = 1
 
 	COLUMN_NAME_LOWER_CASE = 2
 
-	compressDef   = Dm_build_680
-	compressIDDef = Dm_build_681
+	compressDef   = Dm_build_698
+	compressIDDef = Dm_build_699
 
 	charCodeDef = ""
 
@@ -215,7 +219,7 @@ const (
 
 	sessionTimeoutDef = 0
 
-	osAuthTypeDef = Dm_build_663
+	osAuthTypeDef = Dm_build_681
 
 	continueBatchOnErrorDef = false
 
@@ -225,7 +229,7 @@ const (
 
 	maxRowsDef = 0
 
-	rowPrefetchDef = Dm_build_664
+	rowPrefetchDef = Dm_build_682
 
 	bufPrefetchDef = 0
 
@@ -250,14 +254,14 @@ const (
 	caseSensitiveDef = true
 
 	compatibleModeDef = 0
-
-	localTimezoneDef = TIME_ZONE_DEFAULT
 )
 
-type Connector struct {
+type DmConnector struct {
 	filterable
 
-	dmDriver *Driver
+	mu sync.Mutex
+
+	dmDriver *DmDriver
 
 	compress int
 
@@ -309,6 +313,8 @@ type Connector struct {
 
 	doSwitch int32
 
+	driverReconnect bool
+
 	cluster int32
 
 	cipherPath string
@@ -318,6 +324,8 @@ type Connector struct {
 	user string
 
 	password string
+
+	dialName string
 
 	host string
 
@@ -391,8 +399,6 @@ type Connector struct {
 
 	schema string
 
-	reConnection *Connection
-
 	logLevel int
 
 	logDir string
@@ -418,7 +424,7 @@ type Connector struct {
 	statSqlRemoveMode int
 }
 
-func (c *Connector) init() *Connector {
+func (c *DmConnector) init() *DmConnector {
 	c.compress = compressDef
 	c.compressID = compressIDDef
 	c.charCode = charCodeDef
@@ -442,7 +448,8 @@ func (c *Connector) init() *Connector {
 	c.rwAutoDistribute = rwAutoDistributeDef
 	c.rwStandbyRecoverTime = rwStandbyRecoverTimeDef
 	c.rwIgnoreSql = false
-	c.doSwitch = DO_SWITCH_OFF
+	c.doSwitch = DO_SWITCH_WHEN_CONN_ERROR
+	c.driverReconnect = false
 	c.cluster = CLUSTER_TYPE_NORMAL
 	c.cipherPath = cipherPathDef
 	c.url = urlDef
@@ -477,7 +484,8 @@ func (c *Connector) init() *Connector {
 	c.columnNameCase = COLUMN_NAME_NATURAL_CASE
 	c.caseSensitive = caseSensitiveDef
 	c.compatibleMode = compatibleModeDef
-	c.localTimezone = localTimezoneDef
+	_, tzs := time.Now().Zone()
+	c.localTimezone = int16(tzs / 60)
 	c.idGenerator = dmConntorIDGenerator
 
 	c.logDir = LogDirDef
@@ -494,7 +502,7 @@ func (c *Connector) init() *Connector {
 	return c
 }
 
-func (c *Connector) setAttributes(props *Properties) error {
+func (c *DmConnector) setAttributes(props *Properties) error {
 	if props == nil || props.Len() == 0 {
 		return nil
 	}
@@ -504,10 +512,11 @@ func (c *Connector) setAttributes(props *Properties) error {
 	c.port = int32(props.GetInt(PortKey, int(c.port), 0, 65535))
 	c.user = props.GetString(UserKey, c.user)
 	c.password = props.GetString(PasswordKey, c.password)
+	c.dialName = props.GetString(DialNameKey, "")
 	c.rwStandby = props.GetBool(RwStandbyKey, c.rwStandby)
 
 	if b := props.GetBool(IsCompressKey, false); b {
-		c.compress = Dm_build_679
+		c.compress = Dm_build_697
 	}
 
 	c.compress = props.GetInt(CompressKey, c.compress, 0, 2)
@@ -525,6 +534,7 @@ func (c *Connector) setAttributes(props *Properties) error {
 	c.loginEncrypt = props.GetBool(LoginEncryptKey, c.loginEncrypt)
 	c.loginCertificate = props.GetTrimString(LoginCertificateKey, c.loginCertificate)
 	c.dec2Double = props.GetBool(Dec2DoubleKey, c.dec2Double)
+	parseLanguage(props.GetString(LanguageKey, ""))
 
 	c.rwSeparate = props.GetBool(RwSeparateKey, c.rwSeparate)
 	c.rwAutoDistribute = props.GetBool(RwAutoDistributeKey, c.rwAutoDistribute)
@@ -533,6 +543,7 @@ func (c *Connector) setAttributes(props *Properties) error {
 	c.rwStandbyRecoverTime = props.GetInt(RwStandbyRecoverTimeKey, c.rwStandbyRecoverTime, 0, int(INT32_MAX))
 	c.rwIgnoreSql = props.GetBool(RwIgnoreSqlKey, c.rwIgnoreSql)
 	c.doSwitch = int32(props.GetInt(DoSwitchKey, int(c.doSwitch), 0, 2))
+	c.driverReconnect = props.GetBool(DriverReconnectKey, c.driverReconnect)
 	c.parseCluster(props)
 	c.cipherPath = props.GetTrimString(CipherPathKey, c.cipherPath)
 
@@ -559,7 +570,7 @@ func (c *Connector) setAttributes(props *Properties) error {
 	c.autoCommit = props.GetBool(AutoCommitKey, c.autoCommit)
 	c.maxRows = props.GetInt(MaxRowsKey, c.maxRows, 0, int(INT32_MAX))
 	c.rowPrefetch = props.GetInt(RowPrefetchKey, c.rowPrefetch, 0, int(INT32_MAX))
-	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_665), int(Dm_build_666))
+	c.bufPrefetch = props.GetInt(BufPrefetchKey, c.bufPrefetch, int(Dm_build_683), int(Dm_build_684))
 	c.lobMode = props.GetInt(LobModeKey, c.lobMode, 1, 2)
 	c.stmtPoolMaxSize = props.GetInt(StmtPoolSizeKey, c.stmtPoolMaxSize, 0, int(INT32_MAX))
 	c.ignoreCase = props.GetBool(IgnoreCaseKey, c.ignoreCase)
@@ -624,37 +635,37 @@ func (c *Connector) setAttributes(props *Properties) error {
 	return nil
 }
 
-func (c *Connector) parseOsAuthType(props *Properties) error {
+func (c *DmConnector) parseOsAuthType(props *Properties) error {
 	value := props.GetString(OsAuthTypeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase(value, "ON") {
-			c.osAuthType = Dm_build_663
+			c.osAuthType = Dm_build_681
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSDBA") {
-			c.osAuthType = Dm_build_659
+			c.osAuthType = Dm_build_677
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSAUDITOR") {
-			c.osAuthType = Dm_build_661
+			c.osAuthType = Dm_build_679
 		} else if util.StringUtil.EqualsIgnoreCase(value, "SYSSSO") {
-			c.osAuthType = Dm_build_660
+			c.osAuthType = Dm_build_678
 		} else if util.StringUtil.EqualsIgnoreCase(value, "AUTO") {
-			c.osAuthType = Dm_build_662
+			c.osAuthType = Dm_build_680
 		} else if util.StringUtil.EqualsIgnoreCase(value, "OFF") {
-			c.osAuthType = Dm_build_658
+			c.osAuthType = Dm_build_676
 		}
 	} else {
 		c.osAuthType = byte(props.GetInt(OsAuthTypeKey, int(c.osAuthType), 0, 4))
 	}
-	if c.user == "" && c.osAuthType == Dm_build_658 {
+	if c.user == "" && c.osAuthType == Dm_build_676 {
 		c.user = "SYSDBA"
-	} else if c.osAuthType != Dm_build_658 && c.user != "" {
+	} else if c.osAuthType != Dm_build_676 && c.user != "" {
 		return ECGO_OSAUTH_ERROR.throw()
-	} else if c.osAuthType != Dm_build_658 {
+	} else if c.osAuthType != Dm_build_676 {
 		c.user = os.Getenv("user")
 		c.password = ""
 	}
 	return nil
 }
 
-func (c *Connector) parseCompatibleMode(props *Properties) {
+func (c *DmConnector) parseCompatibleMode(props *Properties) {
 	value := props.GetString(CompatibleModeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase(value, "oracle") {
@@ -667,7 +678,7 @@ func (c *Connector) parseCompatibleMode(props *Properties) {
 	}
 }
 
-func (c *Connector) parseStatSqlRemoveMode(props *Properties) {
+func (c *DmConnector) parseStatSqlRemoveMode(props *Properties) {
 	value := props.GetString(StatSqlRemoveModeKey, "")
 	if value != "" && !util.StringUtil.IsDigit(value) {
 		if util.StringUtil.EqualsIgnoreCase("oldest", value) || util.StringUtil.EqualsIgnoreCase("eldest", value) {
@@ -680,7 +691,7 @@ func (c *Connector) parseStatSqlRemoveMode(props *Properties) {
 	}
 }
 
-func (c *Connector) parseCluster(props *Properties) {
+func (c *DmConnector) parseCluster(props *Properties) {
 	value := props.GetTrimString(ClusterKey, "")
 	if util.StringUtil.EqualsIgnoreCase(value, "DSC") {
 		c.cluster = CLUSTER_TYPE_DSC
@@ -695,7 +706,7 @@ func (c *Connector) parseCluster(props *Properties) {
 	}
 }
 
-func (c *Connector) parseDSN(dsn string) (*Properties, string, error) {
+func (c *DmConnector) parseDSN(dsn string) (*Properties, string, error) {
 	var dsnProps = NewProperties()
 	url, err := url.Parse(dsn)
 	if err != nil {
@@ -718,7 +729,7 @@ func (c *Connector) parseDSN(dsn string) (*Properties, string, error) {
 	return dsnProps, url.Host, nil
 }
 
-func (c *Connector) BuildDSN() string {
+func (c *DmConnector) BuildDSN() string {
 	var buf bytes.Buffer
 
 	buf.WriteString("dm://")
@@ -753,29 +764,53 @@ func (c *Connector) BuildDSN() string {
 	return buf.String()
 }
 
-func (c *Connector) mergeConfigs(dsn string) error {
+func (c *DmConnector) mergeConfigs(dsn string) error {
 	props, host, err := c.parseDSN(dsn)
 	if err != nil {
 		return err
 	}
 
-	driverInit()
+	driverInit(props.GetString("svcConfPath", ""))
+
 	addressRemapStr := props.GetTrimString(AddressRemapKey, "")
 	userRemapStr := props.GetTrimString(UserRemapKey, "")
+	if addressRemapStr == "" {
+		addressRemapStr = GlobalProperties.GetTrimString(AddressRemapKey, "")
+	}
+	if userRemapStr == "" {
+		userRemapStr = GlobalProperties.GetTrimString(UserRemapKey, "")
+	}
 
 	host = c.remap(host, addressRemapStr)
 
 	c.user = c.remap(c.user, userRemapStr)
 
-	if group, ok := ServerGroupMap[strings.ToLower(host)]; ok {
-		c.group = group
+	if a := props.GetTrimString(host, ""); a != "" {
+
+		if strings.HasPrefix(a, "(") && strings.HasSuffix(a, ")") {
+			a = strings.TrimSpace(a[1 : len(a)-1])
+		}
+		c.group = parseServerName(host, a)
+		if c.group != nil {
+			c.group.props = NewProperties()
+			c.group.props.SetProperties(GlobalProperties)
+		}
+	} else if group, ok := ServerGroupMap.Load(strings.ToLower(host)); ok {
+
+		c.group = group.(*epGroup)
 	} else {
 		host, port, err := net.SplitHostPort(host)
-		if err != nil || net.ParseIP(host) == nil {
-			c.host = hostDef
-		} else {
-			c.host = host
+		if err == nil {
+			ip := net.ParseIP(host)
+			var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
+			if ip != nil && len(ip) == net.IPv6len && !bytes.Equal(ip[0:12], v4InV6Prefix) {
+
+				host = "[" + host + "]"
+			}
 		}
+
+		c.host = host
+
 		tmpPort, err := strconv.Atoi(port)
 		if err != nil {
 			c.port = portDef
@@ -787,6 +822,8 @@ func (c *Connector) mergeConfigs(dsn string) error {
 	}
 
 	props.SetDiffProperties(c.group.props)
+
+	props.SetDiffProperties(GlobalProperties)
 
 	if props.GetBool(RwSeparateKey, false) {
 		props.SetIfNotExist(LoginModeKey, strconv.Itoa(int(LOGIN_MODE_PRIMARY_ONLY)))
@@ -801,7 +838,7 @@ func (c *Connector) mergeConfigs(dsn string) error {
 	return nil
 }
 
-func (c *Connector) remap(origin string, cfgStr string) string {
+func (c *DmConnector) remap(origin string, cfgStr string) string {
 	if cfgStr == "" || origin == "" {
 		return origin
 	}
@@ -816,15 +853,19 @@ func (c *Connector) remap(origin string, cfgStr string) string {
 	return origin
 }
 
-func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c *DmConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.filterChain.reset().DmConnectorConnect(c, ctx)
 }
 
-func (c *Connector) Driver() driver.Driver {
+func (c *DmConnector) Driver() driver.Driver {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.filterChain.reset().DmConnectorDriver(c)
 }
 
-func (c *Connector) connect(ctx context.Context) (*Connection, error) {
+func (c *DmConnector) connect(ctx context.Context) (*DmConnection, error) {
 	if c.group != nil && len(c.group.epList) > 0 {
 		return c.group.connect(c)
 	} else {
@@ -832,40 +873,34 @@ func (c *Connector) connect(ctx context.Context) (*Connection, error) {
 	}
 }
 
-func (c *Connector) driver() *Driver {
+func (c *DmConnector) driver() *DmDriver {
 	return c.dmDriver
 }
 
-func (c *Connector) connectSingle(ctx context.Context) (*Connection, error) {
+func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) {
 	var err error
-	var dc *Connection
-	if c.reConnection == nil {
-		dc = &Connection{
-			closech: make(chan struct{}),
-		}
-		dc.dmConnector = c
-		dc.autoCommit = c.autoCommit
-		dc.createFilterChain(c, nil)
-
-		dc.objId = -1
-		dc.init()
-
-		dc.startWatcher()
-		if err = dc.watchCancel(ctx); err != nil {
-			return nil, err
-		}
-		defer dc.finish()
-	} else {
-		dc = c.reConnection
-		dc.reset()
+	var dc = &DmConnection{
+		closech:     make(chan struct{}),
+		dmConnector: c,
+		autoCommit:  c.autoCommit,
 	}
 
-	dc.Access, err = buildAccess(dc)
+	dc.createFilterChain(c, nil)
+	dc.objId = -1
+	dc.init()
+
+	dc.Access, err = dm_build_348(ctx, dc)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = dc.Access.initialize(); err != nil {
+	dc.startWatcher()
+	if err = dc.watchCancel(ctx); err != nil {
+		return nil, err
+	}
+	defer dc.finish()
+
+	if err = dc.Access.dm_build_393(); err != nil {
 
 		if !dc.closed.IsSet() {
 			close(dc.closech)

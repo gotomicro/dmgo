@@ -14,26 +14,26 @@ import (
 )
 
 type filter interface {
-	DmDriverOpen(filterChain *filterChain, d *Driver, dsn string) (*Connection, error)
-	DmDriverOpenConnector(filterChain *filterChain, d *Driver, dsn string) (*Connector, error)
+	DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error)
+	DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error)
 
-	DmConnectorConnect(filterChain *filterChain, c *Connector, ctx context.Context) (*Connection, error)
-	DmConnectorDriver(filterChain *filterChain, c *Connector) *Driver
+	DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error)
+	DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver
 
-	DmConnectionBegin(filterChain *filterChain, c *Connection) (*Connection, error)
-	DmConnectionBeginTx(filterChain *filterChain, c *Connection, ctx context.Context, opts driver.TxOptions) (*Connection, error)
-	DmConnectionCommit(filterChain *filterChain, c *Connection) error
-	DmConnectionRollback(filterChain *filterChain, c *Connection) error
-	DmConnectionClose(filterChain *filterChain, c *Connection) error
-	DmConnectionPing(filterChain *filterChain, c *Connection, ctx context.Context) error
-	DmConnectionExec(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmResult, error)
-	DmConnectionExecContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error)
-	DmConnectionQuery(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmRows, error)
-	DmConnectionQueryContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error)
-	DmConnectionPrepare(filterChain *filterChain, c *Connection, query string) (*DmStatement, error)
-	DmConnectionPrepareContext(filterChain *filterChain, c *Connection, ctx context.Context, query string) (*DmStatement, error)
-	DmConnectionResetSession(filterChain *filterChain, c *Connection, ctx context.Context) error
-	DmConnectionCheckNamedValue(filterChain *filterChain, c *Connection, nv *driver.NamedValue) error
+	DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error)
+	DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error)
+	DmConnectionCommit(filterChain *filterChain, c *DmConnection) error
+	DmConnectionRollback(filterChain *filterChain, c *DmConnection) error
+	DmConnectionClose(filterChain *filterChain, c *DmConnection) error
+	DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error
+	DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error)
+	DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error)
+	DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error)
+	DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error)
+	DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error)
+	DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error)
+	DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error
+	DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error
 
 	DmStatementClose(filterChain *filterChain, s *DmStatement) error
 	DmStatementNumInput(filterChain *filterChain, s *DmStatement) int
@@ -105,7 +105,7 @@ func runLog() {
 			flushFreq:  LogFlushFreq,
 			filePath:   LogDir,
 			filePrefix: "dm_go",
-			buffer:     Dm_build_1502(),
+			buffer:     Dm_build_1542(),
 		}
 		go goMap["log"].doRun()
 	}
@@ -122,7 +122,7 @@ func runStat() {
 	goMapMu.Unlock()
 }
 
-func (f *filterable) createFilterChain(bc *Connector, props *Properties) {
+func (f *filterable) createFilterChain(bc *DmConnector, props *Properties) {
 	var filters = make([]filter, 0, 5)
 
 	if bc != nil {
@@ -145,6 +145,7 @@ func (f *filterable) createFilterChain(bc *Connector, props *Properties) {
 
 		if bc.doSwitch != DO_SWITCH_OFF {
 			filters = append(filters, &reconnectFilter{})
+			f.recoverInfo = newRecoverInfo()
 		}
 
 		if bc.rwSeparate {
@@ -190,7 +191,7 @@ func (f *filterable) resetFilterable(src *filterable) {
 	f.statInfo = src.statInfo
 }
 
-func (f filterable) getID() int64 {
+func (f *filterable) getID() int64 {
 	if f.objId < 0 {
 		f.objId = f.idGenerator.incrementAndGet()
 	}
@@ -207,9 +208,9 @@ type rwInfo struct {
 
 	rwCounter *rwCounter
 
-	connStandby *Connection
+	connStandby *DmConnection
 
-	connCurrent *Connection
+	connCurrent *DmConnection
 
 	tryRecoverTs int64
 
@@ -302,7 +303,7 @@ func newStatInfo() *statInfo {
 	si := new(statInfo)
 	return si
 }
-func (si *statInfo) init(conn *Connection) {
+func (si *statInfo) init(conn *DmConnection) {
 	si.connStat = goStat.createConnStat(conn)
 }
 

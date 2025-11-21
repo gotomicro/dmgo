@@ -117,6 +117,19 @@ func (r *DmRows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok
 	return r.filterChain.reset().DmRowsColumnTypePrecisionScale(r, index)
 }
 
+func (dest *DmRows) Scan(src interface{}) error {
+	switch src := src.(type) {
+	case nil:
+		*dest = *new(DmRows)
+		return nil
+	case *DmRows:
+		*dest = *src
+		return nil
+	default:
+		return UNSUPPORTED_SCAN
+	}
+}
+
 func (rows *DmRows) columns() []string {
 	return rows.CurrentRows.Columns()
 }
@@ -201,9 +214,8 @@ func (innerRows *innerRows) checkClosed() error {
 }
 
 func (innerRows *innerRows) Columns() []string {
-	err := innerRows.checkClosed()
-	if err != nil {
-		panic(err)
+	if err := innerRows.checkClosed(); err != nil {
+		return nil
 	}
 
 	columnNames := make([]string, len(innerRows.columns))
@@ -285,16 +297,16 @@ func (innerRows *innerRows) Next(dest []driver.Value) error {
 func (innerRows *innerRows) HasNextResultSet() bool {
 	err := innerRows.checkClosed()
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	if innerRows.nextExecInfo != nil {
 		return innerRows.nextExecInfo.hasResultSet
 	}
 
-	innerRows.nextExecInfo, err = innerRows.dmStmt.dmConn.Access.Dm_build_449(innerRows.dmStmt, 0)
+	innerRows.nextExecInfo, err = innerRows.dmStmt.dmConn.Access.Dm_build_457(innerRows.dmStmt, 0)
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	if innerRows.nextExecInfo.hasResultSet {
@@ -325,48 +337,53 @@ func (innerRows *innerRows) NextResultSet() error {
 }
 
 func (innerRows *innerRows) ColumnTypeScanType(index int) reflect.Type {
-	err := innerRows.checkClosed()
-	if err != nil {
-		panic(err)
+	if err := innerRows.checkClosed(); err != nil {
+		return nil
 	}
-	column := innerRows.checkIndex(index)
-	return column.ScanType()
+	if column := innerRows.checkIndex(index); column != nil {
+		return column.ScanType()
+	}
+	return nil
 }
 
 func (innerRows *innerRows) ColumnTypeDatabaseTypeName(index int) string {
-	err := innerRows.checkClosed()
-	if err != nil {
-		panic(err)
+	if err := innerRows.checkClosed(); err != nil {
+		return ""
 	}
-	column := innerRows.checkIndex(index)
-	return column.typeName
+	if column := innerRows.checkIndex(index); column != nil {
+		return column.typeName
+	}
+	return ""
 }
 
 func (innerRows *innerRows) ColumnTypeLength(index int) (length int64, ok bool) {
-	err := innerRows.checkClosed()
-	if err != nil {
-		panic(err)
+	if err := innerRows.checkClosed(); err != nil {
+		return 0, false
 	}
-	column := innerRows.checkIndex(index)
-	return column.Length()
+	if column := innerRows.checkIndex(index); column != nil {
+		return column.Length()
+	}
+	return 0, false
 }
 
 func (innerRows *innerRows) ColumnTypeNullable(index int) (nullable, ok bool) {
-	err := innerRows.checkClosed()
-	if err != nil {
-		panic(err)
+	if err := innerRows.checkClosed(); err != nil {
+		return false, false
 	}
-	column := innerRows.checkIndex(index)
-	return column.nullable, true
+	if column := innerRows.checkIndex(index); column != nil {
+		return column.nullable, true
+	}
+	return false, false
 }
 
 func (innerRows *innerRows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
-	err := innerRows.checkClosed()
-	if err != nil {
-		panic(err)
+	if err := innerRows.checkClosed(); err != nil {
+		return 0, 0, false
 	}
-	column := innerRows.checkIndex(index)
-	return column.PrecisionScale()
+	if column := innerRows.checkIndex(index); column != nil {
+		return column.PrecisionScale()
+	}
+	return 0, 0, false
 }
 
 func newDmRows(currentRows *innerRows) *DmRows {
@@ -439,16 +456,16 @@ func newLocalInnerRows(stmt *DmStatement, columns []column, rsDatas [][][]byte) 
 
 func (innerRows *innerRows) checkIndex(index int) *column {
 	if index < 0 || index > len(innerRows.columns)-1 {
-		panic(ECGO_INVALID_SEQUENCE_NUMBER)
+		return nil
 	}
 
 	return &innerRows.columns[index]
 }
 
 func (innerRows *innerRows) fetchData(startPos int64) bool {
-	execInfo, err := innerRows.dmStmt.dmConn.Access.Dm_build_456(innerRows, startPos)
+	execInfo, err := innerRows.dmStmt.dmConn.Access.Dm_build_464(innerRows, startPos)
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	innerRows.totalRowCount = execInfo.updateCount
@@ -468,7 +485,7 @@ func (innerRows *innerRows) getRowData(dest []driver.Value) (err error) {
 		if i <= len(dest)-1 {
 			if column.colType == CURSOR {
 				var tmpExecInfo *execRetInfo
-				tmpExecInfo, err = innerRows.dmStmt.dmConn.Access.Dm_build_449(innerRows.dmStmt, 1)
+				tmpExecInfo, err = innerRows.dmStmt.dmConn.Access.Dm_build_457(innerRows.dmStmt, 1)
 				if err != nil {
 					return err
 				}

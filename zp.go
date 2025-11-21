@@ -5,6 +5,7 @@
 package dm
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ type logWriter struct {
 	flushFreq  int
 	filePath   string
 	filePrefix string
-	buffer     *Dm_build_1498
+	buffer     *Dm_build_1538
 }
 
 func (lw *logWriter) doRun() {
@@ -49,12 +50,12 @@ func (lw *logWriter) doRun() {
 					lw.doFlush(lw.buffer)
 					i = 0
 				} else {
-					lw.buffer.Dm_build_1524(ibytes, 0, len(ibytes))
+					lw.buffer.Dm_build_1564(ibytes, 0, len(ibytes))
 					i++
 				}
 			}
 		case <-time.After(time.Duration(LogFlushFreq) * time.Millisecond):
-			if LogLevel != LOG_OFF && lw.buffer.Dm_build_1503() > 0 {
+			if LogLevel != LOG_OFF && lw.buffer.Dm_build_1543() > 0 {
 				lw.doFlush(lw.buffer)
 				i = 0
 			}
@@ -64,12 +65,14 @@ func (lw *logWriter) doRun() {
 	}
 }
 
-func (lw *logWriter) doFlush(buffer *Dm_build_1498) {
+func (lw *logWriter) doFlush(buffer *Dm_build_1538) {
 	if lw.needCreateNewFile() {
 		lw.closeCurrentFile()
 		lw.logFile = lw.createNewFile()
 	}
-	buffer.Dm_build_1518(lw.logFile, buffer.Dm_build_1503())
+	if lw.logFile != nil {
+		buffer.Dm_build_1558(lw.logFile, buffer.Dm_build_1543())
+	}
 }
 func (lw *logWriter) closeCurrentFile() {
 	if lw.logFile != nil {
@@ -88,7 +91,8 @@ func (lw *logWriter) createNewFile() *os.File {
 		if _, err := os.Stat(lw.filePath + fileName); err != nil {
 			logFile, err := os.Create(lw.filePath + fileName)
 			if err != nil {
-				panic(err)
+				fmt.Println(err)
+				return nil
 			}
 			return logFile
 		}
@@ -104,12 +108,12 @@ func (lw *logWriter) beforeExit() {
 	close(lw.flushQueue)
 	var ibytes []byte
 	for ibytes = <-lw.flushQueue; ibytes != nil; ibytes = <-lw.flushQueue {
-		lw.buffer.Dm_build_1524(ibytes, 0, len(ibytes))
-		if lw.buffer.Dm_build_1503() >= LogBufferSize {
+		lw.buffer.Dm_build_1564(ibytes, 0, len(ibytes))
+		if lw.buffer.Dm_build_1543() >= LogBufferSize {
 			lw.doFlush(lw.buffer)
 		}
 	}
-	if lw.buffer.Dm_build_1503() > 0 {
+	if lw.buffer.Dm_build_1543() > 0 {
 		lw.doFlush(lw.buffer)
 	}
 }

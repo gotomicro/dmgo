@@ -215,6 +215,30 @@ const Messages_zh_CN = `{
 	{
       "id": "error.invalidDateTimeValue",
 	  "translation": "无效的日期时间类型值"
+	},
+	{
+      "id": "error.msgTooLong",
+	  "translation": "消息长度超出限制512M"
+	},
+	{
+      "id": "error.isNull",
+	  "translation": "数据为NULL"
+	},
+	{
+      "id": "error.ParamCountLimit",
+	  "translation": "参数个数超过最大值65536."
+	},
+	{
+      "id": "error.unbindedParameter",
+	  "translation": "有参数未绑定"
+	},
+	{
+      "id": "error.stringCut",
+	  "translation": "字符串截断"
+	},
+	{
+      "id": "error.connectionClosedOrNotBuild",
+	  "translation": "连接尚未建立或已经关闭"
 	}
   ]
 }`

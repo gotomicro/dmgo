@@ -30,7 +30,7 @@ func (s *epSelector) sortDBList(first bool) []*ep {
 	return s.dbs
 }
 
-func (s *epSelector) checkServerMode(conn *Connection, last bool) (bool, error) {
+func (s *epSelector) checkServerMode(conn *DmConnection, last bool) (bool, error) {
 	// 只连dsc control节点
 	if conn.dmConnector.loginDscCtrl && !conn.dscControl {
 		conn.close()

@@ -8,6 +8,16 @@ const (
 	LINE_SEPARATOR = "\n"
 )
 
+// 执行f并忽略panic
+func AbsorbPanic(f func()){
+	defer func() {
+		if p := recover(); p != nil {
+			// TODO do something
+		}
+	}()
+	f()
+}
+
 func SliceEquals(src []byte, dest []byte) bool {
 	if len(src) != len(dest) {
 		return false

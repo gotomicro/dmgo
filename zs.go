@@ -22,6 +22,7 @@ type oracleDateFormat struct {
 	TZNegative        bool
 	pattern           string
 	language          int
+	scale             int32
 	FormatElementList []interface{}
 	YearElement       yearElement
 	MonthElement      monthElement
@@ -398,7 +399,13 @@ type fElement struct {
 
 func (FElement fElement) parse(str string, offset int, dt []int) (int, error) {
 	strLen := 0
-	for i := offset; i < offset+FElement.len && i < len(str); i++ {
+	maxLen := 0
+	if FElement.len > 0 {
+		maxLen = FElement.len
+	} else {
+		maxLen = NANOSECOND_DIGITS
+	}
+	for i := offset; i < offset+maxLen && i < len(str); i++ {
 		if !unicode.IsLetter(rune(str[i])) && !unicode.IsDigit(rune(str[i])) {
 			break
 		}
@@ -410,18 +417,24 @@ func (FElement fElement) parse(str string, offset int, dt []int) (int, error) {
 		return -1, err
 	}
 
-	if strLen < 6 {
-		ms *= int64(math.Pow10(6 - strLen))
+	if strLen < NANOSECOND_DIGITS {
+		ms *= int64(math.Pow10(NANOSECOND_DIGITS - strLen))
 	} else {
-		ms /= int64(math.Pow10(strLen - 6))
+		ms /= int64(math.Pow10(strLen - NANOSECOND_DIGITS))
 	}
 
-	dt[OFFSET_MILLISECOND] = int(ms)
+	dt[OFFSET_NANOSECOND] = int(ms)
 	return offset + strLen, nil
 }
 
 func (FElement fElement) format(dt []int) string {
-	return FElement.OracleDateFormat.formatMilliSecond(dt[OFFSET_MILLISECOND], FElement.len)
+	msgLen := 0
+	if FElement.len > 0 {
+		msgLen = FElement.len
+	} else {
+		msgLen = int(FElement.OracleDateFormat.scale)
+	}
+	return FElement.OracleDateFormat.formatMilliSecond(dt[OFFSET_NANOSECOND], msgLen)
 }
 
 type tzhElement struct {
@@ -618,7 +631,7 @@ func getFormat() *oracleDateFormat {
 	format.HH12Element = hh12Element{format}
 	format.MIElement = miElement{format}
 	format.SSElement = ssElement{format}
-	format.FElement = fElement{format, 6}
+	format.FElement = fElement{format, -1}
 	format.TZHElement = tzhElement{format}
 	format.TZMElement = tzmElement{format}
 	format.AMElement = amElement{format}
@@ -658,7 +671,7 @@ func (OracleDateFormat *oracleDateFormat) parse(str string) (ret []int, err erro
 		}
 	}
 	if offset < len(str) {
-		//[6103]:文字与格式字符串不匹配.
+		// [6103]:文字与格式字符串不匹配.
 		return nil, ECGO_INVALID_DATETIME_VALUE.throw()
 	}
 
@@ -698,10 +711,11 @@ func (OracleDateFormat *oracleDateFormat) setPattern(pattern string) {
 	}
 }
 
-func format(dt []int, pattern string, language int) string {
+func format(dt []int, pattern string, scale int32, language int) string {
 	f := getFormat()
 	f.setPattern(pattern)
 	f.language = language
+	f.scale = scale
 	ret := f.format(dt)
 	return ret
 }
@@ -857,7 +871,7 @@ func (OracleDateFormat *oracleDateFormat) getFormatElement(word string) (element
 				return nil, err
 			}
 		} else {
-			count = 9
+			count = -1
 		}
 
 		OracleDateFormat.FElement.len = int(count)

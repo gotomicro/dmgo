@@ -6,6 +6,8 @@
 package dm
 
 const (
+	PARAM_COUNT_LIMIT int32 = 65536
+
 	IGNORE_TARGET_LENGTH int32 = -1
 
 	IGNORE_TARGET_SCALE int32 = -1
@@ -18,11 +20,21 @@ const (
 
 	TYPE_FLAG_RECOMMEND byte = 2 // 推荐类型
 
-	IO_TYPE_IN byte = 0
+	IO_TYPE_UNKNOWN int8 = -1
 
-	IO_TYPE_OUT byte = 1
+	IO_TYPE_IN int8 = 0
 
-	IO_TYPE_INOUT byte = 2
+	IO_TYPE_OUT int8 = 1
+
+	IO_TYPE_INOUT int8 = 2
+
+	MASK_ORACLE_DATE int32 = 1
+
+	MASK_ORACLE_FLOAT int32 = 2
+
+	MASK_BFILE int32 = 3
+
+	MASK_LOCAL_DATETIME int32 = 4
 )
 
 type execRetInfo struct {
@@ -108,6 +120,8 @@ type column struct {
 	typeDescriptor *TypeDescriptor
 
 	isBdta bool
+
+	mask int32
 }
 
 type parameter struct {
@@ -115,7 +129,7 @@ type parameter struct {
 
 	typeFlag byte
 
-	ioType byte
+	ioType int8
 
 	outJType int32
 
@@ -124,6 +138,8 @@ type parameter struct {
 	outObjectName string
 
 	cursorStmt *DmStatement
+
+	hasDefault bool
 }
 
 func (column *column) InitColumn() *column {
@@ -169,7 +185,7 @@ func (parameter *parameter) InitParameter() *parameter {
 
 	parameter.typeFlag = TYPE_FLAG_UNKNOWN
 
-	parameter.ioType = IO_TYPE_IN
+	parameter.ioType = IO_TYPE_UNKNOWN
 
 	parameter.outJType = IGNORE_TARGET_TYPE
 
@@ -180,6 +196,58 @@ func (parameter *parameter) InitParameter() *parameter {
 	parameter.cursorStmt = nil
 
 	return parameter
+}
+
+func (parameter *parameter) resetType(colType int32) {
+	parameter.colType = colType
+	parameter.scale = 0
+	switch colType {
+	case BIT, BOOLEAN:
+		parameter.prec = BIT_PREC
+	case TINYINT:
+		parameter.prec = TINYINT_PREC
+	case SMALLINT:
+		parameter.prec = SMALLINT_PREC
+	case INT:
+		parameter.prec = INT_PREC
+	case BIGINT:
+		parameter.prec = BIGINT_PREC
+	case CHAR, VARCHAR, VARCHAR2:
+		parameter.prec = VARCHAR_PREC
+	case CLOB:
+		parameter.prec = CLOB_PREC
+	case BINARY, VARBINARY:
+		parameter.prec = VARBINARY_PREC
+	case BLOB:
+		parameter.prec = BLOB_PREC
+	case DATE:
+		parameter.prec = DATE_PREC
+	case TIME:
+		parameter.prec = TIME_PREC
+		parameter.scale = 6
+	case TIME_TZ:
+		parameter.prec = TIME_TZ_PREC
+		parameter.scale = 6
+	case DATETIME:
+		parameter.prec = DATETIME_PREC
+		parameter.scale = 6
+	case DATETIME_TZ:
+		parameter.prec = DATETIME_TZ_PREC
+		parameter.scale = 6
+	case DATETIME2:
+		parameter.prec = DATETIME2_PREC
+		parameter.scale = 9
+	case DATETIME2_TZ:
+		parameter.prec = DATETIME2_TZ_PREC
+		parameter.scale = 9
+	case REAL,DOUBLE,DECIMAL,INTERVAL_YM,INTERVAL_DT,ARRAY,CLASS,PLTYPE_RECORD,SARRAY:
+		parameter.prec = 0
+	case UNKNOWN, NULL:
+		// UNKNOWN 导致服务器断言 // setNull导致服务器报错“字符转换失败”
+		parameter.colType = VARCHAR
+		parameter.prec = VARCHAR_PREC
+	default:
+	}
 }
 
 func (execInfo *execRetInfo) union(other *execRetInfo, startRow int, count int) {

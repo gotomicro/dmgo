@@ -30,17 +30,24 @@ type reconnectFilter struct {
 }
 
 // 一定抛错
-func (rf *reconnectFilter) autoReconnect(connection *Connection, err error) error {
+func (rf *reconnectFilter) autoReconnect(connection *DmConnection, err error) error {
 	if dmErr, ok := err.(*DmError); ok {
-		if dmErr.ErrCode == ECGO_COMMUNITION_ERROR.ErrCode {
-			return rf.reconnect(connection, dmErr.Error())
+		if dmErr.ErrCode == ECGO_COMMUNITION_ERROR.ErrCode || dmErr.ErrCode == ECGO_CONNECTION_CLOSED.ErrCode {
+
+			if connection.dmConnector.driverReconnect {
+				return rf.reconnect(connection, dmErr.getErrText())
+			} else {
+				connection.Access.Close()
+				connection.closed.Set(true)
+				return driver.ErrBadConn
+			}
 		}
 	}
 	return err
 }
 
 // 一定抛错
-func (rf *reconnectFilter) reconnect(connection *Connection, reason string) error {
+func (rf *reconnectFilter) reconnect(connection *DmConnection, reason string) error {
 	// 读写分离，重连需要处理备机
 	var err error
 	if connection.dmConnector.rwSeparate {
@@ -50,14 +57,16 @@ func (rf *reconnectFilter) reconnect(connection *Connection, reason string) erro
 	}
 
 	if err != nil {
+		connection.closed.Set(true)
 		return ECGO_CONNECTION_SWITCH_FAILED.addDetailln(reason).throw()
 	}
 
 	// 重连成功
+	connection.closed.Set(false)
 	return ECGO_CONNECTION_SWITCHED.addDetailln(reason).throw()
 }
 
-func (rf *reconnectFilter) loadDscEpSites(conn *Connection) []*ep {
+func (rf *reconnectFilter) loadDscEpSites(conn *DmConnection) []*ep {
 	stmt, rs, err := conn.driverQuery(SQL_GET_DSC_EP_SITE)
 	if err != nil {
 		return nil
@@ -81,7 +90,7 @@ func (rf *reconnectFilter) loadDscEpSites(conn *Connection) []*ep {
 	return epList
 }
 
-func (rf *reconnectFilter) checkAndRecover(conn *Connection) error {
+func (rf *reconnectFilter) checkAndRecover(conn *DmConnection) error {
 	if conn.dmConnector.doSwitch != DO_SWITCH_WHEN_EP_RECOVER {
 		return nil
 	}
@@ -122,30 +131,40 @@ func (rf *reconnectFilter) checkAndRecover(conn *Connection) error {
 	if !recover {
 		return nil
 	}
+
+	if conn.dmConnector.driverReconnect {
+		return conn.reconnect()
+	} else {
+		conn.Access.Close()
+		conn.closed.Set(false)
+		return ECGO_CONNECTION_CLOSED.throw()
+	}
+
+	// return driver.ErrBadConn
 	// do reconnect
-	return conn.reconnect()
+	// return conn.reconnect()
 }
 
-//DmDriver
-func (rf *reconnectFilter) DmDriverOpen(filterChain *filterChain, d *Driver, dsn string) (*Connection, error) {
+// DmDriver
+func (rf *reconnectFilter) DmDriverOpen(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnection, error) {
 	return filterChain.DmDriverOpen(d, dsn)
 }
 
-func (rf *reconnectFilter) DmDriverOpenConnector(filterChain *filterChain, d *Driver, dsn string) (*Connector, error) {
+func (rf *reconnectFilter) DmDriverOpenConnector(filterChain *filterChain, d *DmDriver, dsn string) (*DmConnector, error) {
 	return filterChain.DmDriverOpenConnector(d, dsn)
 }
 
-//DmConnector
-func (rf *reconnectFilter) DmConnectorConnect(filterChain *filterChain, c *Connector, ctx context.Context) (*Connection, error) {
+// DmConnector
+func (rf *reconnectFilter) DmConnectorConnect(filterChain *filterChain, c *DmConnector, ctx context.Context) (*DmConnection, error) {
 	return filterChain.DmConnectorConnect(c, ctx)
 }
 
-func (rf *reconnectFilter) DmConnectorDriver(filterChain *filterChain, c *Connector) *Driver {
+func (rf *reconnectFilter) DmConnectorDriver(filterChain *filterChain, c *DmConnector) *DmDriver {
 	return filterChain.DmConnectorDriver(c)
 }
 
-//DmConnection
-func (rf *reconnectFilter) DmConnectionBegin(filterChain *filterChain, c *Connection) (*Connection, error) {
+// DmConnection
+func (rf *reconnectFilter) DmConnectionBegin(filterChain *filterChain, c *DmConnection) (*DmConnection, error) {
 	dc, err := filterChain.DmConnectionBegin(c)
 	if err != nil {
 		return nil, rf.autoReconnect(c, err)
@@ -153,7 +172,7 @@ func (rf *reconnectFilter) DmConnectionBegin(filterChain *filterChain, c *Connec
 	return dc, err
 }
 
-func (rf *reconnectFilter) DmConnectionBeginTx(filterChain *filterChain, c *Connection, ctx context.Context, opts driver.TxOptions) (*Connection, error) {
+func (rf *reconnectFilter) DmConnectionBeginTx(filterChain *filterChain, c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
 	dc, err := filterChain.DmConnectionBeginTx(c, ctx, opts)
 	if err != nil {
 		return nil, rf.autoReconnect(c, err)
@@ -161,7 +180,7 @@ func (rf *reconnectFilter) DmConnectionBeginTx(filterChain *filterChain, c *Conn
 	return dc, err
 }
 
-func (rf *reconnectFilter) DmConnectionCommit(filterChain *filterChain, c *Connection) error {
+func (rf *reconnectFilter) DmConnectionCommit(filterChain *filterChain, c *DmConnection) error {
 	if err := filterChain.DmConnectionCommit(c); err != nil {
 		return rf.autoReconnect(c, err)
 	}
@@ -171,7 +190,7 @@ func (rf *reconnectFilter) DmConnectionCommit(filterChain *filterChain, c *Conne
 	return nil
 }
 
-func (rf *reconnectFilter) DmConnectionRollback(filterChain *filterChain, c *Connection) error {
+func (rf *reconnectFilter) DmConnectionRollback(filterChain *filterChain, c *DmConnection) error {
 	err := filterChain.DmConnectionRollback(c)
 	if err != nil {
 		err = rf.autoReconnect(c, err)
@@ -180,7 +199,7 @@ func (rf *reconnectFilter) DmConnectionRollback(filterChain *filterChain, c *Con
 	return err
 }
 
-func (rf *reconnectFilter) DmConnectionClose(filterChain *filterChain, c *Connection) error {
+func (rf *reconnectFilter) DmConnectionClose(filterChain *filterChain, c *DmConnection) error {
 	err := filterChain.DmConnectionClose(c)
 	if err != nil {
 		err = rf.autoReconnect(c, err)
@@ -189,7 +208,7 @@ func (rf *reconnectFilter) DmConnectionClose(filterChain *filterChain, c *Connec
 	return err
 }
 
-func (rf *reconnectFilter) DmConnectionPing(filterChain *filterChain, c *Connection, ctx context.Context) error {
+func (rf *reconnectFilter) DmConnectionPing(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
 	err := filterChain.DmConnectionPing(c, ctx)
 	if err != nil {
 		err = rf.autoReconnect(c, err)
@@ -198,7 +217,7 @@ func (rf *reconnectFilter) DmConnectionPing(filterChain *filterChain, c *Connect
 	return err
 }
 
-func (rf *reconnectFilter) DmConnectionExec(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmResult, error) {
+func (rf *reconnectFilter) DmConnectionExec(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmResult, error) {
 	if err := rf.checkAndRecover(c); err != nil {
 		return nil, rf.autoReconnect(c, err)
 	}
@@ -210,7 +229,7 @@ func (rf *reconnectFilter) DmConnectionExec(filterChain *filterChain, c *Connect
 	return dr, err
 }
 
-func (rf *reconnectFilter) DmConnectionExecContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
+func (rf *reconnectFilter) DmConnectionExecContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
 	if err := rf.checkAndRecover(c); err != nil {
 		return nil, rf.autoReconnect(c, err)
 	}
@@ -222,7 +241,7 @@ func (rf *reconnectFilter) DmConnectionExecContext(filterChain *filterChain, c *
 	return dr, err
 }
 
-func (rf *reconnectFilter) DmConnectionQuery(filterChain *filterChain, c *Connection, query string, args []driver.Value) (*DmRows, error) {
+func (rf *reconnectFilter) DmConnectionQuery(filterChain *filterChain, c *DmConnection, query string, args []driver.Value) (*DmRows, error) {
 	if err := rf.checkAndRecover(c); err != nil {
 		return nil, rf.autoReconnect(c, err)
 	}
@@ -234,7 +253,7 @@ func (rf *reconnectFilter) DmConnectionQuery(filterChain *filterChain, c *Connec
 	return dr, err
 }
 
-func (rf *reconnectFilter) DmConnectionQueryContext(filterChain *filterChain, c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+func (rf *reconnectFilter) DmConnectionQueryContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
 	if err := rf.checkAndRecover(c); err != nil {
 		return nil, rf.autoReconnect(c, err)
 	}
@@ -246,7 +265,7 @@ func (rf *reconnectFilter) DmConnectionQueryContext(filterChain *filterChain, c 
 	return dr, err
 }
 
-func (rf *reconnectFilter) DmConnectionPrepare(filterChain *filterChain, c *Connection, query string) (*DmStatement, error) {
+func (rf *reconnectFilter) DmConnectionPrepare(filterChain *filterChain, c *DmConnection, query string) (*DmStatement, error) {
 	ds, err := filterChain.DmConnectionPrepare(c, query)
 	if err != nil {
 		return nil, rf.autoReconnect(c, err)
@@ -255,7 +274,7 @@ func (rf *reconnectFilter) DmConnectionPrepare(filterChain *filterChain, c *Conn
 	return ds, err
 }
 
-func (rf *reconnectFilter) DmConnectionPrepareContext(filterChain *filterChain, c *Connection, ctx context.Context, query string) (*DmStatement, error) {
+func (rf *reconnectFilter) DmConnectionPrepareContext(filterChain *filterChain, c *DmConnection, ctx context.Context, query string) (*DmStatement, error) {
 	ds, err := filterChain.DmConnectionPrepareContext(c, ctx, query)
 	if err != nil {
 		return nil, rf.autoReconnect(c, err)
@@ -264,7 +283,7 @@ func (rf *reconnectFilter) DmConnectionPrepareContext(filterChain *filterChain, 
 	return ds, err
 }
 
-func (rf *reconnectFilter) DmConnectionResetSession(filterChain *filterChain, c *Connection, ctx context.Context) error {
+func (rf *reconnectFilter) DmConnectionResetSession(filterChain *filterChain, c *DmConnection, ctx context.Context) error {
 	err := filterChain.DmConnectionResetSession(c, ctx)
 	if err != nil {
 		err = rf.autoReconnect(c, err)
@@ -273,7 +292,7 @@ func (rf *reconnectFilter) DmConnectionResetSession(filterChain *filterChain, c 
 	return err
 }
 
-func (rf *reconnectFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *Connection, nv *driver.NamedValue) error {
+func (rf *reconnectFilter) DmConnectionCheckNamedValue(filterChain *filterChain, c *DmConnection, nv *driver.NamedValue) error {
 	err := filterChain.DmConnectionCheckNamedValue(c, nv)
 	if err != nil {
 		err = rf.autoReconnect(c, err)
@@ -282,7 +301,7 @@ func (rf *reconnectFilter) DmConnectionCheckNamedValue(filterChain *filterChain,
 	return err
 }
 
-//DmStatement
+// DmStatement
 func (rf *reconnectFilter) DmStatementClose(filterChain *filterChain, s *DmStatement) error {
 	err := filterChain.DmStatementClose(s)
 	if err != nil {
@@ -362,7 +381,7 @@ func (rf *reconnectFilter) DmStatementCheckNamedValue(filterChain *filterChain, 
 	return err
 }
 
-//DmResult
+// DmResult
 func (rf *reconnectFilter) DmResultLastInsertId(filterChain *filterChain, r *DmResult) (int64, error) {
 	i, err := filterChain.DmResultLastInsertId(r)
 	if err != nil {
@@ -383,7 +402,7 @@ func (rf *reconnectFilter) DmResultRowsAffected(filterChain *filterChain, r *DmR
 	return i, err
 }
 
-//DmRows
+// DmRows
 func (rf *reconnectFilter) DmRowsColumns(filterChain *filterChain, r *DmRows) []string {
 	var ret []string
 	defer func() {

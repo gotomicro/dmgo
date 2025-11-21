@@ -18,12 +18,12 @@ const (
 	xc        = 2
 	xq        = 4
 	xdq       = 6
-	//xsb       = 8
-	xbin = 10
-	xhex = 12
-	//xhint     = 14
-	xq2   = 16
-	xq2_2 = 18
+	xsb       = 8
+	xbin      = 10
+	xhex      = 12
+	xhint     = 14
+	xq2       = 16
+	xq2_2     = 18
 )
 
 /**

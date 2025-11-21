@@ -9,7 +9,7 @@ type ArrayDescriptor struct {
 	m_typeDesc *TypeDescriptor
 }
 
-func newArrayDescriptor(fulName string, conn *Connection) (*ArrayDescriptor, error) {
+func newArrayDescriptor(fulName string, conn *DmConnection) (*ArrayDescriptor, error) {
 
 	ad := new(ArrayDescriptor)
 

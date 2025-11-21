@@ -5,6 +5,8 @@
 package dm
 
 import (
+	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -13,260 +15,276 @@ import (
 )
 
 const (
-	Dm_build_597 = "7.6.0.0"
+	Dm_build_607 = "7.6.0.0"
 
-	Dm_build_598 = "7.0.0.9"
+	Dm_build_608 = "7.0.0.9"
 
-	Dm_build_599 = "8.0.0.73"
+	Dm_build_609 = "8.0.0.73"
 
-	Dm_build_600 = "7.1.2.128"
+	Dm_build_610 = "7.1.2.128"
 
-	Dm_build_601 = "7.1.5.144"
+	Dm_build_611 = "7.1.5.144"
 
-	Dm_build_602 = "7.1.6.123"
+	Dm_build_612 = "7.1.6.123"
 
-	Dm_build_603 = 2
+	Dm_build_613 = 1
 
-	Dm_build_604 = 32768 - 128
+	Dm_build_614 = 2
 
-	Dm_build_605 int16 = 1
+	Dm_build_615 = 3
 
-	Dm_build_606 int16 = 2
+	Dm_build_616 = 4
 
-	Dm_build_607 int16 = 3
+	Dm_build_617 = 5
 
-	Dm_build_608 int16 = 4
+	Dm_build_618 = 6
 
-	Dm_build_609 int16 = 5
+	Dm_build_619 = 8
 
-	Dm_build_610 int16 = 6
+	Dm_build_620 = Dm_build_619
 
-	Dm_build_611 int16 = 7
+	Dm_build_621 = 32768 - 128
 
-	Dm_build_612 int16 = 8
+	Dm_build_622 = 0x20000000
 
-	Dm_build_613 int16 = 9
+	Dm_build_623 int16 = 1
 
-	Dm_build_614 int16 = 13
+	Dm_build_624 int16 = 2
 
-	Dm_build_615 int16 = 14
+	Dm_build_625 int16 = 3
 
-	Dm_build_616 int16 = 15
+	Dm_build_626 int16 = 4
 
-	Dm_build_617 int16 = 17
+	Dm_build_627 int16 = 5
 
-	Dm_build_618 int16 = 21
+	Dm_build_628 int16 = 6
 
-	Dm_build_619 int16 = 24
+	Dm_build_629 int16 = 7
 
-	Dm_build_620 int16 = 27
+	Dm_build_630 int16 = 8
 
-	Dm_build_621 int16 = 29
+	Dm_build_631 int16 = 9
 
-	Dm_build_622 int16 = 30
+	Dm_build_632 int16 = 13
 
-	Dm_build_623 int16 = 31
+	Dm_build_633 int16 = 14
 
-	Dm_build_624 int16 = 32
+	Dm_build_634 int16 = 15
 
-	Dm_build_625 int16 = 44
+	Dm_build_635 int16 = 17
 
-	Dm_build_626 int16 = 52
+	Dm_build_636 int16 = 21
 
-	Dm_build_627 int16 = 60
+	Dm_build_637 int16 = 24
 
-	Dm_build_628 int16 = 71
+	Dm_build_638 int16 = 27
 
-	Dm_build_629 int16 = 90
+	Dm_build_639 int16 = 29
 
-	Dm_build_630 int16 = 91
+	Dm_build_640 int16 = 30
 
-	Dm_build_631 int16 = 200
+	Dm_build_641 int16 = 31
 
-	Dm_build_632 = 64
+	Dm_build_642 int16 = 32
 
-	Dm_build_633 = 20
+	Dm_build_643 int16 = 44
 
-	Dm_build_634 = 0
+	Dm_build_644 int16 = 52
 
-	Dm_build_635 = 4
+	Dm_build_645 int16 = 60
 
-	Dm_build_636 = 6
+	Dm_build_646 int16 = 71
 
-	Dm_build_637 = 10
+	Dm_build_647 int16 = 90
 
-	Dm_build_638 = 14
+	Dm_build_648 int16 = 91
 
-	Dm_build_639 = 18
+	Dm_build_649 int16 = 200
 
-	Dm_build_640 = 19
+	Dm_build_650 = 64
 
-	Dm_build_641 = 128
+	Dm_build_651 = 20
 
-	Dm_build_642 = 256
+	Dm_build_652 = 0
 
-	Dm_build_643 = 0xffff
+	Dm_build_653 = 4
 
-	Dm_build_644 int32 = 2
+	Dm_build_654 = 6
 
-	Dm_build_645 int32 = 5
+	Dm_build_655 = 10
 
-	Dm_build_646 = -1
+	Dm_build_656 = 14
 
-	Dm_build_647 uint16 = 0xFFFE
+	Dm_build_657 = 18
 
-	Dm_build_648 uint16 = uint16(Dm_build_647 - 3)
+	Dm_build_658 = 19
 
-	Dm_build_649 uint16 = Dm_build_647
+	Dm_build_659 = 128
 
-	Dm_build_650 int32 = 0xFFFF
+	Dm_build_660 = 256
 
-	Dm_build_651 int32 = 0x80
+	Dm_build_661 int32 = 2
 
-	Dm_build_652 byte = 0x60
+	Dm_build_662 int32 = 5
 
-	Dm_build_653 uint16 = uint16(Dm_build_649)
+	Dm_build_663 = -1
 
-	Dm_build_654 uint16 = uint16(Dm_build_650)
+	Dm_build_664 int32 = 0xFF00
 
-	Dm_build_655 int16 = 0x00
+	Dm_build_665 int32 = 0xFFFE - 3
 
-	Dm_build_656 int16 = 0x03
+	Dm_build_666 int32 = 0xFFFE - 4
 
-	Dm_build_657 int32 = 0x80
+	Dm_build_667 int32 = 0xFFFE
 
-	Dm_build_658 byte = 0
+	Dm_build_668 int32 = 0xFFFF
 
-	Dm_build_659 byte = 1
+	Dm_build_669 int32 = 0x80
 
-	Dm_build_660 byte = 2
+	Dm_build_670 byte = 0x60
 
-	Dm_build_661 byte = 3
+	Dm_build_671 uint16 = uint16(Dm_build_667)
 
-	Dm_build_662 byte = 4
+	Dm_build_672 uint16 = uint16(Dm_build_668)
 
-	Dm_build_663 byte = Dm_build_658
+	Dm_build_673 int16 = 0x00
 
-	Dm_build_664 int = 10
+	Dm_build_674 int16 = 0x03
 
-	Dm_build_665 int32 = 32
+	Dm_build_675 int32 = 0x80
 
-	Dm_build_666 int32 = 65536
+	Dm_build_676 byte = 0
 
-	Dm_build_667 byte = 0
+	Dm_build_677 byte = 1
 
-	Dm_build_668 byte = 1
+	Dm_build_678 byte = 2
 
-	Dm_build_669 int32 = 0x00000000
+	Dm_build_679 byte = 3
 
-	Dm_build_670 int32 = 0x00000020
+	Dm_build_680 byte = 4
 
-	Dm_build_671 int32 = 0x00000040
+	Dm_build_681 byte = Dm_build_676
 
-	Dm_build_672 int32 = 0x00000FFF
+	Dm_build_682 int = 10
 
-	Dm_build_673 int32 = 0
+	Dm_build_683 int32 = 32
 
-	Dm_build_674 int32 = 1
+	Dm_build_684 int32 = 65536
 
-	Dm_build_675 int32 = 2
+	Dm_build_685 byte = 0
 
-	Dm_build_676 int32 = 3
+	Dm_build_686 byte = 1
 
-	Dm_build_677 = 8192
+	Dm_build_687 int32 = 0x00000000
 
-	Dm_build_678 = 1
+	Dm_build_688 int32 = 0x00000020
 
-	Dm_build_679 = 2
+	Dm_build_689 int32 = 0x00000040
 
-	Dm_build_680 = 0
+	Dm_build_690 int32 = 0x00000FFF
 
-	Dm_build_681 = 0
+	Dm_build_691 int32 = 0
 
-	Dm_build_682 = 1
+	Dm_build_692 int32 = 1
 
-	Dm_build_683 = -1
+	Dm_build_693 int32 = 2
 
-	Dm_build_684 int16 = 0
+	Dm_build_694 int32 = 3
 
-	Dm_build_685 int16 = 1
+	Dm_build_695 = 8192
 
-	Dm_build_686 int16 = 2
+	Dm_build_696 = 1
 
-	Dm_build_687 int16 = 3
+	Dm_build_697 = 2
 
-	Dm_build_688 int16 = 4
+	Dm_build_698 = 0
 
-	Dm_build_689 int16 = 127
+	Dm_build_699 = 0
 
-	Dm_build_690 int16 = Dm_build_689 + 20
+	Dm_build_700 = 1
 
-	Dm_build_691 int16 = Dm_build_689 + 21
+	Dm_build_701 = -1
 
-	Dm_build_692 int16 = Dm_build_689 + 22
+	Dm_build_702 int16 = 0
 
-	Dm_build_693 int16 = Dm_build_689 + 24
+	Dm_build_703 int16 = 1
 
-	Dm_build_694 int16 = Dm_build_689 + 25
+	Dm_build_704 int16 = 2
 
-	Dm_build_695 int16 = Dm_build_689 + 26
+	Dm_build_705 int16 = 3
 
-	Dm_build_696 int16 = Dm_build_689 + 30
+	Dm_build_706 int16 = 4
 
-	Dm_build_697 int16 = Dm_build_689 + 31
+	Dm_build_707 int16 = 127
 
-	Dm_build_698 int16 = Dm_build_689 + 32
+	Dm_build_708 int16 = Dm_build_707 + 20
 
-	Dm_build_699 int16 = Dm_build_689 + 33
+	Dm_build_709 int16 = Dm_build_707 + 21
 
-	Dm_build_700 int16 = Dm_build_689 + 35
+	Dm_build_710 int16 = Dm_build_707 + 22
 
-	Dm_build_701 int16 = Dm_build_689 + 38
+	Dm_build_711 int16 = Dm_build_707 + 24
 
-	Dm_build_702 int16 = Dm_build_689 + 39
+	Dm_build_712 int16 = Dm_build_707 + 25
 
-	Dm_build_703 int16 = Dm_build_689 + 51
+	Dm_build_713 int16 = Dm_build_707 + 26
 
-	Dm_build_704 int16 = Dm_build_689 + 71
+	Dm_build_714 int16 = Dm_build_707 + 30
 
-	Dm_build_705 int16 = Dm_build_689 + 124
+	Dm_build_715 int16 = Dm_build_707 + 31
 
-	Dm_build_706 int16 = Dm_build_689 + 125
+	Dm_build_716 int16 = Dm_build_707 + 32
 
-	Dm_build_707 int16 = Dm_build_689 + 126
+	Dm_build_717 int16 = Dm_build_707 + 33
 
-	Dm_build_708 int16 = Dm_build_689 + 127
+	Dm_build_718 int16 = Dm_build_707 + 35
 
-	Dm_build_709 int16 = Dm_build_689 + 128
+	Dm_build_719 int16 = Dm_build_707 + 38
 
-	Dm_build_710 int16 = Dm_build_689 + 129
+	Dm_build_720 int16 = Dm_build_707 + 39
 
-	Dm_build_711 byte = 0
+	Dm_build_721 int16 = Dm_build_707 + 51
 
-	Dm_build_712 byte = 2
+	Dm_build_722 int16 = Dm_build_707 + 71
 
-	Dm_build_713 = 2048
+	Dm_build_723 int16 = Dm_build_707 + 124
 
-	Dm_build_714 = -1
+	Dm_build_724 int16 = Dm_build_707 + 125
 
-	Dm_build_715 = 0
+	Dm_build_725 int16 = Dm_build_707 + 126
 
-	Dm_build_716 = 16000
+	Dm_build_726 int16 = Dm_build_707 + 127
 
-	Dm_build_717 = 32000
+	Dm_build_727 int16 = Dm_build_707 + 128
 
-	Dm_build_718 = 0x00000000
+	Dm_build_728 int16 = Dm_build_707 + 129
 
-	Dm_build_719 = 0x00000020
+	Dm_build_729 byte = 0
 
-	Dm_build_720 = 0x00000040
+	Dm_build_730 byte = 2
 
-	Dm_build_721 = 0x00000FFF
+	Dm_build_731 = 2048
 
-	Dm_build_722 = 4
+	Dm_build_732 = -1
+
+	Dm_build_733 = 0
+
+	Dm_build_734 = 16000
+
+	Dm_build_735 = 32000
+
+	Dm_build_736 = 0x00000000
+
+	Dm_build_737 = 0x00000020
+
+	Dm_build_738 = 0x00000040
+
+	Dm_build_739 = 0x00000FFF
+
+	Dm_build_740 = 4
 )
 
-var Dm_build_723 = [8][256]uint32{
+var Dm_build_741 = [8][256]uint32{
 
 	{0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535,
 		0x9e6495a3, 0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988, 0x09b64c2b,
@@ -620,168 +638,172 @@ var Dm_build_723 = [8][256]uint32{
 		0xf5ae1d53, 0x2c8e0fff, 0xe0240f61, 0x6eab0882, 0xa201081c, 0xa8c40105,
 		0x646e019b, 0xeae10678, 0x264b06e6}}
 
-type dm_build_724 interface {
-	dm_build_725()
-	dm_build_726() error
-	dm_build_727()
-	dm_build_728(imsg dm_build_724) error
-	dm_build_729() error
-	dm_build_730() (interface{}, error)
-	dm_build_731()
-	dm_build_732(imsg dm_build_724) (interface{}, error)
-	dm_build_733()
-	dm_build_734() error
-	dm_build_735() byte
-	dm_build_736(buffer *Dm_build_0, startOff int32, endOff int32) uint32
-	dm_build_737() int32
-	dm_build_738(length int32)
-	dm_build_739() int16
+type dm_build_742 interface {
+	dm_build_743()
+	dm_build_744() error
+	dm_build_745()
+	dm_build_746(imsg dm_build_742) error
+	dm_build_747() error
+	dm_build_748() (interface{}, error)
+	dm_build_749()
+	dm_build_750(imsg dm_build_742) (interface{}, error)
+	dm_build_751()
+	dm_build_752() error
+	dm_build_753() byte
+	dm_build_754(buffer *Dm_build_0, startOff int32, endOff int32) uint32
+	dm_build_755() int32
+	dm_build_756(length int32)
+	dm_build_757() int16
 }
 
-type dm_build_740 struct {
-	dm_build_741 *Access
+type dm_build_758 struct {
+	dm_build_759 *dm_build_336
 
-	dm_build_742 int16
+	dm_build_760 int16
 
-	dm_build_743 int32
+	dm_build_761 int32
 
-	dm_build_744 *DmStatement
+	dm_build_762 *DmStatement
 }
 
-func (dm_build_746 *dm_build_740) dm_build_745(dm_build_747 *Access, dm_build_748 int16) *dm_build_740 {
-	dm_build_746.dm_build_741 = dm_build_747
-	dm_build_746.dm_build_742 = dm_build_748
-	return dm_build_746
+func (dm_build_764 *dm_build_758) dm_build_763(dm_build_765 *dm_build_336, dm_build_766 int16) *dm_build_758 {
+	dm_build_764.dm_build_759 = dm_build_765
+	dm_build_764.dm_build_760 = dm_build_766
+	return dm_build_764
 }
 
-func (dm_build_750 *dm_build_740) dm_build_749(dm_build_751 *Access, dm_build_752 int16, dm_build_753 *DmStatement) *dm_build_740 {
-	dm_build_750.dm_build_745(dm_build_751, dm_build_752).dm_build_744 = dm_build_753
-	return dm_build_750
+func (dm_build_768 *dm_build_758) dm_build_767(dm_build_769 *dm_build_336, dm_build_770 int16, dm_build_771 *DmStatement) *dm_build_758 {
+	dm_build_768.dm_build_763(dm_build_769, dm_build_770).dm_build_762 = dm_build_771
+	return dm_build_768
 }
 
-func dm_build_754(dm_build_755 *Access, dm_build_756 int16) *dm_build_740 {
-	return new(dm_build_740).dm_build_745(dm_build_755, dm_build_756)
+func dm_build_772(dm_build_773 *dm_build_336, dm_build_774 int16) *dm_build_758 {
+	return new(dm_build_758).dm_build_763(dm_build_773, dm_build_774)
 }
 
-func dm_build_757(dm_build_758 *Access, dm_build_759 int16, dm_build_760 *DmStatement) *dm_build_740 {
-	return new(dm_build_740).dm_build_749(dm_build_758, dm_build_759, dm_build_760)
+func dm_build_775(dm_build_776 *dm_build_336, dm_build_777 int16, dm_build_778 *DmStatement) *dm_build_758 {
+	return new(dm_build_758).dm_build_767(dm_build_776, dm_build_777, dm_build_778)
 }
 
-func (dm_build_762 *dm_build_740) dm_build_725() {
-	dm_build_762.dm_build_741.dm_build_335.Dm_build_14(0)
-	dm_build_762.dm_build_741.dm_build_335.Dm_build_25(Dm_build_632, true, true)
+func (dm_build_780 *dm_build_758) dm_build_743() {
+	dm_build_780.dm_build_759.dm_build_339.Dm_build_14(0)
+	dm_build_780.dm_build_759.dm_build_339.Dm_build_25(Dm_build_650, true, true)
 }
 
-func (dm_build_764 *dm_build_740) dm_build_726() error {
+func (dm_build_782 *dm_build_758) dm_build_744() error {
 	return nil
 }
 
-func (dm_build_766 *dm_build_740) dm_build_727() {
-	if dm_build_766.dm_build_744 == nil {
-		dm_build_766.dm_build_741.dm_build_335.Dm_build_191(Dm_build_634, 0)
+func (dm_build_784 *dm_build_758) dm_build_745() {
+	if dm_build_784.dm_build_762 == nil {
+		dm_build_784.dm_build_759.dm_build_339.Dm_build_195(Dm_build_652, 0)
 	} else {
-		dm_build_766.dm_build_741.dm_build_335.Dm_build_191(Dm_build_634, dm_build_766.dm_build_744.id)
+		dm_build_784.dm_build_759.dm_build_339.Dm_build_195(Dm_build_652, dm_build_784.dm_build_762.id)
 	}
 
-	dm_build_766.dm_build_741.dm_build_335.Dm_build_187(Dm_build_635, dm_build_766.dm_build_742)
-	dm_build_766.dm_build_741.dm_build_335.Dm_build_191(Dm_build_636, int32(dm_build_766.dm_build_741.dm_build_335.Dm_build_12()-Dm_build_632))
+	dm_build_784.dm_build_759.dm_build_339.Dm_build_191(Dm_build_653, dm_build_784.dm_build_760)
+	dm_build_784.dm_build_759.dm_build_339.Dm_build_195(Dm_build_654, int32(dm_build_784.dm_build_759.dm_build_339.Dm_build_12()-Dm_build_650))
 }
 
-func (dm_build_768 *dm_build_740) dm_build_729() error {
-	dm_build_768.dm_build_741.dm_build_335.Dm_build_17(0)
-	dm_build_768.dm_build_741.dm_build_335.Dm_build_25(Dm_build_632, false, true)
-	return dm_build_768.dm_build_773()
+func (dm_build_786 *dm_build_758) dm_build_747() error {
+	dm_build_786.dm_build_759.dm_build_339.Dm_build_17(0)
+	dm_build_786.dm_build_759.dm_build_339.Dm_build_25(Dm_build_650, false, true)
+	return dm_build_786.dm_build_791()
 }
 
-func (dm_build_770 *dm_build_740) dm_build_730() (interface{}, error) {
+func (dm_build_788 *dm_build_758) dm_build_748() (interface{}, error) {
 	return nil, nil
 }
 
-func (dm_build_772 *dm_build_740) dm_build_731() {
+func (dm_build_790 *dm_build_758) dm_build_749() {
 }
 
-func (dm_build_774 *dm_build_740) dm_build_773() error {
-	dm_build_774.dm_build_743 = dm_build_774.dm_build_741.dm_build_335.Dm_build_269(Dm_build_637)
-	if dm_build_774.dm_build_743 < 0 && dm_build_774.dm_build_743 != EC_RN_EXCEED_ROWSET_SIZE.ErrCode {
-		return (&DmError{dm_build_774.dm_build_743, dm_build_774.dm_build_775(), nil, ""}).throw()
-	} else if dm_build_774.dm_build_743 > 0 {
+func (dm_build_792 *dm_build_758) dm_build_791() error {
+	dm_build_792.dm_build_761 = dm_build_792.dm_build_759.dm_build_339.Dm_build_273(Dm_build_655)
+	if dm_build_792.dm_build_761 < 0 && dm_build_792.dm_build_761 != EC_RN_EXCEED_ROWSET_SIZE.ErrCode {
+		return (&DmError{dm_build_792.dm_build_761, dm_build_792.dm_build_793(), nil, ""}).throw()
+	} else if dm_build_792.dm_build_761 > 0 {
 
-	} else if dm_build_774.dm_build_742 == Dm_build_631 || dm_build_774.dm_build_742 == Dm_build_605 {
-		dm_build_774.dm_build_775()
+	} else if dm_build_792.dm_build_760 == Dm_build_649 || dm_build_792.dm_build_760 == Dm_build_623 {
+		dm_build_792.dm_build_793()
 	}
 
 	return nil
 }
 
-func (dm_build_776 *dm_build_740) dm_build_775() string {
+func (dm_build_794 *dm_build_758) dm_build_793() string {
 
-	dm_build_777 := dm_build_776.dm_build_741.conn.getServerEncoding()
+	dm_build_795 := dm_build_794.dm_build_759.dm_build_340.getServerEncoding()
 
-	if dm_build_777 != "" && dm_build_777 == ENCODING_EUCKR && Locale != LANGUAGE_EN {
-		dm_build_777 = ENCODING_GB18030
+	if Locale != LANGUAGE_EN && dm_build_795 == ENCODING_EUCKR {
+		dm_build_795 = ENCODING_GB18030
 	}
 
-	dm_build_776.dm_build_741.dm_build_335.Dm_build_25(int(dm_build_776.dm_build_741.dm_build_335.Dm_build_125()), false, true)
+	if Locale == LANGUAGE_CNT_HK && dm_build_795 != ENCODING_UTF8 {
+		dm_build_795 = ENCODING_BIG5
+	}
 
-	dm_build_776.dm_build_741.dm_build_335.Dm_build_25(int(dm_build_776.dm_build_741.dm_build_335.Dm_build_125()), false, true)
+	dm_build_794.dm_build_759.dm_build_339.Dm_build_25(int(dm_build_794.dm_build_759.dm_build_339.Dm_build_129()), false, true)
 
-	dm_build_776.dm_build_741.dm_build_335.Dm_build_25(int(dm_build_776.dm_build_741.dm_build_335.Dm_build_125()), false, true)
+	dm_build_794.dm_build_759.dm_build_339.Dm_build_25(int(dm_build_794.dm_build_759.dm_build_339.Dm_build_129()), false, true)
 
-	return dm_build_776.dm_build_741.dm_build_335.Dm_build_167(dm_build_777, dm_build_776.dm_build_741.conn)
+	dm_build_794.dm_build_759.dm_build_339.Dm_build_25(int(dm_build_794.dm_build_759.dm_build_339.Dm_build_129()), false, true)
+
+	return dm_build_794.dm_build_759.dm_build_339.Dm_build_171(dm_build_795, dm_build_794.dm_build_759.dm_build_340)
 }
 
-func (dm_build_779 *dm_build_740) dm_build_728(dm_build_780 dm_build_724) (dm_build_781 error) {
-	dm_build_780.dm_build_725()
-	if dm_build_781 = dm_build_780.dm_build_726(); dm_build_781 != nil {
-		return dm_build_781
+func (dm_build_797 *dm_build_758) dm_build_746(dm_build_798 dm_build_742) (dm_build_799 error) {
+	dm_build_798.dm_build_743()
+	if dm_build_799 = dm_build_798.dm_build_744(); dm_build_799 != nil {
+		return dm_build_799
 	}
-	dm_build_780.dm_build_727()
+	dm_build_798.dm_build_745()
 	return nil
 }
 
-func (dm_build_783 *dm_build_740) dm_build_732(dm_build_784 dm_build_724) (dm_build_785 interface{}, dm_build_786 error) {
-	dm_build_786 = dm_build_784.dm_build_729()
-	if dm_build_786 != nil {
-		return nil, dm_build_786
+func (dm_build_801 *dm_build_758) dm_build_750(dm_build_802 dm_build_742) (dm_build_803 interface{}, dm_build_804 error) {
+	dm_build_804 = dm_build_802.dm_build_747()
+	if dm_build_804 != nil {
+		return nil, dm_build_804
 	}
-	dm_build_785, dm_build_786 = dm_build_784.dm_build_730()
-	if dm_build_786 != nil {
-		return nil, dm_build_786
+	dm_build_803, dm_build_804 = dm_build_802.dm_build_748()
+	if dm_build_804 != nil {
+		return nil, dm_build_804
 	}
-	dm_build_784.dm_build_731()
-	return dm_build_785, nil
+	dm_build_802.dm_build_749()
+	return dm_build_803, nil
 }
 
-func (dm_build_788 *dm_build_740) dm_build_733() {
-	if dm_build_788.dm_build_741.dm_build_341 {
+func (dm_build_806 *dm_build_758) dm_build_751() {
+	if dm_build_806.dm_build_759.dm_build_345 {
 
-		var orgLen = dm_build_788.dm_build_737()
+		var orgLen = dm_build_806.dm_build_755()
 
-		dm_build_788.dm_build_738(orgLen + Dm_build_722)
-		var crc = dm_build_788.dm_build_736(dm_build_788.dm_build_741.dm_build_335, 0, Dm_build_632+orgLen)
-		dm_build_788.dm_build_741.dm_build_335.Dm_build_63(crc)
+		dm_build_806.dm_build_756(orgLen + Dm_build_740)
+		var crc = dm_build_806.dm_build_754(dm_build_806.dm_build_759.dm_build_339, 0, Dm_build_650+orgLen)
+		dm_build_806.dm_build_759.dm_build_339.Dm_build_67(crc)
 	} else {
-		dm_build_788.dm_build_741.dm_build_335.Dm_build_183(Dm_build_640, dm_build_788.dm_build_735())
+		dm_build_806.dm_build_759.dm_build_339.Dm_build_187(Dm_build_658, dm_build_806.dm_build_753())
 	}
 }
 
-func (dm_build_790 *dm_build_740) dm_build_734() error {
-	if dm_build_790.dm_build_741.dm_build_341 {
+func (dm_build_808 *dm_build_758) dm_build_752() error {
+	if dm_build_808.dm_build_759.dm_build_345 {
 
-		var bodyLen = dm_build_790.dm_build_737() - Dm_build_722
-		var msgLen = Dm_build_632 + bodyLen
-		var recv = dm_build_790.dm_build_741.dm_build_335.Dm_build_287(int(msgLen))
-		var calc = dm_build_790.dm_build_736(dm_build_790.dm_build_741.dm_build_335, 0, msgLen)
+		var bodyLen = dm_build_808.dm_build_755() - Dm_build_740
+		var msgLen = Dm_build_650 + bodyLen
+		var recv = dm_build_808.dm_build_759.dm_build_339.Dm_build_291(int(msgLen))
+		var calc = dm_build_808.dm_build_754(dm_build_808.dm_build_759.dm_build_339, 0, msgLen)
 		if recv != calc {
 			return ECGO_MSG_CHECK_ERROR.throw()
 		}
 
-		dm_build_790.dm_build_738(bodyLen)
-		dm_build_790.dm_build_741.dm_build_335.Dm_build_14(int(msgLen))
+		dm_build_808.dm_build_756(bodyLen)
+		dm_build_808.dm_build_759.dm_build_339.Dm_build_14(int(msgLen))
 		return nil
 	} else {
-		var recv = dm_build_790.dm_build_741.dm_build_335.Dm_build_263(Dm_build_640)
-		var calc = dm_build_790.dm_build_735()
+		var recv = dm_build_808.dm_build_759.dm_build_339.Dm_build_267(Dm_build_658)
+		var calc = dm_build_808.dm_build_753()
 		if recv != calc {
 			return ECGO_MSG_CHECK_ERROR.throw()
 		}
@@ -789,242 +811,290 @@ func (dm_build_790 *dm_build_740) dm_build_734() error {
 	}
 }
 
-func (dm_build_792 *dm_build_740) dm_build_735() byte {
-	dm_build_793 := dm_build_792.dm_build_741.dm_build_335.Dm_build_263(0)
+func (dm_build_810 *dm_build_758) dm_build_753() byte {
+	dm_build_811 := dm_build_810.dm_build_759.dm_build_339.Dm_build_267(0)
 
-	for i := 1; i < Dm_build_640; i++ {
-		dm_build_793 ^= dm_build_792.dm_build_741.dm_build_335.Dm_build_263(i)
+	for i := 1; i < Dm_build_658; i++ {
+		dm_build_811 ^= dm_build_810.dm_build_759.dm_build_339.Dm_build_267(i)
 	}
 
-	return dm_build_793
+	return dm_build_811
 }
 
-func (dm_build_795 *dm_build_740) dm_build_736(dm_build_796 *Dm_build_0, dm_build_797 int32, dm_build_798 int32) uint32 {
+func (dm_build_813 *dm_build_758) dm_build_754(dm_build_814 *Dm_build_0, dm_build_815 int32, dm_build_816 int32) uint32 {
 
-	var dm_build_799 uint32 = 0xFFFFFFFF
-	var dm_build_800 = dm_build_797
-	var dm_build_801 = dm_build_798 - dm_build_797
-	var dm_build_802, dm_build_803 uint32
+	var dm_build_817 uint32 = 0xFFFFFFFF
+	var dm_build_818 = dm_build_815
+	var dm_build_819 = dm_build_816 - dm_build_815
+	var dm_build_820, dm_build_821 uint32
 
-	for dm_build_801 >= 8 {
-		dm_build_802 = dm_build_796.Dm_build_287(int(dm_build_800)) ^ dm_build_799
-		dm_build_800 += ULINT_SIZE
+	for dm_build_819 >= 8 {
+		dm_build_820 = dm_build_814.Dm_build_291(int(dm_build_818)) ^ dm_build_817
+		dm_build_818 += ULINT_SIZE
 
-		dm_build_803 = dm_build_796.Dm_build_287(int(dm_build_800))
-		dm_build_800 += ULINT_SIZE
+		dm_build_821 = dm_build_814.Dm_build_291(int(dm_build_818))
+		dm_build_818 += ULINT_SIZE
 
-		dm_build_799 = Dm_build_723[7][dm_build_802&0xFF] ^ Dm_build_723[6][(dm_build_802>>8)&0xFF] ^
-			Dm_build_723[5][(dm_build_802>>16)&0xFF] ^ Dm_build_723[4][(dm_build_802>>24)&0xFF] ^
-			Dm_build_723[3][dm_build_803&0xFF] ^ Dm_build_723[2][(dm_build_803>>8)&0xFF] ^
-			Dm_build_723[1][(dm_build_803>>16)&0xFF] ^ Dm_build_723[0][(dm_build_803>>24)&0xFF]
-		dm_build_801 -= 8
+		dm_build_817 = Dm_build_741[7][dm_build_820&0xFF] ^ Dm_build_741[6][(dm_build_820>>8)&0xFF] ^
+			Dm_build_741[5][(dm_build_820>>16)&0xFF] ^ Dm_build_741[4][(dm_build_820>>24)&0xFF] ^
+			Dm_build_741[3][dm_build_821&0xFF] ^ Dm_build_741[2][(dm_build_821>>8)&0xFF] ^
+			Dm_build_741[1][(dm_build_821>>16)&0xFF] ^ Dm_build_741[0][(dm_build_821>>24)&0xFF]
+		dm_build_819 -= 8
 	}
 
-	for dm_build_801 > 0 {
-		dm_build_799 = ((dm_build_799 >> 8) & 0x00FFFFFF) ^ Dm_build_723[0][(dm_build_799&0xFF)^uint32(dm_build_796.Dm_build_281(int(dm_build_800)))]
-		dm_build_800++
-		dm_build_801--
+	for dm_build_819 > 0 {
+		dm_build_817 = ((dm_build_817 >> 8) & 0x00FFFFFF) ^ Dm_build_741[0][(dm_build_817&0xFF)^uint32(dm_build_814.Dm_build_285(int(dm_build_818)))]
+		dm_build_818++
+		dm_build_819--
 	}
-	return ^dm_build_799
+	return ^dm_build_817
 }
 
-func (dm_build_805 *dm_build_740) dm_build_737() int32 {
-	return dm_build_805.dm_build_741.dm_build_335.Dm_build_269(Dm_build_636)
+func (dm_build_823 *dm_build_758) dm_build_755() int32 {
+	return dm_build_823.dm_build_759.dm_build_339.Dm_build_273(Dm_build_654)
 }
 
-func (dm_build_807 *dm_build_740) dm_build_738(dm_build_808 int32) {
-	dm_build_807.dm_build_741.dm_build_335.Dm_build_191(Dm_build_636, dm_build_808)
+func (dm_build_825 *dm_build_758) dm_build_756(dm_build_826 int32) {
+	dm_build_825.dm_build_759.dm_build_339.Dm_build_195(Dm_build_654, dm_build_826)
 }
 
-func (dm_build_810 *dm_build_740) dm_build_739() int16 {
-	return dm_build_810.dm_build_742
+func (dm_build_828 *dm_build_758) dm_build_757() int16 {
+	return dm_build_828.dm_build_760
 }
 
-type dm_build_811 struct {
-	dm_build_740
+type dm_build_829 struct {
+	dm_build_758
 }
 
-func dm_build_812(dm_build_813 *Access) *dm_build_811 {
-	dm_build_814 := new(dm_build_811)
-	dm_build_814.dm_build_745(dm_build_813, Dm_build_612)
-	return dm_build_814
+func dm_build_830(dm_build_831 *dm_build_336) *dm_build_829 {
+	dm_build_832 := new(dm_build_829)
+	dm_build_832.dm_build_763(dm_build_831, Dm_build_630)
+	return dm_build_832
 }
 
-type dm_build_815 struct {
-	dm_build_740
-	dm_build_816 string
+type dm_build_833 struct {
+	dm_build_758
+	dm_build_834 string
 }
 
-func dm_build_817(dm_build_818 *Access, dm_build_819 *DmStatement, dm_build_820 string) *dm_build_815 {
-	dm_build_821 := new(dm_build_815)
-	dm_build_821.dm_build_749(dm_build_818, Dm_build_620, dm_build_819)
-	dm_build_821.dm_build_816 = dm_build_820
-	dm_build_821.dm_build_744.cursorName = dm_build_820
-	return dm_build_821
+func dm_build_835(dm_build_836 *dm_build_336, dm_build_837 *DmStatement, dm_build_838 string) *dm_build_833 {
+	dm_build_839 := new(dm_build_833)
+	dm_build_839.dm_build_767(dm_build_836, Dm_build_638, dm_build_837)
+	dm_build_839.dm_build_834 = dm_build_838
+	dm_build_839.dm_build_762.cursorName = dm_build_838
+	return dm_build_839
 }
 
-func (dm_build_823 *dm_build_815) dm_build_726() error {
-	dm_build_823.dm_build_741.dm_build_335.Dm_build_113(dm_build_823.dm_build_816, dm_build_823.dm_build_741.conn.getServerEncoding(), dm_build_823.dm_build_741.conn)
-	dm_build_823.dm_build_741.dm_build_335.Dm_build_51(1)
+func (dm_build_841 *dm_build_833) dm_build_744() error {
+	dm_build_841.dm_build_759.dm_build_339.Dm_build_117(dm_build_841.dm_build_834, dm_build_841.dm_build_759.dm_build_340.getServerEncoding(), dm_build_841.dm_build_759.dm_build_340)
+	dm_build_841.dm_build_759.dm_build_339.Dm_build_55(1)
 	return nil
 }
 
-type Dm_build_824 struct {
-	dm_build_840
-	dm_build_825 []OptParameter
+const Dm_build_842 = 62
+
+type Dm_build_843 struct {
+	dm_build_866
+	dm_build_844 []OptParameter
 }
 
-func dm_build_826(dm_build_827 *Access, dm_build_828 *DmStatement, dm_build_829 []OptParameter) *Dm_build_824 {
-	dm_build_830 := new(Dm_build_824)
-	dm_build_830.dm_build_749(dm_build_827, Dm_build_630, dm_build_828)
-	dm_build_830.dm_build_825 = dm_build_829
-	return dm_build_830
+func dm_build_845(dm_build_846 *dm_build_336, dm_build_847 *DmStatement, dm_build_848 []OptParameter) *Dm_build_843 {
+	dm_build_849 := new(Dm_build_843)
+	dm_build_849.dm_build_767(dm_build_846, Dm_build_648, dm_build_847)
+	dm_build_849.dm_build_844 = dm_build_848
+	return dm_build_849
 }
 
-func (dm_build_832 *Dm_build_824) dm_build_726() error {
-	dm_build_833 := len(dm_build_832.dm_build_825)
+func (dm_build_851 *Dm_build_843) dm_build_744() error {
+	dm_build_852 := len(dm_build_851.dm_build_844)
 
-	dm_build_832.dm_build_854(int32(dm_build_833), 1)
+	if err := dm_build_851.dm_build_882(int32(dm_build_852), 1); err != nil {
+		return err
+	}
+	dm_build_851.dm_build_759.dm_build_339.Dm_build_187(Dm_build_842, 0)
 
-	dm_build_832.dm_build_741.dm_build_335.Dm_build_113(dm_build_832.dm_build_744.nativeSql, dm_build_832.dm_build_744.dmConn.getServerEncoding(), dm_build_832.dm_build_744.dmConn)
-
-	for _, param := range dm_build_832.dm_build_825 {
-		dm_build_832.dm_build_741.dm_build_335.Dm_build_43(param.ioType)
-		dm_build_832.dm_build_741.dm_build_335.Dm_build_51(int32(param.tp))
-		dm_build_832.dm_build_741.dm_build_335.Dm_build_51(int32(param.prec))
-		dm_build_832.dm_build_741.dm_build_335.Dm_build_51(int32(param.scale))
+	if dm_build_851.dm_build_759.dm_build_340.MsgVersion >= Dm_build_615 {
+		dm_build_851.dm_build_897()
+		dm_build_851.dm_build_759.dm_build_339.Dm_build_187(Dm_build_864, byte(dm_build_851.dm_build_869))
 	}
 
-	for _, param := range dm_build_832.dm_build_825 {
+	dm_build_851.dm_build_759.dm_build_339.Dm_build_117(dm_build_851.dm_build_762.nativeSql, dm_build_851.dm_build_762.dmConn.getServerEncoding(), dm_build_851.dm_build_762.dmConn)
+
+	for _, param := range dm_build_851.dm_build_844 {
+		dm_build_851.dm_build_759.dm_build_339.Dm_build_43(param.ioType)
+		dm_build_851.dm_build_759.dm_build_339.Dm_build_55(int32(param.tp))
+		dm_build_851.dm_build_759.dm_build_339.Dm_build_55(int32(param.prec))
+		dm_build_851.dm_build_759.dm_build_339.Dm_build_55(int32(param.scale))
+	}
+
+	for _, param := range dm_build_851.dm_build_844 {
 		if param.bytes == nil {
-			dm_build_832.dm_build_741.dm_build_335.Dm_build_59(Dm_build_649)
+			dm_build_851.dm_build_759.dm_build_339.Dm_build_63(uint16(Dm_build_667))
 		} else {
-			dm_build_832.dm_build_741.dm_build_335.Dm_build_89(param.bytes[:len(param.bytes)])
+			var dataBytes = param.bytes[:len(param.bytes)]
+			if len(dataBytes) > int(Dm_build_664) {
+				if dm_build_851.dm_build_759.dm_build_340.MsgVersion >= Dm_build_618 && len(dataBytes) < 0xffffffff &&
+					isComplexType(param.tp, param.scale) {
+					dm_build_851.dm_build_759.dm_build_339.Dm_build_63(uint16(Dm_build_668))
+					dm_build_851.dm_build_759.dm_build_339.Dm_build_87(dataBytes)
+					continue
+				}
+				return ECGO_DATA_TOO_LONG.throw()
+			}
+			dm_build_851.dm_build_759.dm_build_339.Dm_build_93(dataBytes)
 		}
 	}
 	return nil
 }
 
-func (dm_build_835 *Dm_build_824) dm_build_730() (interface{}, error) {
-	return dm_build_835.dm_build_840.dm_build_730()
+func (dm_build_854 *Dm_build_843) dm_build_748() (interface{}, error) {
+	return dm_build_854.dm_build_866.dm_build_748()
 }
 
 const (
-	Dm_build_836 int = 0x01
+	Dm_build_855 int = 0x01
 
-	Dm_build_837 int = 0x02
+	Dm_build_856 int = 0x02
 
-	Dm_build_838 int = 0x04
+	Dm_build_857 int = 0x04
 
-	Dm_build_839 int = 0x08
+	Dm_build_858 int = 0x08
+
+	Dm_build_859 int = 0x0100
+
+	Dm_build_860 int32 = 0x00
+
+	Dm_build_861 int32 = 0x01
+
+	Dm_build_862 int32 = 0x02
+
+	Dm_build_863 int32 = 0x03
+
+	Dm_build_864 = 48
+
+	Dm_build_865 = 59
 )
 
-type dm_build_840 struct {
-	dm_build_740
-	dm_build_841 [][]interface{}
-	dm_build_842 []parameter
-	dm_build_843 bool
+type dm_build_866 struct {
+	dm_build_758
+	dm_build_867 [][]interface{}
+	dm_build_868 []parameter
+
+	dm_build_869 int32
+	dm_build_870 int32
+	dm_build_871 int32
 }
 
-func dm_build_844(dm_build_845 *Access, dm_build_846 int16, dm_build_847 *DmStatement) *dm_build_840 {
-	dm_build_848 := new(dm_build_840)
-	dm_build_848.dm_build_749(dm_build_845, dm_build_846, dm_build_847)
-	dm_build_848.dm_build_843 = true
-	return dm_build_848
+func dm_build_872(dm_build_873 *dm_build_336, dm_build_874 int16, dm_build_875 *DmStatement) *dm_build_866 {
+	dm_build_876 := new(dm_build_866)
+	dm_build_876.dm_build_767(dm_build_873, dm_build_874, dm_build_875)
+
+	return dm_build_876
 }
 
-func dm_build_849(dm_build_850 *Access, dm_build_851 *DmStatement, dm_build_852 [][]interface{}) *dm_build_840 {
-	dm_build_853 := new(dm_build_840)
+func dm_build_877(dm_build_878 *dm_build_336, dm_build_879 *DmStatement, dm_build_880 [][]interface{}) *dm_build_866 {
+	dm_build_881 := new(dm_build_866)
 
-	if dm_build_850.conn.Execute2 {
-		dm_build_853.dm_build_749(dm_build_850, Dm_build_614, dm_build_851)
+	if dm_build_878.dm_build_340.Execute2 {
+		dm_build_881.dm_build_767(dm_build_878, Dm_build_632, dm_build_879)
 	} else {
-		dm_build_853.dm_build_749(dm_build_850, Dm_build_610, dm_build_851)
+		dm_build_881.dm_build_767(dm_build_878, Dm_build_628, dm_build_879)
 	}
 
-	dm_build_853.dm_build_842 = dm_build_851.params
-	dm_build_853.dm_build_841 = dm_build_852
-	dm_build_853.dm_build_843 = true
-	return dm_build_853
+	dm_build_881.dm_build_868 = dm_build_879.bindParams
+	dm_build_881.dm_build_867 = dm_build_880
+
+	return dm_build_881
 }
 
-func (dm_build_855 *dm_build_840) dm_build_854(dm_build_856 int32, dm_build_857 int64) {
+func (dm_build_883 *dm_build_866) dm_build_882(dm_build_884 int32, dm_build_885 int64) error {
 
-	dm_build_858 := Dm_build_633
+	dm_build_886 := Dm_build_651
 
-	if dm_build_855.dm_build_741.conn.autoCommit {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
+	if dm_build_883.dm_build_759.dm_build_340.autoCommit {
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 1)
 	} else {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 0)
 	}
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_211(dm_build_858, uint16(dm_build_856))
+	if dm_build_884 > PARAM_COUNT_LIMIT {
+		return ECGO_PARAM_COUNT_LIMIT.throw()
+	}
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_215(dm_build_886, uint16(dm_build_884))
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 1)
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_195(dm_build_858, dm_build_857)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_199(dm_build_886, dm_build_885)
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_195(dm_build_858, dm_build_855.dm_build_744.cursorUpdateRow)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_199(dm_build_886, dm_build_883.dm_build_762.cursorUpdateRow)
 
-	if dm_build_855.dm_build_744.maxRows <= 0 || dm_build_855.dm_build_744.dmConn.dmConnector.enRsCache {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_195(dm_build_858, INT64_MAX)
+	if dm_build_883.dm_build_762.maxRows <= 0 || dm_build_883.dm_build_762.dmConn.dmConnector.enRsCache {
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_199(dm_build_886, INT64_MAX)
 	} else {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_195(dm_build_858, dm_build_855.dm_build_744.maxRows)
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_199(dm_build_886, dm_build_883.dm_build_762.maxRows)
 	}
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 1)
 
-	if dm_build_855.dm_build_741.conn.dmConnector.continueBatchOnError {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
+	if dm_build_883.dm_build_759.dm_build_340.dmConnector.continueBatchOnError {
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 1)
 	} else {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 0)
 	}
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 0)
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 0)
 
-	if dm_build_855.dm_build_744.queryTimeout == 0 {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_191(dm_build_858, -1)
+	if dm_build_883.dm_build_762.queryTimeout == 0 {
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_195(dm_build_886, -1)
 	} else {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_191(dm_build_858, dm_build_855.dm_build_744.queryTimeout)
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_195(dm_build_886, dm_build_883.dm_build_762.queryTimeout)
 	}
 
-	dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_191(dm_build_858, dm_build_855.dm_build_741.conn.dmConnector.batchAllowMaxErrors)
+	dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_195(dm_build_886, dm_build_883.dm_build_759.dm_build_340.dmConnector.batchAllowMaxErrors)
 
-	if dm_build_855.dm_build_744.innerExec {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 1)
+	if dm_build_883.dm_build_762.innerExec {
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 1)
 	} else {
-		dm_build_858 += dm_build_855.dm_build_741.dm_build_335.Dm_build_183(dm_build_858, 0)
+		dm_build_886 += dm_build_883.dm_build_759.dm_build_339.Dm_build_187(dm_build_886, 0)
 	}
+	return nil
 }
 
-func (dm_build_860 *dm_build_840) dm_build_726() error {
-	var dm_build_861 int32
-	var dm_build_862 int64
+func (dm_build_888 *dm_build_866) dm_build_744() error {
+	var dm_build_889 int32
+	var dm_build_890 int64
 
-	if dm_build_860.dm_build_842 != nil {
-		dm_build_861 = int32(len(dm_build_860.dm_build_842))
+	if dm_build_888.dm_build_868 != nil {
+		dm_build_889 = int32(len(dm_build_888.dm_build_868))
 	} else {
-		dm_build_861 = 0
+		dm_build_889 = 0
 	}
 
-	if dm_build_860.dm_build_841 != nil {
-		dm_build_862 = int64(len(dm_build_860.dm_build_841))
+	if dm_build_888.dm_build_867 != nil {
+		dm_build_890 = int64(len(dm_build_888.dm_build_867))
 	} else {
-		dm_build_862 = 0
+		dm_build_890 = 0
 	}
 
-	dm_build_860.dm_build_854(dm_build_861, dm_build_862)
+	if err := dm_build_888.dm_build_882(dm_build_889, dm_build_890); err != nil {
+		return err
+	}
 
-	if dm_build_861 > 0 {
-		err := dm_build_860.dm_build_863(dm_build_860.dm_build_842)
+	if dm_build_888.dm_build_759.dm_build_340.MsgVersion >= Dm_build_615 {
+		dm_build_888.dm_build_897()
+		dm_build_888.dm_build_759.dm_build_339.Dm_build_187(Dm_build_864, byte(dm_build_888.dm_build_869))
+	}
+
+	if dm_build_889 > 0 {
+		err := dm_build_888.dm_build_891(dm_build_888.dm_build_868)
 		if err != nil {
 			return err
 		}
-		if dm_build_860.dm_build_841 != nil && len(dm_build_860.dm_build_841) > 0 {
-			for _, paramObject := range dm_build_860.dm_build_841 {
-				if err := dm_build_860.dm_build_866(paramObject); err != nil {
+		if dm_build_888.dm_build_867 != nil && len(dm_build_888.dm_build_867) > 0 {
+			for _, paramObject := range dm_build_888.dm_build_867 {
+				if err := dm_build_888.dm_build_894(paramObject); err != nil {
 					return err
 				}
 			}
@@ -1034,16 +1104,27 @@ func (dm_build_860 *dm_build_840) dm_build_726() error {
 	return nil
 }
 
-func (dm_build_864 *dm_build_840) dm_build_863(dm_build_865 []parameter) error {
-	for _, param := range dm_build_865 {
+func (dm_build_892 *dm_build_866) dm_build_891(dm_build_893 []parameter) error {
+	for _, param := range dm_build_893 {
+		if param.mask == MASK_ORACLE_DATE {
 
-		if param.colType == CURSOR && param.ioType == IO_TYPE_OUT {
-			dm_build_864.dm_build_741.dm_build_335.Dm_build_43(IO_TYPE_INOUT)
-		} else {
-			dm_build_864.dm_build_741.dm_build_335.Dm_build_43(param.ioType)
+			param.scale = param.scale | ORACLE_DATE_SCALE_MASK
+		} else if param.mask == MASK_LOCAL_DATETIME {
+
+			param.scale = param.scale | LOCAL_DATETIME_SCALE_MASK
+		} else if param.mask == MASK_ORACLE_FLOAT {
+
+			param.prec = int32(math.Round(float64(param.prec) * 3.32193))
+			param.scale = ORACLE_FLOAT_SCALE_MASK
 		}
 
-		dm_build_864.dm_build_741.dm_build_335.Dm_build_51(param.colType)
+		if param.colType == CURSOR && param.ioType == IO_TYPE_OUT {
+			dm_build_892.dm_build_759.dm_build_339.Dm_build_47(IO_TYPE_INOUT)
+		} else {
+			dm_build_892.dm_build_759.dm_build_339.Dm_build_47(param.ioType)
+		}
+
+		dm_build_892.dm_build_759.dm_build_339.Dm_build_55(param.colType)
 
 		lprec := param.prec
 		lscale := param.scale
@@ -1076,25 +1157,25 @@ func (dm_build_864 *dm_build_840) dm_build_863(dm_build_865 []parameter) error {
 			}
 		}
 
-		dm_build_864.dm_build_741.dm_build_335.Dm_build_51(lprec)
+		dm_build_892.dm_build_759.dm_build_339.Dm_build_55(lprec)
 
-		dm_build_864.dm_build_741.dm_build_335.Dm_build_51(lscale)
+		dm_build_892.dm_build_759.dm_build_339.Dm_build_55(lscale)
 
 		switch param.colType {
 		case ARRAY, SARRAY:
-			err := packArray(typeDesc, dm_build_864.dm_build_741.dm_build_335)
+			err := packArray(typeDesc, dm_build_892.dm_build_759.dm_build_339)
 			if err != nil {
 				return err
 			}
 
 		case PLTYPE_RECORD:
-			err := packRecord(typeDesc, dm_build_864.dm_build_741.dm_build_335)
+			err := packRecord(typeDesc, dm_build_892.dm_build_759.dm_build_339)
 			if err != nil {
 				return err
 			}
 
 		case CLASS:
-			err := packClass(typeDesc, dm_build_864.dm_build_741.dm_build_335)
+			err := packClass(typeDesc, dm_build_892.dm_build_759.dm_build_339)
 			if err != nil {
 				return err
 			}
@@ -1105,356 +1186,391 @@ func (dm_build_864 *dm_build_840) dm_build_863(dm_build_865 []parameter) error {
 	return nil
 }
 
-func (dm_build_867 *dm_build_840) dm_build_866(dm_build_868 []interface{}) error {
-	for i := 0; i < len(dm_build_867.dm_build_842); i++ {
+func (dm_build_895 *dm_build_866) dm_build_894(dm_build_896 []interface{}) error {
+	for i := 0; i < len(dm_build_895.dm_build_868); i++ {
 
-		if dm_build_867.dm_build_842[i].colType == CURSOR {
-			dm_build_867.dm_build_741.dm_build_335.Dm_build_47(ULINT_SIZE)
-			dm_build_867.dm_build_741.dm_build_335.Dm_build_51(dm_build_867.dm_build_842[i].cursorStmt.id)
+		if dm_build_895.dm_build_868[i].colType == CURSOR {
+			dm_build_895.dm_build_759.dm_build_339.Dm_build_51(ULINT_SIZE)
+			dm_build_895.dm_build_759.dm_build_339.Dm_build_55(dm_build_895.dm_build_868[i].cursorStmt.id)
 			continue
 		}
 
-		if dm_build_867.dm_build_842[i].ioType == IO_TYPE_OUT {
+		if dm_build_895.dm_build_868[i].ioType == IO_TYPE_OUT {
 			continue
 		}
 
-		switch dm_build_868[i].(type) {
-		case []byte:
-			if dataBytes, ok := dm_build_868[i].([]byte); ok {
-				if len(dataBytes) > Dm_build_643 {
-					return ECGO_DATA_TOO_LONG.throw()
+		if dm_build_896[i] == nil {
+			dm_build_895.dm_build_759.dm_build_339.Dm_build_63(uint16(Dm_build_667))
+		} else {
+			switch dm_build_896[i].(type) {
+			case []byte:
+				if dataBytes, ok := dm_build_896[i].([]byte); ok {
+					if len(dataBytes) > int(Dm_build_664) {
+						if dm_build_895.dm_build_759.dm_build_340.MsgVersion >= Dm_build_618 && len(dataBytes) < 0xffffffff &&
+							isComplexType(int(dm_build_895.dm_build_868[i].colType), int(dm_build_895.dm_build_868[i].scale)) {
+							dm_build_895.dm_build_759.dm_build_339.Dm_build_63(uint16(Dm_build_668))
+							dm_build_895.dm_build_759.dm_build_339.Dm_build_87(dataBytes)
+							continue
+						}
+						return ECGO_DATA_TOO_LONG.throw()
+					}
+					dm_build_895.dm_build_759.dm_build_339.Dm_build_93(dataBytes)
 				}
-				dm_build_867.dm_build_741.dm_build_335.Dm_build_89(dataBytes)
+			case int:
+				if dm_build_896[i] == ParamDataEnum_Null {
+					dm_build_895.dm_build_759.dm_build_339.Dm_build_63(uint16(Dm_build_667))
+				} else if dm_build_896[i] == ParamDataEnum_OFF_ROW {
+					dm_build_895.dm_build_759.dm_build_339.Dm_build_51(0)
+				}
+			case lobCtl:
+				dm_build_895.dm_build_759.dm_build_339.Dm_build_63(uint16(Dm_build_665))
+				dm_build_895.dm_build_759.dm_build_339.Dm_build_83(dm_build_896[i].(lobCtl).value)
+			default:
+				return fmt.Errorf("Bind param data failed by invalid param data type: ")
 			}
-		case int:
-			if dm_build_868[i] == ParamDataEnum_Null {
-				dm_build_867.dm_build_741.dm_build_335.Dm_build_59(Dm_build_649)
-			} else if dm_build_868[i] == ParamDataEnum_OFF_ROW {
-				dm_build_867.dm_build_741.dm_build_335.Dm_build_47(0)
-			}
-		case lobCtl:
-			dm_build_867.dm_build_741.dm_build_335.Dm_build_59(uint16(Dm_build_648))
-			dm_build_867.dm_build_741.dm_build_335.Dm_build_79(dm_build_868[i].(lobCtl).value)
-		default:
-			panic("Bind param data failed by invalid param data type: ")
 		}
 	}
 
 	return nil
 }
 
-func (dm_build_870 *dm_build_840) dm_build_730() (interface{}, error) {
-	dm_build_871 := execRetInfo{}
-	dm_build_872 := dm_build_870.dm_build_744.dmConn
+func (dm_build_898 *dm_build_866) dm_build_897() int32 {
+	dm_build_898.dm_build_869 = Dm_build_861
+	dm_build_898.dm_build_870 = 1
+	return dm_build_898.dm_build_869
+}
 
-	dm_build_873 := Dm_build_633
+func (dm_build_900 *dm_build_866) dm_build_748() (interface{}, error) {
+	dm_build_901 := execRetInfo{}
+	dm_build_902 := dm_build_900.dm_build_762.dmConn
 
-	dm_build_871.retSqlType = dm_build_870.dm_build_741.dm_build_335.Dm_build_266(dm_build_873)
-	dm_build_873 += USINT_SIZE
+	dm_build_903 := Dm_build_651
 
-	dm_build_874 := dm_build_870.dm_build_741.dm_build_335.Dm_build_266(dm_build_873)
-	dm_build_873 += USINT_SIZE
+	dm_build_901.retSqlType = dm_build_900.dm_build_759.dm_build_339.Dm_build_270(dm_build_903)
+	dm_build_903 += USINT_SIZE
 
-	dm_build_871.updateCount = dm_build_870.dm_build_741.dm_build_335.Dm_build_272(dm_build_873)
-	dm_build_873 += DDWORD_SIZE
+	dm_build_904 := dm_build_900.dm_build_759.dm_build_339.Dm_build_270(dm_build_903)
+	dm_build_903 += USINT_SIZE
 
-	dm_build_875 := dm_build_870.dm_build_741.dm_build_335.Dm_build_284(dm_build_873)
-	dm_build_873 += USINT_SIZE
+	dm_build_901.updateCount = dm_build_900.dm_build_759.dm_build_339.Dm_build_276(dm_build_903)
+	dm_build_903 += DDWORD_SIZE
 
-	dm_build_871.rsUpdatable = dm_build_870.dm_build_741.dm_build_335.Dm_build_263(dm_build_873) != 0
-	dm_build_873 += BYTE_SIZE
+	dm_build_905 := dm_build_900.dm_build_759.dm_build_339.Dm_build_288(dm_build_903)
+	dm_build_903 += USINT_SIZE
 
-	dm_build_876 := dm_build_870.dm_build_741.dm_build_335.Dm_build_266(dm_build_873)
-	dm_build_873 += ULINT_SIZE
+	dm_build_901.rsUpdatable = dm_build_900.dm_build_759.dm_build_339.Dm_build_267(dm_build_903) != 0
+	dm_build_903 += BYTE_SIZE
 
-	dm_build_871.printLen = dm_build_870.dm_build_741.dm_build_335.Dm_build_269(dm_build_873)
-	dm_build_873 += ULINT_SIZE
+	dm_build_906 := dm_build_900.dm_build_759.dm_build_339.Dm_build_270(dm_build_903)
+	dm_build_903 += ULINT_SIZE
 
-	var dm_build_877 int16 = -1
-	if dm_build_871.retSqlType == Dm_build_699 || dm_build_871.retSqlType == Dm_build_700 {
-		dm_build_871.rowid = 0
+	dm_build_901.printLen = dm_build_900.dm_build_759.dm_build_339.Dm_build_273(dm_build_903)
+	dm_build_903 += ULINT_SIZE
 
-		dm_build_871.rsBdta = dm_build_870.dm_build_741.dm_build_335.Dm_build_263(dm_build_873) == Dm_build_712
-		dm_build_873 += BYTE_SIZE
+	var dm_build_907 int16 = -1
+	if dm_build_901.retSqlType == Dm_build_717 || dm_build_901.retSqlType == Dm_build_718 {
+		dm_build_901.rowid = 0
 
-		dm_build_877 = dm_build_870.dm_build_741.dm_build_335.Dm_build_266(dm_build_873)
-		dm_build_873 += USINT_SIZE
-		dm_build_873 += 5
+		dm_build_901.rsBdta = dm_build_900.dm_build_759.dm_build_339.Dm_build_267(dm_build_903) == Dm_build_730
+		dm_build_903 += BYTE_SIZE
+
+		dm_build_907 = dm_build_900.dm_build_759.dm_build_339.Dm_build_270(dm_build_903)
+		dm_build_903 += USINT_SIZE
+		dm_build_903 += 5
 	} else {
-		dm_build_871.rowid = dm_build_870.dm_build_741.dm_build_335.Dm_build_272(dm_build_873)
-		dm_build_873 += DDWORD_SIZE
+		dm_build_901.rowid = dm_build_900.dm_build_759.dm_build_339.Dm_build_276(dm_build_903)
+		dm_build_903 += DDWORD_SIZE
 	}
 
-	dm_build_871.execId = dm_build_870.dm_build_741.dm_build_335.Dm_build_269(dm_build_873)
-	dm_build_873 += ULINT_SIZE
+	dm_build_901.execId = dm_build_900.dm_build_759.dm_build_339.Dm_build_273(dm_build_903)
+	dm_build_903 += ULINT_SIZE
 
-	dm_build_871.rsCacheOffset = dm_build_870.dm_build_741.dm_build_335.Dm_build_269(dm_build_873)
-	dm_build_873 += ULINT_SIZE
+	dm_build_901.rsCacheOffset = dm_build_900.dm_build_759.dm_build_339.Dm_build_273(dm_build_903)
+	dm_build_903 += ULINT_SIZE
 
-	dm_build_878 := dm_build_870.dm_build_741.dm_build_335.Dm_build_263(dm_build_873)
-	dm_build_873 += BYTE_SIZE
-	dm_build_879 := (dm_build_878 & 0x01) == 0x01
-	dm_build_880 := (dm_build_878 & 0x02) == 0x02
+	dm_build_908 := dm_build_900.dm_build_759.dm_build_339.Dm_build_267(dm_build_903)
+	dm_build_903 += BYTE_SIZE
+	dm_build_909 := (dm_build_908 & 0x01) == 0x01
 
-	dm_build_872.TrxStatus = dm_build_870.dm_build_741.dm_build_335.Dm_build_269(dm_build_873)
-	dm_build_872.setTrxFinish(dm_build_872.TrxStatus)
-	dm_build_873 += ULINT_SIZE
+	dm_build_902.TrxStatus = dm_build_900.dm_build_759.dm_build_339.Dm_build_273(dm_build_903)
+	dm_build_902.setTrxFinish(dm_build_902.TrxStatus)
+	dm_build_903 += ULINT_SIZE
 
-	if dm_build_871.printLen > 0 {
-		bytes := dm_build_870.dm_build_741.dm_build_335.Dm_build_146(int(dm_build_871.printLen))
-		dm_build_871.printMsg = Dm_build_1219.Dm_build_1376(bytes, 0, len(bytes), dm_build_872.getServerEncoding(), dm_build_872)
+	if dm_build_901.printLen > 0 {
+		bytes := dm_build_900.dm_build_759.dm_build_339.Dm_build_150(int(dm_build_901.printLen))
+		dm_build_901.printMsg = Dm_build_1257.Dm_build_1414(bytes, 0, len(bytes), dm_build_902.getServerEncoding(), dm_build_902)
 	}
 
-	if dm_build_875 > 0 {
-		dm_build_871.outParamDatas = dm_build_870.dm_build_881(int(dm_build_875))
+	if dm_build_905 > 0 {
+		dm_build_901.outParamDatas = dm_build_900.dm_build_910(int(dm_build_905))
 	}
 
-	switch dm_build_871.retSqlType {
-	case Dm_build_701:
-		dm_build_872.dmConnector.localTimezone = dm_build_870.dm_build_741.dm_build_335.Dm_build_122()
-	case Dm_build_699:
-		dm_build_871.hasResultSet = true
-		if dm_build_874 > 0 {
-			dm_build_870.dm_build_744.columns = dm_build_870.dm_build_890(int(dm_build_874), dm_build_871.rsBdta)
+	switch dm_build_901.retSqlType {
+	case Dm_build_719:
+		dm_build_902.dmConnector.localTimezone = dm_build_900.dm_build_759.dm_build_339.Dm_build_126()
+	case Dm_build_717:
+		dm_build_901.hasResultSet = true
+		if dm_build_904 > 0 {
+			dm_build_900.dm_build_762.columns = dm_build_900.dm_build_919(int(dm_build_904), dm_build_901.rsBdta)
 		}
-		dm_build_870.dm_build_900(&dm_build_871, len(dm_build_870.dm_build_744.columns), int(dm_build_876), int(dm_build_877))
-	case Dm_build_700:
-		if dm_build_874 > 0 || dm_build_876 > 0 {
-			dm_build_871.hasResultSet = true
+		dm_build_900.dm_build_929(&dm_build_901, len(dm_build_900.dm_build_762.columns), int(dm_build_906), int(dm_build_907))
+	case Dm_build_718:
+		if dm_build_904 > 0 || dm_build_906 > 0 {
+			dm_build_901.hasResultSet = true
 		}
-		if dm_build_874 > 0 {
-			dm_build_870.dm_build_744.columns = dm_build_870.dm_build_890(int(dm_build_874), dm_build_871.rsBdta)
+		if dm_build_904 > 0 {
+			dm_build_900.dm_build_762.columns = dm_build_900.dm_build_919(int(dm_build_904), dm_build_901.rsBdta)
 		}
-		dm_build_870.dm_build_900(&dm_build_871, len(dm_build_870.dm_build_744.columns), int(dm_build_876), int(dm_build_877))
-	case Dm_build_702:
-		dm_build_872.IsoLevel = int32(dm_build_870.dm_build_741.dm_build_335.Dm_build_122())
-		dm_build_872.ReadOnly = dm_build_870.dm_build_741.dm_build_335.Dm_build_119() == 1
-	case Dm_build_695:
-		dm_build_872.Schema = dm_build_870.dm_build_741.dm_build_335.Dm_build_167(dm_build_872.getServerEncoding(), dm_build_872)
-	case Dm_build_692:
-		dm_build_871.explain = dm_build_870.dm_build_741.dm_build_335.Dm_build_167(dm_build_872.getServerEncoding(), dm_build_872)
+		dm_build_900.dm_build_929(&dm_build_901, len(dm_build_900.dm_build_762.columns), int(dm_build_906), int(dm_build_907))
+	case Dm_build_720:
+		dm_build_902.IsoLevel = int32(dm_build_900.dm_build_759.dm_build_339.Dm_build_126())
+		dm_build_902.ReadOnly = dm_build_900.dm_build_759.dm_build_339.Dm_build_123() == 1
+	case Dm_build_713:
+		dm_build_902.Schema = dm_build_900.dm_build_759.dm_build_339.Dm_build_171(dm_build_902.getServerEncoding(), dm_build_902)
+	case Dm_build_710:
+		dm_build_901.explain = dm_build_900.dm_build_759.dm_build_339.Dm_build_171(dm_build_902.getServerEncoding(), dm_build_902)
 
-	case Dm_build_696, Dm_build_698, Dm_build_697:
-		if dm_build_879 {
+	case Dm_build_714, Dm_build_716, Dm_build_715:
+		if dm_build_909 {
 
-			counts := dm_build_870.dm_build_741.dm_build_335.Dm_build_125()
+			counts := dm_build_900.dm_build_759.dm_build_339.Dm_build_129()
 			rowCounts := make([]int64, counts)
 			for i := 0; i < int(counts); i++ {
-				rowCounts[i] = dm_build_870.dm_build_741.dm_build_335.Dm_build_128()
+				rowCounts[i] = dm_build_900.dm_build_759.dm_build_339.Dm_build_132()
 			}
-			dm_build_871.updateCounts = rowCounts
+			dm_build_901.updateCounts = rowCounts
 		}
 
-		if dm_build_880 {
-			rows := dm_build_870.dm_build_741.dm_build_335.Dm_build_125()
+		dm_build_900.dm_build_941(&dm_build_901)
 
-			var lastInsertId int64
-			for i := 0; i < int(rows); i++ {
-				lastInsertId = dm_build_870.dm_build_741.dm_build_335.Dm_build_128()
+		if dm_build_900.dm_build_761 == EC_BP_WITH_ERROR.ErrCode {
+			dm_build_900.dm_build_935(dm_build_901.updateCounts)
+		}
+	case Dm_build_723:
+		len := dm_build_900.dm_build_759.dm_build_339.Dm_build_141()
+		dm_build_902.FormatDate = dm_build_900.dm_build_759.dm_build_339.Dm_build_166(int(len), dm_build_902.getServerEncoding(), dm_build_902)
+	case Dm_build_725:
+
+		len := dm_build_900.dm_build_759.dm_build_339.Dm_build_141()
+		dm_build_902.FormatTimestamp = dm_build_900.dm_build_759.dm_build_339.Dm_build_166(int(len), dm_build_902.getServerEncoding(), dm_build_902)
+	case Dm_build_726:
+
+		len := dm_build_900.dm_build_759.dm_build_339.Dm_build_141()
+		dm_build_902.FormatTimestampTZ = dm_build_900.dm_build_759.dm_build_339.Dm_build_166(int(len), dm_build_902.getServerEncoding(), dm_build_902)
+	case Dm_build_724:
+		len := dm_build_900.dm_build_759.dm_build_339.Dm_build_141()
+		dm_build_902.FormatTime = dm_build_900.dm_build_759.dm_build_339.Dm_build_166(int(len), dm_build_902.getServerEncoding(), dm_build_902)
+	case Dm_build_727:
+		len := dm_build_900.dm_build_759.dm_build_339.Dm_build_141()
+		dm_build_902.FormatTimeTZ = dm_build_900.dm_build_759.dm_build_339.Dm_build_166(int(len), dm_build_902.getServerEncoding(), dm_build_902)
+	case Dm_build_728:
+		dm_build_902.OracleDateLanguage = dm_build_900.dm_build_759.dm_build_339.Dm_build_141()
+	}
+
+	return &dm_build_901, nil
+}
+
+func (dm_build_911 *dm_build_866) dm_build_910(dm_build_912 int) [][]byte {
+	dm_build_913 := make([]int, dm_build_912)
+
+	dm_build_914 := 0
+	for i := 0; i < len(dm_build_911.dm_build_868); i++ {
+		if dm_build_911.dm_build_868[i].ioType == IO_TYPE_INOUT || dm_build_911.dm_build_868[i].ioType == IO_TYPE_OUT {
+			dm_build_913[dm_build_914] = i
+			dm_build_914++
+		}
+	}
+
+	dm_build_915 := make([][]byte, len(dm_build_911.dm_build_868))
+	var dm_build_916 int32
+	var dm_build_917 bool
+	var dm_build_918 []byte = nil
+	for i := 0; i < dm_build_912; i++ {
+		dm_build_917 = false
+		dm_build_916 = int32(dm_build_911.dm_build_759.dm_build_339.Dm_build_144())
+
+		if dm_build_916 == int32(Dm_build_667) {
+			dm_build_916 = 0
+			dm_build_917 = true
+		} else if dm_build_916 == int32(Dm_build_668) {
+			dm_build_916 = dm_build_911.dm_build_759.dm_build_339.Dm_build_129()
+		}
+
+		if dm_build_917 {
+			dm_build_915[dm_build_913[i]] = nil
+		} else {
+			dm_build_918 = dm_build_911.dm_build_759.dm_build_339.Dm_build_150(int(dm_build_916))
+			dm_build_915[dm_build_913[i]] = dm_build_918
+		}
+	}
+
+	return dm_build_915
+}
+
+func (dm_build_920 *dm_build_866) dm_build_919(dm_build_921 int, dm_build_922 bool) []column {
+	dm_build_923 := dm_build_920.dm_build_759.dm_build_340.getServerEncoding()
+	var dm_build_924, dm_build_925, dm_build_926, dm_build_927 int16
+	dm_build_928 := make([]column, dm_build_921)
+	for i := 0; i < dm_build_921; i++ {
+		dm_build_928[i].InitColumn()
+
+		dm_build_928[i].colType = dm_build_920.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_928[i].prec = dm_build_920.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_928[i].scale = dm_build_920.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_928[i].nullable = dm_build_920.dm_build_759.dm_build_339.Dm_build_129() != 0
+
+		itemFlag := dm_build_920.dm_build_759.dm_build_339.Dm_build_126()
+		dm_build_928[i].lob = int(itemFlag)&Dm_build_856 != 0
+		dm_build_928[i].identity = int(itemFlag)&Dm_build_855 != 0
+		dm_build_928[i].readonly = int(itemFlag)&Dm_build_857 != 0
+
+		dm_build_920.dm_build_759.dm_build_339.Dm_build_25(4, false, true)
+
+		dm_build_920.dm_build_759.dm_build_339.Dm_build_25(2, false, true)
+
+		dm_build_924 = dm_build_920.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_925 = dm_build_920.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_926 = dm_build_920.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_927 = dm_build_920.dm_build_759.dm_build_339.Dm_build_126()
+		dm_build_928[i].name = dm_build_920.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_924), dm_build_923, dm_build_920.dm_build_759.dm_build_340)
+		dm_build_928[i].typeName = dm_build_920.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_925), dm_build_923, dm_build_920.dm_build_759.dm_build_340)
+		dm_build_928[i].tableName = dm_build_920.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_926), dm_build_923, dm_build_920.dm_build_759.dm_build_340)
+		dm_build_928[i].schemaName = dm_build_920.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_927), dm_build_923, dm_build_920.dm_build_759.dm_build_340)
+
+		if dm_build_920.dm_build_762.readBaseColName {
+			dm_build_928[i].baseName = dm_build_920.dm_build_759.dm_build_339.Dm_build_179(dm_build_923, dm_build_920.dm_build_759.dm_build_340)
+		}
+
+		if dm_build_928[i].lob {
+			dm_build_928[i].lobTabId = dm_build_920.dm_build_759.dm_build_339.Dm_build_129()
+			dm_build_928[i].lobColId = dm_build_920.dm_build_759.dm_build_339.Dm_build_126()
+		}
+
+		if dm_build_928[i].colType == DATETIME || dm_build_928[i].colType == DATETIME2 {
+			if (dm_build_928[i].scale & LOCAL_DATETIME_SCALE_MASK) != 0 {
+
+				dm_build_928[i].scale = dm_build_928[i].scale & ^LOCAL_DATETIME_SCALE_MASK
+				dm_build_928[i].mask = MASK_LOCAL_DATETIME
+			} else if (dm_build_928[i].scale & ORACLE_DATE_SCALE_MASK) != 0 {
+
+				dm_build_928[i].scale = dm_build_928[i].scale & ^ORACLE_DATE_SCALE_MASK
+				dm_build_928[i].mask = MASK_ORACLE_DATE
 			}
-			dm_build_871.lastInsertId = lastInsertId
-
-		} else if dm_build_871.updateCount == 1 {
-			dm_build_871.lastInsertId = dm_build_871.rowid
 		}
 
-		if dm_build_870.dm_build_743 == EC_BP_WITH_ERROR.ErrCode {
-			dm_build_870.dm_build_906(dm_build_871.updateCounts)
+		if dm_build_928[i].colType == DECIMAL && dm_build_928[i].scale == ORACLE_FLOAT_SCALE_MASK {
+			dm_build_928[i].prec = int32(math.Round(float64(dm_build_928[i].prec)*0.30103) + 1)
+			dm_build_928[i].scale = -1
+			dm_build_928[i].mask = MASK_ORACLE_FLOAT
 		}
-	case Dm_build_705:
-		len := dm_build_870.dm_build_741.dm_build_335.Dm_build_137()
-		dm_build_872.FormatDate = dm_build_870.dm_build_741.dm_build_335.Dm_build_162(int(len), dm_build_872.getServerEncoding(), dm_build_872)
-	case Dm_build_707:
 
-		len := dm_build_870.dm_build_741.dm_build_335.Dm_build_137()
-		dm_build_872.FormatTimestamp = dm_build_870.dm_build_741.dm_build_335.Dm_build_162(int(len), dm_build_872.getServerEncoding(), dm_build_872)
-	case Dm_build_708:
-
-		len := dm_build_870.dm_build_741.dm_build_335.Dm_build_137()
-		dm_build_872.FormatTimestampTZ = dm_build_870.dm_build_741.dm_build_335.Dm_build_162(int(len), dm_build_872.getServerEncoding(), dm_build_872)
-	case Dm_build_706:
-		len := dm_build_870.dm_build_741.dm_build_335.Dm_build_137()
-		dm_build_872.FormatTime = dm_build_870.dm_build_741.dm_build_335.Dm_build_162(int(len), dm_build_872.getServerEncoding(), dm_build_872)
-	case Dm_build_709:
-		len := dm_build_870.dm_build_741.dm_build_335.Dm_build_137()
-		dm_build_872.FormatTimeTZ = dm_build_870.dm_build_741.dm_build_335.Dm_build_162(int(len), dm_build_872.getServerEncoding(), dm_build_872)
-	case Dm_build_710:
-		dm_build_872.OracleDateLanguage = dm_build_870.dm_build_741.dm_build_335.Dm_build_137()
+		if dm_build_928[i].colType == VARCHAR && dm_build_928[i].prec == BFILE_PREC && dm_build_928[i].scale == BFILE_SCALE {
+			dm_build_928[i].mask = MASK_BFILE
+		}
 	}
 
-	return &dm_build_871, nil
+	for i := 0; i < dm_build_921; i++ {
+
+		if isComplexType(int(dm_build_928[i].colType), int(dm_build_928[i].scale)) {
+			strDesc := newTypeDescriptor(dm_build_920.dm_build_759.dm_build_340)
+			strDesc.unpack(dm_build_920.dm_build_759.dm_build_339)
+			dm_build_928[i].typeDescriptor = strDesc
+		}
+	}
+
+	return dm_build_928
 }
 
-func (dm_build_882 *dm_build_840) dm_build_881(dm_build_883 int) [][]byte {
-	dm_build_884 := make([]int, dm_build_883)
-
-	dm_build_885 := 0
-	for i := 0; i < len(dm_build_882.dm_build_842); i++ {
-		if dm_build_882.dm_build_842[i].ioType == IO_TYPE_INOUT || dm_build_882.dm_build_842[i].ioType == IO_TYPE_OUT {
-			dm_build_884[dm_build_885] = i
-			dm_build_885++
-		}
-	}
-
-	dm_build_886 := make([][]byte, len(dm_build_882.dm_build_842))
-	var dm_build_887 int32
-	var dm_build_888 bool
-	var dm_build_889 []byte = nil
-	for i := 0; i < dm_build_883; i++ {
-		dm_build_888 = false
-		dm_build_887 = int32(dm_build_882.dm_build_741.dm_build_335.Dm_build_140())
-
-		if dm_build_887 == int32(Dm_build_649) {
-			dm_build_887 = 0
-			dm_build_888 = true
-		} else if dm_build_887 == int32(Dm_build_650) {
-			dm_build_887 = dm_build_882.dm_build_741.dm_build_335.Dm_build_125()
-		}
-
-		if dm_build_888 {
-			dm_build_886[dm_build_884[i]] = nil
+func (dm_build_930 *dm_build_866) dm_build_929(dm_build_931 *execRetInfo, dm_build_932 int, dm_build_933 int, dm_build_934 int) {
+	if dm_build_933 > 0 {
+		startOffset := dm_build_930.dm_build_759.dm_build_339.Dm_build_20()
+		if dm_build_931.rsBdta {
+			dm_build_931.rsDatas = dm_build_930.dm_build_954(dm_build_930.dm_build_762.columns, dm_build_934)
 		} else {
-			dm_build_889 = dm_build_882.dm_build_741.dm_build_335.Dm_build_146(int(dm_build_887))
-			dm_build_886[dm_build_884[i]] = dm_build_889
-		}
-	}
+			datas := make([][][]byte, dm_build_933)
 
-	return dm_build_886
-}
+			for i := 0; i < dm_build_933; i++ {
 
-func (dm_build_891 *dm_build_840) dm_build_890(dm_build_892 int, dm_build_893 bool) []column {
-	dm_build_894 := dm_build_891.dm_build_741.conn.getServerEncoding()
-	var dm_build_895, dm_build_896, dm_build_897, dm_build_898 int16
-	dm_build_899 := make([]column, dm_build_892)
-	for i := 0; i < dm_build_892; i++ {
-		dm_build_899[i].InitColumn()
+				datas[i] = make([][]byte, dm_build_932+1)
 
-		dm_build_899[i].colType = dm_build_891.dm_build_741.dm_build_335.Dm_build_125()
+				dm_build_930.dm_build_759.dm_build_339.Dm_build_25(2, false, true)
 
-		dm_build_899[i].prec = dm_build_891.dm_build_741.dm_build_335.Dm_build_125()
+				datas[i][0] = dm_build_930.dm_build_759.dm_build_339.Dm_build_150(LINT64_SIZE)
 
-		dm_build_899[i].scale = dm_build_891.dm_build_741.dm_build_335.Dm_build_125()
+				dm_build_930.dm_build_759.dm_build_339.Dm_build_25(2*dm_build_932, false, true)
 
-		dm_build_899[i].nullable = dm_build_891.dm_build_741.dm_build_335.Dm_build_125() != 0
+				for j := 1; j < dm_build_932+1; j++ {
 
-		itemFlag := dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-		dm_build_899[i].lob = int(itemFlag)&Dm_build_837 != 0
-		dm_build_899[i].identity = int(itemFlag)&Dm_build_836 != 0
-		dm_build_899[i].readonly = int(itemFlag)&Dm_build_838 != 0
-
-		dm_build_891.dm_build_741.dm_build_335.Dm_build_25(4, false, true)
-
-		dm_build_891.dm_build_741.dm_build_335.Dm_build_25(2, false, true)
-
-		dm_build_895 = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-
-		dm_build_896 = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-
-		dm_build_897 = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-
-		dm_build_898 = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-		dm_build_899[i].name = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_895), dm_build_894, dm_build_891.dm_build_741.conn)
-		dm_build_899[i].typeName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_896), dm_build_894, dm_build_891.dm_build_741.conn)
-		dm_build_899[i].tableName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_897), dm_build_894, dm_build_891.dm_build_741.conn)
-		dm_build_899[i].schemaName = dm_build_891.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_898), dm_build_894, dm_build_891.dm_build_741.conn)
-
-		if dm_build_891.dm_build_744.readBaseColName {
-			dm_build_899[i].baseName = dm_build_891.dm_build_741.dm_build_335.Dm_build_175(dm_build_894, dm_build_891.dm_build_741.conn)
-		}
-
-		if dm_build_899[i].lob {
-			dm_build_899[i].lobTabId = dm_build_891.dm_build_741.dm_build_335.Dm_build_125()
-			dm_build_899[i].lobColId = dm_build_891.dm_build_741.dm_build_335.Dm_build_122()
-		}
-
-	}
-
-	for i := 0; i < dm_build_892; i++ {
-
-		if isComplexType(int(dm_build_899[i].colType), int(dm_build_899[i].scale)) {
-			strDesc := newTypeDescriptor(dm_build_891.dm_build_741.conn)
-			strDesc.unpack(dm_build_891.dm_build_741.dm_build_335)
-			dm_build_899[i].typeDescriptor = strDesc
-		}
-	}
-
-	return dm_build_899
-}
-
-func (dm_build_901 *dm_build_840) dm_build_900(dm_build_902 *execRetInfo, dm_build_903 int, dm_build_904 int, dm_build_905 int) {
-	if dm_build_904 > 0 {
-		startOffset := dm_build_901.dm_build_741.dm_build_335.Dm_build_20()
-		if dm_build_902.rsBdta {
-			dm_build_902.rsDatas = dm_build_901.dm_build_919(dm_build_901.dm_build_744.columns, dm_build_905)
-		} else {
-			datas := make([][][]byte, dm_build_904)
-
-			for i := 0; i < dm_build_904; i++ {
-
-				datas[i] = make([][]byte, dm_build_903+1)
-
-				dm_build_901.dm_build_741.dm_build_335.Dm_build_25(2, false, true)
-
-				datas[i][0] = dm_build_901.dm_build_741.dm_build_335.Dm_build_146(LINT64_SIZE)
-
-				dm_build_901.dm_build_741.dm_build_335.Dm_build_25(2*dm_build_903, false, true)
-
-				for j := 1; j < dm_build_903+1; j++ {
-
-					colLen := dm_build_901.dm_build_741.dm_build_335.Dm_build_140()
-					if colLen == Dm_build_653 {
+					colLen := dm_build_930.dm_build_759.dm_build_339.Dm_build_144()
+					if colLen == Dm_build_671 {
 						datas[i][j] = nil
-					} else if colLen != Dm_build_654 {
-						datas[i][j] = dm_build_901.dm_build_741.dm_build_335.Dm_build_146(int(colLen))
+					} else if colLen != Dm_build_672 {
+						datas[i][j] = dm_build_930.dm_build_759.dm_build_339.Dm_build_150(int(colLen))
 					} else {
-						datas[i][j] = dm_build_901.dm_build_741.dm_build_335.Dm_build_150()
+						datas[i][j] = dm_build_930.dm_build_759.dm_build_339.Dm_build_154()
 					}
 				}
 			}
 
-			dm_build_902.rsDatas = datas
+			dm_build_931.rsDatas = datas
 		}
-		dm_build_902.rsSizeof = dm_build_901.dm_build_741.dm_build_335.Dm_build_20() - startOffset
+		dm_build_931.rsSizeof = dm_build_930.dm_build_759.dm_build_339.Dm_build_20() - startOffset
 	}
 
-	if dm_build_902.rsCacheOffset > 0 {
-		tbCount := dm_build_901.dm_build_741.dm_build_335.Dm_build_122()
+	if dm_build_931.rsCacheOffset > 0 {
+		tbCount := dm_build_930.dm_build_759.dm_build_339.Dm_build_126()
 
 		ids := make([]int32, tbCount)
 		tss := make([]int64, tbCount)
 
 		for i := 0; i < int(tbCount); i++ {
-			ids[i] = dm_build_901.dm_build_741.dm_build_335.Dm_build_125()
-			tss[i] = dm_build_901.dm_build_741.dm_build_335.Dm_build_128()
+			ids[i] = dm_build_930.dm_build_759.dm_build_339.Dm_build_129()
+			tss[i] = dm_build_930.dm_build_759.dm_build_339.Dm_build_132()
 		}
 
-		dm_build_902.tbIds = ids[:]
-		dm_build_902.tbTss = tss[:]
+		dm_build_931.tbIds = ids[:]
+		dm_build_931.tbTss = tss[:]
 	}
 }
 
-func (dm_build_907 *dm_build_840) dm_build_906(dm_build_908 []int64) error {
+func (dm_build_936 *dm_build_866) dm_build_935(dm_build_937 []int64) error {
 
-	dm_build_907.dm_build_741.dm_build_335.Dm_build_25(4, false, true)
+	dm_build_936.dm_build_759.dm_build_339.Dm_build_25(4, false, true)
 
-	dm_build_909 := dm_build_907.dm_build_741.dm_build_335.Dm_build_125()
+	dm_build_938 := dm_build_936.dm_build_759.dm_build_339.Dm_build_129()
 
-	dm_build_910 := make([]string, 0, 8)
-	for i := 0; i < int(dm_build_909); i++ {
-		irow := dm_build_907.dm_build_741.dm_build_335.Dm_build_125()
+	dm_build_939 := dm_build_936.dm_build_759.dm_build_340.getServerEncoding()
 
-		dm_build_908[irow] = -3
-
-		code := dm_build_907.dm_build_741.dm_build_335.Dm_build_125()
-
-		errStr := dm_build_907.dm_build_741.dm_build_335.Dm_build_175(dm_build_907.dm_build_741.conn.getServerEncoding(), dm_build_907.dm_build_741.conn)
-
-		dm_build_910 = append(dm_build_910, "row["+strconv.Itoa(int(irow))+"]:"+strconv.Itoa(int(code))+", "+errStr)
+	if Locale != LANGUAGE_EN && dm_build_939 == ENCODING_EUCKR {
+		dm_build_939 = ENCODING_GB18030
 	}
 
-	if len(dm_build_910) > 0 {
+	if Locale == LANGUAGE_CNT_HK && dm_build_939 != ENCODING_UTF8 {
+		dm_build_939 = ENCODING_BIG5
+	}
+
+	dm_build_940 := make([]string, 0, 8)
+	for i := 0; i < int(dm_build_938); i++ {
+		irow := dm_build_936.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_937[irow] = -3
+
+		code := dm_build_936.dm_build_759.dm_build_339.Dm_build_129()
+
+		errStr := dm_build_936.dm_build_759.dm_build_339.Dm_build_179(dm_build_939, dm_build_936.dm_build_759.dm_build_340)
+
+		dm_build_940 = append(dm_build_940, "row["+strconv.Itoa(int(irow))+"]:"+strconv.Itoa(int(code))+", "+errStr)
+	}
+
+	if len(dm_build_940) > 0 {
 		builder := &strings.Builder{}
-		for _, str := range dm_build_910 {
+		for _, str := range dm_build_940 {
 			builder.WriteString(util.LINE_SEPARATOR)
 			builder.WriteString(str)
 		}
@@ -1464,637 +1580,657 @@ func (dm_build_907 *dm_build_840) dm_build_906(dm_build_908 []int64) error {
 	return nil
 }
 
+func (dm_build_942 *dm_build_866) dm_build_941(dm_build_943 *execRetInfo) error {
+	dm_build_944 := dm_build_942.dm_build_759.dm_build_339.Dm_build_267(Dm_build_865)
+	dm_build_945 := (dm_build_944 & 0x02) == 0x02
+	if !dm_build_945 {
+
+		if dm_build_943.updateCount == 1 {
+
+			dm_build_943.lastInsertId = dm_build_943.rowid
+		}
+		return nil
+	}
+
+	if dm_build_942.dm_build_759.dm_build_340.MsgVersion < Dm_build_615 || dm_build_942.dm_build_869 == Dm_build_861 {
+
+		rows := dm_build_942.dm_build_759.dm_build_339.Dm_build_129()
+		var lastInsertId int64
+		for i := 0; i < int(rows); i++ {
+			lastInsertId = dm_build_942.dm_build_759.dm_build_339.Dm_build_132()
+		}
+		dm_build_943.lastInsertId = lastInsertId
+	} else {
+
+	}
+
+	return nil
+}
+
 const (
-	Dm_build_911 = 0
+	Dm_build_946 = 0
 
-	Dm_build_912 = Dm_build_911 + ULINT_SIZE
+	Dm_build_947 = Dm_build_946 + ULINT_SIZE
 
-	Dm_build_913 = Dm_build_912 + USINT_SIZE
+	Dm_build_948 = Dm_build_947 + USINT_SIZE
 
-	Dm_build_914 = Dm_build_913 + ULINT_SIZE
+	Dm_build_949 = Dm_build_948 + ULINT_SIZE
 
-	Dm_build_915 = Dm_build_914 + ULINT_SIZE
+	Dm_build_950 = Dm_build_949 + ULINT_SIZE
 
-	Dm_build_916 = Dm_build_915 + BYTE_SIZE
+	Dm_build_951 = Dm_build_950 + BYTE_SIZE
 
-	Dm_build_917 = -2
+	Dm_build_952 = -2
 
-	Dm_build_918 = -3
+	Dm_build_953 = -3
 )
 
-func (dm_build_920 *dm_build_840) dm_build_919(dm_build_921 []column, dm_build_922 int) [][][]byte {
+func (dm_build_955 *dm_build_866) dm_build_954(dm_build_956 []column, dm_build_957 int) [][][]byte {
 
-	dm_build_923 := dm_build_920.dm_build_741.dm_build_335.Dm_build_143()
+	dm_build_958 := dm_build_955.dm_build_759.dm_build_339.Dm_build_147()
 
-	dm_build_924 := dm_build_920.dm_build_741.dm_build_335.Dm_build_140()
+	dm_build_959 := dm_build_955.dm_build_759.dm_build_339.Dm_build_144()
 
-	var dm_build_925 bool
+	var dm_build_960 bool
 
-	if dm_build_922 >= 0 && int(dm_build_924) == len(dm_build_921)+1 {
-		dm_build_925 = true
+	if dm_build_957 >= 0 && int(dm_build_959) == len(dm_build_956)+1 {
+		dm_build_960 = true
 	} else {
-		dm_build_925 = false
+		dm_build_960 = false
 	}
 
-	dm_build_920.dm_build_741.dm_build_335.Dm_build_25(ULINT_SIZE, false, true)
+	dm_build_955.dm_build_759.dm_build_339.Dm_build_25(ULINT_SIZE, false, true)
 
-	dm_build_920.dm_build_741.dm_build_335.Dm_build_25(ULINT_SIZE, false, true)
+	dm_build_955.dm_build_759.dm_build_339.Dm_build_25(ULINT_SIZE, false, true)
 
-	dm_build_920.dm_build_741.dm_build_335.Dm_build_25(BYTE_SIZE, false, true)
+	dm_build_955.dm_build_759.dm_build_339.Dm_build_25(BYTE_SIZE, false, true)
 
-	dm_build_926 := make([]uint16, dm_build_924)
-	for icol := 0; icol < int(dm_build_924); icol++ {
-		dm_build_926[icol] = dm_build_920.dm_build_741.dm_build_335.Dm_build_140()
+	dm_build_961 := make([]uint16, dm_build_959)
+	for icol := 0; icol < int(dm_build_959); icol++ {
+		dm_build_961[icol] = dm_build_955.dm_build_759.dm_build_339.Dm_build_144()
 	}
 
-	dm_build_927 := make([]uint32, dm_build_924)
-	dm_build_928 := make([][][]byte, dm_build_923)
+	dm_build_962 := make([]uint32, dm_build_959)
+	dm_build_963 := make([][][]byte, dm_build_958)
 
-	for i := uint32(0); i < dm_build_923; i++ {
-		dm_build_928[i] = make([][]byte, len(dm_build_921)+1)
+	for i := uint32(0); i < dm_build_958; i++ {
+		dm_build_963[i] = make([][]byte, len(dm_build_956)+1)
 	}
 
-	for icol := 0; icol < int(dm_build_924); icol++ {
-		dm_build_927[icol] = dm_build_920.dm_build_741.dm_build_335.Dm_build_143()
+	for icol := 0; icol < int(dm_build_959); icol++ {
+		dm_build_962[icol] = dm_build_955.dm_build_759.dm_build_339.Dm_build_147()
 	}
 
-	for icol := 0; icol < int(dm_build_924); icol++ {
+	for icol := 0; icol < int(dm_build_959); icol++ {
 
 		dataCol := icol + 1
-		if dm_build_925 && icol == dm_build_922 {
+		if dm_build_960 && icol == dm_build_957 {
 			dataCol = 0
-		} else if dm_build_925 && icol > dm_build_922 {
+		} else if dm_build_960 && icol > dm_build_957 {
 			dataCol = icol
 		}
 
-		allNotNull := dm_build_920.dm_build_741.dm_build_335.Dm_build_125() == 1
+		allNotNull := dm_build_955.dm_build_759.dm_build_339.Dm_build_129() == 1
 		var isNull []bool = nil
 		if !allNotNull {
-			isNull = make([]bool, dm_build_923)
-			for irow := uint32(0); irow < dm_build_923; irow++ {
-				isNull[irow] = dm_build_920.dm_build_741.dm_build_335.Dm_build_119() == 0
+			isNull = make([]bool, dm_build_958)
+			for irow := uint32(0); irow < dm_build_958; irow++ {
+				isNull[irow] = dm_build_955.dm_build_759.dm_build_339.Dm_build_123() == 0
 			}
 		}
 
-		for irow := uint32(0); irow < dm_build_923; irow++ {
+		for irow := uint32(0); irow < dm_build_958; irow++ {
 			if allNotNull || !isNull[irow] {
-				dm_build_928[irow][dataCol] = dm_build_920.dm_build_929(int(dm_build_926[icol]))
+				dm_build_963[irow][dataCol] = dm_build_955.dm_build_964(int(dm_build_961[icol]))
 			}
 		}
 	}
 
-	if !dm_build_925 && dm_build_922 >= 0 {
-		for irow := uint32(0); irow < dm_build_923; irow++ {
-			dm_build_928[irow][0] = dm_build_928[irow][dm_build_922+1]
+	if !dm_build_960 && dm_build_957 >= 0 {
+		for irow := uint32(0); irow < dm_build_958; irow++ {
+			dm_build_963[irow][0] = dm_build_963[irow][dm_build_957+1]
 		}
 	}
 
-	return dm_build_928
+	return dm_build_963
 }
 
-func (dm_build_930 *dm_build_840) dm_build_929(dm_build_931 int) []byte {
+func (dm_build_965 *dm_build_866) dm_build_964(dm_build_966 int) []byte {
 
-	dm_build_932 := dm_build_930.dm_build_935(dm_build_931)
+	dm_build_967 := dm_build_965.dm_build_970(dm_build_966)
 
-	dm_build_933 := int32(0)
-	if dm_build_932 == Dm_build_917 {
-		dm_build_933 = dm_build_930.dm_build_741.dm_build_335.Dm_build_125()
-		dm_build_932 = int(dm_build_930.dm_build_741.dm_build_335.Dm_build_125())
-	} else if dm_build_932 == Dm_build_918 {
-		dm_build_932 = int(dm_build_930.dm_build_741.dm_build_335.Dm_build_125())
+	dm_build_968 := int32(0)
+	if dm_build_967 == Dm_build_952 {
+		dm_build_968 = dm_build_965.dm_build_759.dm_build_339.Dm_build_129()
+		dm_build_967 = int(dm_build_965.dm_build_759.dm_build_339.Dm_build_129())
+	} else if dm_build_967 == Dm_build_953 {
+		dm_build_967 = int(dm_build_965.dm_build_759.dm_build_339.Dm_build_129())
 	}
 
-	dm_build_934 := dm_build_930.dm_build_741.dm_build_335.Dm_build_146(dm_build_932 + int(dm_build_933))
-	if dm_build_933 == 0 {
-		return dm_build_934
+	dm_build_969 := dm_build_965.dm_build_759.dm_build_339.Dm_build_150(dm_build_967 + int(dm_build_968))
+	if dm_build_968 == 0 {
+		return dm_build_969
 	}
 
-	for i := dm_build_932; i < len(dm_build_934); i++ {
-		dm_build_934[i] = ' '
+	for i := dm_build_967; i < len(dm_build_969); i++ {
+		dm_build_969[i] = ' '
 	}
-	return dm_build_934
+	return dm_build_969
 }
 
-func (dm_build_936 *dm_build_840) dm_build_935(dm_build_937 int) int {
+func (dm_build_971 *dm_build_866) dm_build_970(dm_build_972 int) int {
 
-	dm_build_938 := 0
-	switch dm_build_937 {
-	case INT:
-	case BIT:
-	case TINYINT:
-	case SMALLINT:
-	case BOOLEAN:
-	case NULL:
-		dm_build_938 = 4
+	dm_build_973 := 0
+	switch dm_build_972 {
+	case INT, BIT, TINYINT, SMALLINT, BOOLEAN, NULL:
+		dm_build_973 = 4
 
 	case BIGINT:
 
-		dm_build_938 = 8
+		dm_build_973 = 8
 
-	case CHAR:
-	case VARCHAR2:
-	case VARCHAR:
-	case BINARY:
-	case VARBINARY:
-	case BLOB:
-	case CLOB:
-		dm_build_938 = Dm_build_917
+	case CHAR, VARCHAR2, VARCHAR, BINARY, VARBINARY, BLOB, CLOB:
+		dm_build_973 = Dm_build_952
 
 	case DECIMAL:
-		dm_build_938 = Dm_build_918
+		dm_build_973 = Dm_build_953
 
 	case REAL:
-		dm_build_938 = 4
+		dm_build_973 = 4
 
 	case DOUBLE:
-		dm_build_938 = 8
+		dm_build_973 = 8
 
-	case DATE:
-	case TIME:
-	case DATETIME:
-	case TIME_TZ:
-	case DATETIME_TZ:
-		dm_build_938 = 12
+	case DATE, TIME, DATETIME, TIME_TZ, DATETIME_TZ:
+		dm_build_973 = 12
+
+	case DATETIME2, DATETIME2_TZ:
+		dm_build_973 = 13
 
 	case INTERVAL_YM:
-		dm_build_938 = 12
+		dm_build_973 = 12
 
 	case INTERVAL_DT:
-		dm_build_938 = 24
+		dm_build_973 = 24
 
 	default:
-		panic(ECGO_INVALID_COLUMN_TYPE)
+		dm_build_973 = 0
 	}
-	return dm_build_938
+	return dm_build_973
 }
 
 const (
-	Dm_build_939 = Dm_build_633
+	Dm_build_974 = Dm_build_651
 
-	Dm_build_940 = Dm_build_939 + DDWORD_SIZE
+	Dm_build_975 = Dm_build_974 + DDWORD_SIZE
 
-	Dm_build_941 = Dm_build_940 + LINT64_SIZE
+	Dm_build_976 = Dm_build_975 + LINT64_SIZE
 
-	Dm_build_942 = Dm_build_941 + USINT_SIZE
+	Dm_build_977 = Dm_build_976 + USINT_SIZE
 
-	Dm_build_943 = Dm_build_633
+	Dm_build_978 = Dm_build_651
 
-	Dm_build_944 = Dm_build_943 + DDWORD_SIZE
+	Dm_build_979 = Dm_build_978 + DDWORD_SIZE
 )
 
-type dm_build_945 struct {
-	dm_build_840
-	dm_build_946 *innerRows
-	dm_build_947 int64
-	dm_build_948 int64
+type dm_build_980 struct {
+	dm_build_866
+	dm_build_981 *innerRows
+	dm_build_982 int64
+	dm_build_983 int64
 }
 
-func dm_build_949(dm_build_950 *Access, dm_build_951 *innerRows, dm_build_952 int64, dm_build_953 int64) *dm_build_945 {
-	dm_build_954 := new(dm_build_945)
-	dm_build_954.dm_build_749(dm_build_950, Dm_build_611, dm_build_951.dmStmt)
-	dm_build_954.dm_build_946 = dm_build_951
-	dm_build_954.dm_build_947 = dm_build_952
-	dm_build_954.dm_build_948 = dm_build_953
-	return dm_build_954
+func dm_build_984(dm_build_985 *dm_build_336, dm_build_986 *innerRows, dm_build_987 int64, dm_build_988 int64) *dm_build_980 {
+	dm_build_989 := new(dm_build_980)
+	dm_build_989.dm_build_767(dm_build_985, Dm_build_629, dm_build_986.dmStmt)
+	dm_build_989.dm_build_981 = dm_build_986
+	dm_build_989.dm_build_982 = dm_build_987
+	dm_build_989.dm_build_983 = dm_build_988
+	return dm_build_989
 }
 
-func (dm_build_956 *dm_build_945) dm_build_726() error {
+func (dm_build_991 *dm_build_980) dm_build_744() error {
 
-	dm_build_956.dm_build_741.dm_build_335.Dm_build_195(Dm_build_939, dm_build_956.dm_build_947)
+	dm_build_991.dm_build_759.dm_build_339.Dm_build_199(Dm_build_974, dm_build_991.dm_build_982)
 
-	dm_build_956.dm_build_741.dm_build_335.Dm_build_195(Dm_build_940, dm_build_956.dm_build_948)
+	dm_build_991.dm_build_759.dm_build_339.Dm_build_199(Dm_build_975, dm_build_991.dm_build_983)
 
-	dm_build_956.dm_build_741.dm_build_335.Dm_build_187(Dm_build_941, dm_build_956.dm_build_946.id)
+	dm_build_991.dm_build_759.dm_build_339.Dm_build_191(Dm_build_976, dm_build_991.dm_build_981.id)
 
-	dm_build_957 := dm_build_956.dm_build_946.dmStmt.dmConn.dmConnector.bufPrefetch
-	var dm_build_958 int32
-	if dm_build_956.dm_build_946.sizeOfRow != 0 && dm_build_956.dm_build_946.fetchSize != 0 {
-		if dm_build_956.dm_build_946.sizeOfRow*dm_build_956.dm_build_946.fetchSize > int(INT32_MAX) {
-			dm_build_958 = INT32_MAX
+	dm_build_992 := dm_build_991.dm_build_981.dmStmt.dmConn.dmConnector.bufPrefetch
+	var dm_build_993 int32
+	if dm_build_991.dm_build_981.sizeOfRow != 0 && dm_build_991.dm_build_981.fetchSize != 0 {
+		if dm_build_991.dm_build_981.sizeOfRow*dm_build_991.dm_build_981.fetchSize > int(INT32_MAX) {
+			dm_build_993 = INT32_MAX
 		} else {
-			dm_build_958 = int32(dm_build_956.dm_build_946.sizeOfRow * dm_build_956.dm_build_946.fetchSize)
+			dm_build_993 = int32(dm_build_991.dm_build_981.sizeOfRow * dm_build_991.dm_build_981.fetchSize)
 		}
 
-		if dm_build_958 < Dm_build_665 {
-			dm_build_957 = int(Dm_build_665)
-		} else if dm_build_958 > Dm_build_666 {
-			dm_build_957 = int(Dm_build_666)
+		if dm_build_993 < Dm_build_683 {
+			dm_build_992 = int(Dm_build_683)
+		} else if dm_build_993 > Dm_build_684 {
+			dm_build_992 = int(Dm_build_684)
 		} else {
-			dm_build_957 = int(dm_build_958)
+			dm_build_992 = int(dm_build_993)
 		}
 
-		dm_build_956.dm_build_741.dm_build_335.Dm_build_191(Dm_build_942, int32(dm_build_957))
+		dm_build_991.dm_build_759.dm_build_339.Dm_build_195(Dm_build_977, int32(dm_build_992))
 	}
 
 	return nil
 }
 
-func (dm_build_960 *dm_build_945) dm_build_730() (interface{}, error) {
-	dm_build_961 := execRetInfo{}
-	dm_build_961.rsBdta = dm_build_960.dm_build_946.isBdta
+func (dm_build_995 *dm_build_980) dm_build_748() (interface{}, error) {
+	dm_build_996 := execRetInfo{}
+	dm_build_996.rsBdta = dm_build_995.dm_build_981.isBdta
 
-	dm_build_961.updateCount = dm_build_960.dm_build_741.dm_build_335.Dm_build_272(Dm_build_943)
-	dm_build_962 := dm_build_960.dm_build_741.dm_build_335.Dm_build_269(Dm_build_944)
+	dm_build_996.updateCount = dm_build_995.dm_build_759.dm_build_339.Dm_build_276(Dm_build_978)
+	dm_build_997 := dm_build_995.dm_build_759.dm_build_339.Dm_build_273(Dm_build_979)
 
-	dm_build_960.dm_build_900(&dm_build_961, len(dm_build_960.dm_build_946.columns), int(dm_build_962), -1)
+	dm_build_995.dm_build_929(&dm_build_996, len(dm_build_995.dm_build_981.columns), int(dm_build_997), -1)
 
-	return &dm_build_961, nil
+	return &dm_build_996, nil
 }
 
-type dm_build_963 struct {
-	dm_build_740
-	dm_build_964 *lob
-	dm_build_965 int
-	dm_build_966 int
+type dm_build_998 struct {
+	dm_build_758
+	dm_build_999  *lob
+	dm_build_1000 int
+	dm_build_1001 int
 }
 
-func dm_build_967(dm_build_968 *Access, dm_build_969 *lob, dm_build_970 int, dm_build_971 int) *dm_build_963 {
-	dm_build_972 := new(dm_build_963)
-	dm_build_972.dm_build_745(dm_build_968, Dm_build_624)
-	dm_build_972.dm_build_964 = dm_build_969
-	dm_build_972.dm_build_965 = dm_build_970
-	dm_build_972.dm_build_966 = dm_build_971
-	return dm_build_972
+func dm_build_1002(dm_build_1003 *dm_build_336, dm_build_1004 *lob, dm_build_1005 int, dm_build_1006 int) *dm_build_998 {
+	dm_build_1007 := new(dm_build_998)
+	dm_build_1007.dm_build_763(dm_build_1003, Dm_build_642)
+	dm_build_1007.dm_build_999 = dm_build_1004
+	dm_build_1007.dm_build_1000 = dm_build_1005
+	dm_build_1007.dm_build_1001 = dm_build_1006
+	return dm_build_1007
 }
 
-func (dm_build_974 *dm_build_963) dm_build_726() error {
+func (dm_build_1009 *dm_build_998) dm_build_744() error {
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_43(byte(dm_build_974.dm_build_964.lobFlag))
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_43(byte(dm_build_1009.dm_build_999.lobFlag))
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(dm_build_974.dm_build_964.tabId)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(dm_build_1009.dm_build_999.tabId)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.colId)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_51(dm_build_1009.dm_build_999.colId)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_974.dm_build_964.blobId))
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1009.dm_build_999.blobId))
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.groupId)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_51(dm_build_1009.dm_build_999.groupId)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.fileId)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_51(dm_build_1009.dm_build_999.fileId)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(dm_build_974.dm_build_964.pageNo)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(dm_build_1009.dm_build_999.pageNo)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.curFileId)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_51(dm_build_1009.dm_build_999.curFileId)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(dm_build_974.dm_build_964.curPageNo)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(dm_build_1009.dm_build_999.curPageNo)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(dm_build_974.dm_build_964.totalOffset)
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(dm_build_1009.dm_build_999.totalOffset)
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(int32(dm_build_974.dm_build_965))
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(int32(dm_build_1009.dm_build_1000))
 
-	dm_build_974.dm_build_741.dm_build_335.Dm_build_51(int32(dm_build_974.dm_build_966))
+	dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(int32(dm_build_1009.dm_build_1001))
 
-	if dm_build_974.dm_build_741.conn.NewLobFlag {
-		dm_build_974.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_974.dm_build_964.rowId))
-		dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.exGroupId)
-		dm_build_974.dm_build_741.dm_build_335.Dm_build_47(dm_build_974.dm_build_964.exFileId)
-		dm_build_974.dm_build_741.dm_build_335.Dm_build_51(dm_build_974.dm_build_964.exPageNo)
+	if dm_build_1009.dm_build_759.dm_build_340.NewLobFlag {
+		dm_build_1009.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1009.dm_build_999.rowId))
+		dm_build_1009.dm_build_759.dm_build_339.Dm_build_51(dm_build_1009.dm_build_999.exGroupId)
+		dm_build_1009.dm_build_759.dm_build_339.Dm_build_51(dm_build_1009.dm_build_999.exFileId)
+		dm_build_1009.dm_build_759.dm_build_339.Dm_build_55(dm_build_1009.dm_build_999.exPageNo)
 	}
 
 	return nil
 }
 
-func (dm_build_976 *dm_build_963) dm_build_730() (interface{}, error) {
+func (dm_build_1011 *dm_build_998) dm_build_748() (interface{}, error) {
 
-	dm_build_976.dm_build_964.readOver = dm_build_976.dm_build_741.dm_build_335.Dm_build_119() == 1
-	var dm_build_977 = dm_build_976.dm_build_741.dm_build_335.Dm_build_143()
-	if dm_build_977 <= 0 {
-		return []byte(nil), nil
+	dm_build_1011.dm_build_999.readOver = dm_build_1011.dm_build_759.dm_build_339.Dm_build_123() == 1
+	var dm_build_1012 = dm_build_1011.dm_build_759.dm_build_339.Dm_build_147()
+	if dm_build_1012 <= 0 {
+		return &lobRetInfo{0, []byte{}}, nil
 	}
-	dm_build_976.dm_build_964.curFileId = dm_build_976.dm_build_741.dm_build_335.Dm_build_122()
-	dm_build_976.dm_build_964.curPageNo = dm_build_976.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_976.dm_build_964.totalOffset = dm_build_976.dm_build_741.dm_build_335.Dm_build_125()
+	dm_build_1011.dm_build_999.curFileId = dm_build_1011.dm_build_759.dm_build_339.Dm_build_126()
+	dm_build_1011.dm_build_999.curPageNo = dm_build_1011.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1011.dm_build_999.totalOffset = dm_build_1011.dm_build_759.dm_build_339.Dm_build_129()
 
-	return dm_build_976.dm_build_741.dm_build_335.Dm_build_156(int(dm_build_977)), nil
+	var dm_build_1013 = dm_build_1011.dm_build_759.dm_build_339.Dm_build_160(int(dm_build_1012))
+	var dm_build_1014 int64 = -1
+	if dm_build_1011.dm_build_759.dm_build_339.Dm_build_22(false) > 0 {
+		dm_build_1014 = int64(dm_build_1011.dm_build_759.dm_build_339.Dm_build_147())
+	}
+	return &lobRetInfo{dm_build_1014, dm_build_1013}, nil
 }
 
-type dm_build_978 struct {
-	dm_build_740
-	dm_build_979 *lob
+type dm_build_1015 struct {
+	dm_build_758
+	dm_build_1016 *lob
 }
 
-func dm_build_980(dm_build_981 *Access, dm_build_982 *lob) *dm_build_978 {
-	dm_build_983 := new(dm_build_978)
-	dm_build_983.dm_build_745(dm_build_981, Dm_build_621)
-	dm_build_983.dm_build_979 = dm_build_982
-	return dm_build_983
+func dm_build_1017(dm_build_1018 *dm_build_336, dm_build_1019 *lob) *dm_build_1015 {
+	dm_build_1020 := new(dm_build_1015)
+	dm_build_1020.dm_build_763(dm_build_1018, Dm_build_639)
+	dm_build_1020.dm_build_1016 = dm_build_1019
+	return dm_build_1020
 }
 
-func (dm_build_985 *dm_build_978) dm_build_726() error {
+func (dm_build_1022 *dm_build_1015) dm_build_744() error {
 
-	dm_build_985.dm_build_741.dm_build_335.Dm_build_43(byte(dm_build_985.dm_build_979.lobFlag))
+	dm_build_1022.dm_build_759.dm_build_339.Dm_build_43(byte(dm_build_1022.dm_build_1016.lobFlag))
 
-	dm_build_985.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_985.dm_build_979.blobId))
+	dm_build_1022.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1022.dm_build_1016.blobId))
 
-	dm_build_985.dm_build_741.dm_build_335.Dm_build_47(dm_build_985.dm_build_979.groupId)
+	dm_build_1022.dm_build_759.dm_build_339.Dm_build_51(dm_build_1022.dm_build_1016.groupId)
 
-	dm_build_985.dm_build_741.dm_build_335.Dm_build_47(dm_build_985.dm_build_979.fileId)
+	dm_build_1022.dm_build_759.dm_build_339.Dm_build_51(dm_build_1022.dm_build_1016.fileId)
 
-	dm_build_985.dm_build_741.dm_build_335.Dm_build_51(dm_build_985.dm_build_979.pageNo)
+	dm_build_1022.dm_build_759.dm_build_339.Dm_build_55(dm_build_1022.dm_build_1016.pageNo)
 
-	if dm_build_985.dm_build_741.conn.NewLobFlag {
-		dm_build_985.dm_build_741.dm_build_335.Dm_build_51(dm_build_985.dm_build_979.tabId)
-		dm_build_985.dm_build_741.dm_build_335.Dm_build_47(dm_build_985.dm_build_979.colId)
-		dm_build_985.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_985.dm_build_979.rowId))
+	if dm_build_1022.dm_build_759.dm_build_340.NewLobFlag {
+		dm_build_1022.dm_build_759.dm_build_339.Dm_build_55(dm_build_1022.dm_build_1016.tabId)
+		dm_build_1022.dm_build_759.dm_build_339.Dm_build_51(dm_build_1022.dm_build_1016.colId)
+		dm_build_1022.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1022.dm_build_1016.rowId))
 
-		dm_build_985.dm_build_741.dm_build_335.Dm_build_47(dm_build_985.dm_build_979.exGroupId)
-		dm_build_985.dm_build_741.dm_build_335.Dm_build_47(dm_build_985.dm_build_979.exFileId)
-		dm_build_985.dm_build_741.dm_build_335.Dm_build_51(dm_build_985.dm_build_979.exPageNo)
+		dm_build_1022.dm_build_759.dm_build_339.Dm_build_51(dm_build_1022.dm_build_1016.exGroupId)
+		dm_build_1022.dm_build_759.dm_build_339.Dm_build_51(dm_build_1022.dm_build_1016.exFileId)
+		dm_build_1022.dm_build_759.dm_build_339.Dm_build_55(dm_build_1022.dm_build_1016.exPageNo)
 	}
 
 	return nil
 }
 
-func (dm_build_987 *dm_build_978) dm_build_730() (interface{}, error) {
+func (dm_build_1024 *dm_build_1015) dm_build_748() (interface{}, error) {
 
-	if dm_build_987.dm_build_741.dm_build_335.Dm_build_22(false) == 8 {
-		return dm_build_987.dm_build_741.dm_build_335.Dm_build_128(), nil
+	if dm_build_1024.dm_build_759.dm_build_339.Dm_build_22(false) == 8 {
+		return dm_build_1024.dm_build_759.dm_build_339.Dm_build_132(), nil
 	} else {
-		return int64(dm_build_987.dm_build_741.dm_build_335.Dm_build_143()), nil
+		return int64(dm_build_1024.dm_build_759.dm_build_339.Dm_build_147()), nil
 	}
 }
 
-type dm_build_988 struct {
-	dm_build_740
-	dm_build_989 *lob
-	dm_build_990 int
+type dm_build_1025 struct {
+	dm_build_758
+	dm_build_1026 *lob
+	dm_build_1027 int
 }
 
-func dm_build_991(dm_build_992 *Access, dm_build_993 *lob, dm_build_994 int) *dm_build_988 {
-	dm_build_995 := new(dm_build_988)
-	dm_build_995.dm_build_745(dm_build_992, Dm_build_623)
-	dm_build_995.dm_build_989 = dm_build_993
-	dm_build_995.dm_build_990 = dm_build_994
-	return dm_build_995
+func dm_build_1028(dm_build_1029 *dm_build_336, dm_build_1030 *lob, dm_build_1031 int) *dm_build_1025 {
+	dm_build_1032 := new(dm_build_1025)
+	dm_build_1032.dm_build_763(dm_build_1029, Dm_build_641)
+	dm_build_1032.dm_build_1026 = dm_build_1030
+	dm_build_1032.dm_build_1027 = dm_build_1031
+	return dm_build_1032
 }
 
-func (dm_build_997 *dm_build_988) dm_build_726() error {
+func (dm_build_1034 *dm_build_1025) dm_build_744() error {
 
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_43(byte(dm_build_997.dm_build_989.lobFlag))
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_43(byte(dm_build_1034.dm_build_1026.lobFlag))
 
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_997.dm_build_989.blobId))
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1034.dm_build_1026.blobId))
 
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.groupId)
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_51(dm_build_1034.dm_build_1026.groupId)
 
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.fileId)
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_51(dm_build_1034.dm_build_1026.fileId)
 
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_51(dm_build_997.dm_build_989.pageNo)
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_55(dm_build_1034.dm_build_1026.pageNo)
 
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_51(dm_build_997.dm_build_989.tabId)
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.colId)
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_997.dm_build_989.rowId))
-	dm_build_997.dm_build_741.dm_build_335.Dm_build_79(Dm_build_1219.Dm_build_1421(uint32(dm_build_997.dm_build_990)))
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_55(dm_build_1034.dm_build_1026.tabId)
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_51(dm_build_1034.dm_build_1026.colId)
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1034.dm_build_1026.rowId))
+	dm_build_1034.dm_build_759.dm_build_339.Dm_build_83(Dm_build_1257.Dm_build_1462(uint32(dm_build_1034.dm_build_1027)))
 
-	if dm_build_997.dm_build_741.conn.NewLobFlag {
-		dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.exGroupId)
-		dm_build_997.dm_build_741.dm_build_335.Dm_build_47(dm_build_997.dm_build_989.exFileId)
-		dm_build_997.dm_build_741.dm_build_335.Dm_build_51(dm_build_997.dm_build_989.exPageNo)
+	if dm_build_1034.dm_build_759.dm_build_340.NewLobFlag {
+		dm_build_1034.dm_build_759.dm_build_339.Dm_build_51(dm_build_1034.dm_build_1026.exGroupId)
+		dm_build_1034.dm_build_759.dm_build_339.Dm_build_51(dm_build_1034.dm_build_1026.exFileId)
+		dm_build_1034.dm_build_759.dm_build_339.Dm_build_55(dm_build_1034.dm_build_1026.exPageNo)
 	}
 	return nil
 }
 
-func (dm_build_999 *dm_build_988) dm_build_730() (interface{}, error) {
+func (dm_build_1036 *dm_build_1025) dm_build_748() (interface{}, error) {
 
-	dm_build_1000 := dm_build_999.dm_build_741.dm_build_335.Dm_build_143()
-	dm_build_999.dm_build_989.blobId = dm_build_999.dm_build_741.dm_build_335.Dm_build_128()
-	dm_build_999.dm_build_989.resetCurrentInfo()
-	return int64(dm_build_1000), nil
+	dm_build_1037 := dm_build_1036.dm_build_759.dm_build_339.Dm_build_147()
+	dm_build_1036.dm_build_1026.blobId = dm_build_1036.dm_build_759.dm_build_339.Dm_build_132()
+	dm_build_1036.dm_build_1026.resetCurrentInfo()
+	return int64(dm_build_1037), nil
 }
 
 const (
-	Dm_build_1001 = Dm_build_633
+	Dm_build_1038 = Dm_build_651
 
-	Dm_build_1002 = Dm_build_1001 + ULINT_SIZE
+	Dm_build_1039 = Dm_build_1038 + ULINT_SIZE
 
-	Dm_build_1003 = Dm_build_1002 + ULINT_SIZE
+	Dm_build_1040 = Dm_build_1039 + ULINT_SIZE
 
-	Dm_build_1004 = Dm_build_1003 + ULINT_SIZE
+	Dm_build_1041 = Dm_build_1040 + ULINT_SIZE
 
-	Dm_build_1005 = Dm_build_1004 + BYTE_SIZE
+	Dm_build_1042 = Dm_build_1041 + BYTE_SIZE
 
-	Dm_build_1006 = Dm_build_1005 + USINT_SIZE
+	Dm_build_1043 = Dm_build_1042 + USINT_SIZE
 
-	Dm_build_1007 = Dm_build_1006 + ULINT_SIZE
+	Dm_build_1044 = Dm_build_1043 + ULINT_SIZE
 
-	Dm_build_1008 = Dm_build_1007 + BYTE_SIZE
+	Dm_build_1045 = Dm_build_1044 + BYTE_SIZE
 
-	Dm_build_1009 = Dm_build_1008 + BYTE_SIZE
+	Dm_build_1046 = Dm_build_1045 + BYTE_SIZE
 
-	Dm_build_1010 = Dm_build_1009 + BYTE_SIZE
+	Dm_build_1047 = Dm_build_1046 + BYTE_SIZE
 
-	Dm_build_1011 = Dm_build_633
+	Dm_build_1048 = Dm_build_651
 
-	Dm_build_1012 = Dm_build_1011 + ULINT_SIZE
+	Dm_build_1049 = Dm_build_1048 + ULINT_SIZE
 
-	Dm_build_1013 = Dm_build_1012 + ULINT_SIZE
+	Dm_build_1050 = Dm_build_1049 + ULINT_SIZE
 
-	Dm_build_1014 = Dm_build_1013 + BYTE_SIZE
+	Dm_build_1051 = Dm_build_1050 + BYTE_SIZE
 
-	Dm_build_1015 = Dm_build_1014 + ULINT_SIZE
+	Dm_build_1052 = Dm_build_1051 + ULINT_SIZE
 
-	Dm_build_1016 = Dm_build_1015 + BYTE_SIZE
+	Dm_build_1053 = Dm_build_1052 + BYTE_SIZE
 
-	Dm_build_1017 = Dm_build_1016 + BYTE_SIZE
+	Dm_build_1054 = Dm_build_1053 + BYTE_SIZE
 
-	Dm_build_1018 = Dm_build_1017 + USINT_SIZE
+	Dm_build_1055 = Dm_build_1054 + USINT_SIZE
 
-	Dm_build_1019 = Dm_build_1018 + USINT_SIZE
+	Dm_build_1056 = Dm_build_1055 + USINT_SIZE
 
-	Dm_build_1020 = Dm_build_1019 + BYTE_SIZE
+	Dm_build_1057 = Dm_build_1056 + BYTE_SIZE
 
-	Dm_build_1021 = Dm_build_1020 + USINT_SIZE
+	Dm_build_1058 = Dm_build_1057 + USINT_SIZE
 
-	Dm_build_1022 = Dm_build_1021 + BYTE_SIZE
+	Dm_build_1059 = Dm_build_1058 + BYTE_SIZE
 
-	Dm_build_1023 = Dm_build_1022 + BYTE_SIZE
+	Dm_build_1060 = Dm_build_1059 + BYTE_SIZE
 
-	Dm_build_1024 = Dm_build_1023 + ULINT_SIZE
+	Dm_build_1061 = Dm_build_1060 + ULINT_SIZE
 
-	Dm_build_1025 = Dm_build_1024 + USINT_SIZE
+	Dm_build_1062 = Dm_build_1061 + USINT_SIZE
 )
 
-type dm_build_1026 struct {
-	dm_build_740
+type dm_build_1063 struct {
+	dm_build_758
 
-	dm_build_1027 *Connection
+	dm_build_1064 *DmConnection
 
-	dm_build_1028 bool
+	dm_build_1065 bool
 }
 
-func dm_build_1029(dm_build_1030 *Access) *dm_build_1026 {
-	dm_build_1031 := new(dm_build_1026)
-	dm_build_1031.dm_build_745(dm_build_1030, Dm_build_605)
-	dm_build_1031.dm_build_1027 = dm_build_1030.conn
-	return dm_build_1031
+func dm_build_1066(dm_build_1067 *dm_build_336) *dm_build_1063 {
+	dm_build_1068 := new(dm_build_1063)
+	dm_build_1068.dm_build_763(dm_build_1067, Dm_build_623)
+	dm_build_1068.dm_build_1064 = dm_build_1067.dm_build_340
+	return dm_build_1068
 }
 
-func (dm_build_1033 *dm_build_1026) dm_build_726() error {
+func (dm_build_1070 *dm_build_1063) dm_build_744() error {
 
-	if dm_build_1033.dm_build_1027.dmConnector.newClientType {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1001, Dm_build_645)
+	if dm_build_1070.dm_build_1064.dmConnector.newClientType {
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1038, Dm_build_662)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1001, Dm_build_644)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1038, Dm_build_661)
 	}
 
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1002, g2dbIsoLevel(dm_build_1033.dm_build_1027.IsoLevel))
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1003, int32(Locale))
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_187(Dm_build_1005, dm_build_1033.dm_build_1027.dmConnector.localTimezone)
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1039, g2dbIsoLevel(dm_build_1070.dm_build_1064.IsoLevel))
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1040, int32(Locale))
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_191(Dm_build_1042, dm_build_1070.dm_build_1064.dmConnector.localTimezone)
 
-	if dm_build_1033.dm_build_1027.ReadOnly {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1004, Dm_build_668)
+	if dm_build_1070.dm_build_1064.ReadOnly {
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1041, Dm_build_686)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1004, Dm_build_667)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1041, Dm_build_685)
 	}
 
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1006, int32(dm_build_1033.dm_build_1027.dmConnector.sessionTimeout))
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1043, int32(dm_build_1070.dm_build_1064.dmConnector.sessionTimeout))
 
-	if dm_build_1033.dm_build_1027.dmConnector.mppLocal {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1007, 1)
+	if dm_build_1070.dm_build_1064.dmConnector.mppLocal {
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1044, 1)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1007, 0)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1044, 0)
 	}
 
-	if dm_build_1033.dm_build_1027.dmConnector.rwSeparate {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1008, 1)
+	if dm_build_1070.dm_build_1064.dmConnector.rwSeparate {
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1045, 1)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1008, 0)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1045, 0)
 	}
 
-	if dm_build_1033.dm_build_1027.NewLobFlag {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1009, 1)
+	if dm_build_1070.dm_build_1064.NewLobFlag {
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1046, 1)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1009, 0)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1046, 0)
 	}
 
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1010, dm_build_1033.dm_build_1027.dmConnector.osAuthType)
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1047, dm_build_1070.dm_build_1064.dmConnector.osAuthType)
 
-	dm_build_1034 := dm_build_1033.dm_build_1027.getServerEncoding()
+	dm_build_1071 := dm_build_1070.dm_build_1064.getServerEncoding()
 
-	if dm_build_1033.dm_build_741.dm_build_342 != "" {
+	if dm_build_1070.dm_build_759.dm_build_346 != "" {
 
 	}
 
-	dm_build_1035 := Dm_build_1219.Dm_build_1432(dm_build_1033.dm_build_1027.dmConnector.user, dm_build_1034, dm_build_1033.dm_build_741.conn)
-	dm_build_1036 := Dm_build_1219.Dm_build_1432(dm_build_1033.dm_build_1027.dmConnector.password, dm_build_1034, dm_build_1033.dm_build_741.conn)
-	if len(dm_build_1035) > Dm_build_641 {
+	dm_build_1072 := Dm_build_1257.Dm_build_1473(dm_build_1070.dm_build_1064.dmConnector.user, dm_build_1071, dm_build_1070.dm_build_759.dm_build_340)
+	dm_build_1073 := Dm_build_1257.Dm_build_1473(dm_build_1070.dm_build_1064.dmConnector.password, dm_build_1071, dm_build_1070.dm_build_759.dm_build_340)
+	if len(dm_build_1072) > Dm_build_659 {
 		return ECGO_USERNAME_TOO_LONG.throw()
 	}
-	if len(dm_build_1036) > Dm_build_641 {
+	if len(dm_build_1073) > Dm_build_659 {
 		return ECGO_PASSWORD_TOO_LONG.throw()
 	}
 
-	if dm_build_1033.dm_build_741.dm_build_338 && dm_build_1033.dm_build_1027.dmConnector.loginCertificate != "" {
+	if dm_build_1070.dm_build_759.dm_build_342 && dm_build_1070.dm_build_1064.dmConnector.loginCertificate != "" {
 
-	} else if dm_build_1033.dm_build_741.dm_build_338 {
-		dm_build_1035 = dm_build_1033.dm_build_741.dm_build_337.Encrypt(dm_build_1035, false)
-		dm_build_1036 = dm_build_1033.dm_build_741.dm_build_337.Encrypt(dm_build_1036, false)
+	} else if dm_build_1070.dm_build_759.dm_build_342 {
+		dm_build_1072 = dm_build_1070.dm_build_759.dm_build_341.Encrypt(dm_build_1072, false)
+		dm_build_1073 = dm_build_1070.dm_build_759.dm_build_341.Encrypt(dm_build_1073, false)
 	}
 
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_83(dm_build_1035)
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_83(dm_build_1036)
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_87(dm_build_1072)
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_87(dm_build_1073)
 
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(dm_build_1033.dm_build_1027.dmConnector.appName, dm_build_1034, dm_build_1033.dm_build_741.conn)
-	dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(dm_build_1033.dm_build_1027.dmConnector.osName, dm_build_1034, dm_build_1033.dm_build_741.conn)
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_99(dm_build_1070.dm_build_1064.dmConnector.appName, dm_build_1071, dm_build_1070.dm_build_759.dm_build_340)
+	dm_build_1070.dm_build_759.dm_build_339.Dm_build_99(dm_build_1070.dm_build_1064.dmConnector.osName, dm_build_1071, dm_build_1070.dm_build_759.dm_build_340)
 
 	if hostName, err := os.Hostname(); err != nil {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_95(hostName, dm_build_1034, dm_build_1033.dm_build_741.conn)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_99(hostName, dm_build_1071, dm_build_1070.dm_build_759.dm_build_340)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_95("", dm_build_1034, dm_build_1033.dm_build_741.conn)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_99("", dm_build_1071, dm_build_1070.dm_build_759.dm_build_340)
 	}
 
-	if dm_build_1033.dm_build_1027.dmConnector.rwStandby {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_43(1)
+	if dm_build_1070.dm_build_1064.dmConnector.rwStandby {
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_43(1)
 	} else {
-		dm_build_1033.dm_build_741.dm_build_335.Dm_build_43(0)
+		dm_build_1070.dm_build_759.dm_build_339.Dm_build_43(0)
 	}
 
 	return nil
 }
 
-func (dm_build_1038 *dm_build_1026) dm_build_730() (interface{}, error) {
+func (dm_build_1075 *dm_build_1063) dm_build_748() (interface{}, error) {
 
-	dm_build_1038.dm_build_1027.MaxRowSize = dm_build_1038.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1011)
-	dm_build_1038.dm_build_1027.DDLAutoCommit = dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1013) == 1
-	dm_build_1038.dm_build_1027.IsoLevel = dm_build_1038.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1014)
-	dm_build_1038.dm_build_1027.dmConnector.caseSensitive = dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1015) == 1
-	dm_build_1038.dm_build_1027.BackslashEscape = dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1016) == 1
-	dm_build_1038.dm_build_1027.SvrStat = int32(dm_build_1038.dm_build_741.dm_build_335.Dm_build_266(Dm_build_1018))
-	dm_build_1038.dm_build_1027.SvrMode = int32(dm_build_1038.dm_build_741.dm_build_335.Dm_build_266(Dm_build_1017))
-	dm_build_1038.dm_build_1027.ConstParaOpt = dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1019) == 1
-	dm_build_1038.dm_build_1027.DbTimezone = dm_build_1038.dm_build_741.dm_build_335.Dm_build_266(Dm_build_1020)
-	dm_build_1038.dm_build_1027.NewLobFlag = dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1022) == 1
+	dm_build_1075.dm_build_1064.MaxRowSize = dm_build_1075.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1048)
+	dm_build_1075.dm_build_1064.DDLAutoCommit = dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1050) == 1
+	dm_build_1075.dm_build_1064.IsoLevel = dm_build_1075.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1051)
+	dm_build_1075.dm_build_1064.dmConnector.caseSensitive = dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1052) == 1
+	dm_build_1075.dm_build_1064.BackslashEscape = dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1053) == 1
+	dm_build_1075.dm_build_1064.SvrStat = int32(dm_build_1075.dm_build_759.dm_build_339.Dm_build_270(Dm_build_1055))
+	dm_build_1075.dm_build_1064.SvrMode = int32(dm_build_1075.dm_build_759.dm_build_339.Dm_build_270(Dm_build_1054))
+	dm_build_1075.dm_build_1064.ConstParaOpt = dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1056) == 1
+	dm_build_1075.dm_build_1064.DbTimezone = dm_build_1075.dm_build_759.dm_build_339.Dm_build_270(Dm_build_1057)
+	dm_build_1075.dm_build_1064.NewLobFlag = dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1059) == 1
 
-	if dm_build_1038.dm_build_1027.dmConnector.bufPrefetch == 0 {
-		dm_build_1038.dm_build_1027.dmConnector.bufPrefetch = int(dm_build_1038.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1023))
+	if dm_build_1075.dm_build_1064.dmConnector.bufPrefetch == 0 {
+		dm_build_1075.dm_build_1064.dmConnector.bufPrefetch = int(dm_build_1075.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1060))
 	}
 
-	dm_build_1038.dm_build_1027.LifeTimeRemainder = dm_build_1038.dm_build_741.dm_build_335.Dm_build_266(Dm_build_1024)
-	dm_build_1038.dm_build_1027.dscControl = dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1025) == 1
+	dm_build_1075.dm_build_1064.LifeTimeRemainder = dm_build_1075.dm_build_759.dm_build_339.Dm_build_270(Dm_build_1061)
+	dm_build_1075.dm_build_1064.dscControl = dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1062) == 1
 
-	dm_build_1039 := dm_build_1038.dm_build_1027.getServerEncoding()
+	dm_build_1076 := dm_build_1075.dm_build_1064.getServerEncoding()
 
-	dm_build_1038.dm_build_1027.InstanceName = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
+	dm_build_1075.dm_build_1064.InstanceName = dm_build_1075.dm_build_759.dm_build_339.Dm_build_171(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 
-	var dm_build_1040 = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
-	if dm_build_1040 == 0 && dm_build_1038.dm_build_1027.MsgVersion > 0 {
-		dm_build_1038.dm_build_1027.Schema = strings.ToUpper(dm_build_1038.dm_build_1027.dmConnector.user)
+	var dm_build_1077 = dm_build_1075.dm_build_759.dm_build_339.Dm_build_129()
+	if dm_build_1077 == 0 && dm_build_1075.dm_build_1064.MsgVersion > 0 {
+		dm_build_1075.dm_build_1064.Schema = strings.ToUpper(dm_build_1075.dm_build_1064.dmConnector.user)
 	} else {
-		dm_build_1038.dm_build_1027.Schema = dm_build_1038.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1040), dm_build_1039, dm_build_1038.dm_build_741.conn)
+		dm_build_1075.dm_build_1064.Schema = dm_build_1075.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_1077), dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 	}
 
-	dm_build_1038.dm_build_1027.LastLoginIP = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
-	dm_build_1038.dm_build_1027.LastLoginTime = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
-	dm_build_1038.dm_build_1027.FailedAttempts = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1038.dm_build_1027.LoginWarningID = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1038.dm_build_1027.GraceTimeRemainder = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1038.dm_build_1027.Guid = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
-	dm_build_1038.dm_build_1027.DbName = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
+	dm_build_1075.dm_build_1064.LastLoginIP = dm_build_1075.dm_build_759.dm_build_339.Dm_build_171(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
+	dm_build_1075.dm_build_1064.LastLoginTime = dm_build_1075.dm_build_759.dm_build_339.Dm_build_171(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
+	dm_build_1075.dm_build_1064.FailedAttempts = dm_build_1075.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1075.dm_build_1064.LoginWarningID = dm_build_1075.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1075.dm_build_1064.GraceTimeRemainder = dm_build_1075.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1075.dm_build_1064.Guid = dm_build_1075.dm_build_759.dm_build_339.Dm_build_171(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
+	dm_build_1075.dm_build_1064.DbName = dm_build_1075.dm_build_759.dm_build_339.Dm_build_171(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 
-	if dm_build_1038.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1021) == 1 {
-		dm_build_1038.dm_build_1027.StandbyHost = dm_build_1038.dm_build_741.dm_build_335.Dm_build_167(dm_build_1039, dm_build_1038.dm_build_741.conn)
-		dm_build_1038.dm_build_1027.StandbyPort = dm_build_1038.dm_build_741.dm_build_335.Dm_build_125()
-		dm_build_1038.dm_build_1027.StandbyCount = int32(dm_build_1038.dm_build_741.dm_build_335.Dm_build_140())
+	if dm_build_1075.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1058) == 1 {
+		dm_build_1075.dm_build_1064.StandbyHost = dm_build_1075.dm_build_759.dm_build_339.Dm_build_171(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
+		dm_build_1075.dm_build_1064.StandbyPort = dm_build_1075.dm_build_759.dm_build_339.Dm_build_129()
+		dm_build_1075.dm_build_1064.StandbyCount = int32(dm_build_1075.dm_build_759.dm_build_339.Dm_build_144())
 	}
 
-	if dm_build_1038.dm_build_741.dm_build_335.Dm_build_22(false) > 0 {
-		dm_build_1038.dm_build_1027.SessionID = dm_build_1038.dm_build_741.dm_build_335.Dm_build_128()
+	if dm_build_1075.dm_build_759.dm_build_339.Dm_build_22(false) > 0 {
+		dm_build_1075.dm_build_1064.SessionID = dm_build_1075.dm_build_759.dm_build_339.Dm_build_132()
 	}
 
-	if dm_build_1038.dm_build_741.dm_build_335.Dm_build_22(false) > 0 {
-		if dm_build_1038.dm_build_741.dm_build_335.Dm_build_119() == 1 {
+	if dm_build_1075.dm_build_759.dm_build_339.Dm_build_22(false) > 0 {
+		if dm_build_1075.dm_build_759.dm_build_339.Dm_build_123() == 1 {
 
-			dm_build_1038.dm_build_1027.FormatDate = "DD-MON-YY"
+			dm_build_1075.dm_build_1064.FormatDate = "DD-MON-YY"
 
-			dm_build_1038.dm_build_1027.FormatTime = "HH12.MI.SS.FF6 AM"
+			dm_build_1075.dm_build_1064.FormatTime = "HH12.MI.SS.FF6 AM"
 
-			dm_build_1038.dm_build_1027.FormatTimestamp = "DD-MON-YY HH12.MI.SS.FF6 AM"
+			dm_build_1075.dm_build_1064.FormatTimestamp = "DD-MON-YY HH12.MI.SS.FF6 AM"
 
-			dm_build_1038.dm_build_1027.FormatTimestampTZ = "DD-MON-YY HH12.MI.SS.FF6 AM +TZH:TZM"
+			dm_build_1075.dm_build_1064.FormatTimestampTZ = "DD-MON-YY HH12.MI.SS.FF6 AM +TZH:TZM"
 
-			dm_build_1038.dm_build_1027.FormatTimeTZ = "HH12.MI.SS.FF6 AM +TZH:TZM"
+			dm_build_1075.dm_build_1064.FormatTimeTZ = "HH12.MI.SS.FF6 AM +TZH:TZM"
 		}
 	}
 
-	if dm_build_1038.dm_build_741.dm_build_335.Dm_build_22(false) > 0 {
+	if dm_build_1075.dm_build_759.dm_build_339.Dm_build_22(false) > 0 {
 
-		format := dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
+		format := dm_build_1075.dm_build_759.dm_build_339.Dm_build_175(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 		if format != "" {
-			dm_build_1038.dm_build_1027.FormatDate = format
+			dm_build_1075.dm_build_1064.FormatDate = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
+		format = dm_build_1075.dm_build_759.dm_build_339.Dm_build_175(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 		if format != "" {
-			dm_build_1038.dm_build_1027.FormatTime = format
+			dm_build_1075.dm_build_1064.FormatTime = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
+		format = dm_build_1075.dm_build_759.dm_build_339.Dm_build_175(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 		if format != "" {
-			dm_build_1038.dm_build_1027.FormatTimestamp = format
+			dm_build_1075.dm_build_1064.FormatTimestamp = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
+		format = dm_build_1075.dm_build_759.dm_build_339.Dm_build_175(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 		if format != "" {
-			dm_build_1038.dm_build_1027.FormatTimestampTZ = format
+			dm_build_1075.dm_build_1064.FormatTimestampTZ = format
 		}
-		format = dm_build_1038.dm_build_741.dm_build_335.Dm_build_171(dm_build_1039, dm_build_1038.dm_build_741.conn)
+		format = dm_build_1075.dm_build_759.dm_build_339.Dm_build_175(dm_build_1076, dm_build_1075.dm_build_759.dm_build_340)
 		if format != "" {
-			dm_build_1038.dm_build_1027.FormatTimeTZ = format
+			dm_build_1075.dm_build_1064.FormatTimeTZ = format
 		}
 	}
 
@@ -2102,432 +2238,485 @@ func (dm_build_1038 *dm_build_1026) dm_build_730() (interface{}, error) {
 }
 
 const (
-	Dm_build_1041 = Dm_build_633
+	Dm_build_1078 = Dm_build_651
 )
 
-type dm_build_1042 struct {
-	dm_build_840
-	dm_build_1043 int16
+type dm_build_1079 struct {
+	dm_build_866
+	dm_build_1080 int16
 }
 
-func dm_build_1044(dm_build_1045 *Access, dm_build_1046 *DmStatement, dm_build_1047 int16) *dm_build_1042 {
-	dm_build_1048 := new(dm_build_1042)
-	dm_build_1048.dm_build_749(dm_build_1045, Dm_build_625, dm_build_1046)
-	dm_build_1048.dm_build_1043 = dm_build_1047
-	return dm_build_1048
+func dm_build_1081(dm_build_1082 *dm_build_336, dm_build_1083 *DmStatement, dm_build_1084 int16) *dm_build_1079 {
+	dm_build_1085 := new(dm_build_1079)
+	dm_build_1085.dm_build_767(dm_build_1082, Dm_build_643, dm_build_1083)
+	dm_build_1085.dm_build_1080 = dm_build_1084
+	return dm_build_1085
 }
 
-func (dm_build_1050 *dm_build_1042) dm_build_726() error {
-	dm_build_1050.dm_build_741.dm_build_335.Dm_build_187(Dm_build_1041, dm_build_1050.dm_build_1043)
+func (dm_build_1087 *dm_build_1079) dm_build_744() error {
+	dm_build_1087.dm_build_759.dm_build_339.Dm_build_191(Dm_build_1078, dm_build_1087.dm_build_1080)
 	return nil
 }
 
-func (dm_build_1052 *dm_build_1042) dm_build_730() (interface{}, error) {
-	return dm_build_1052.dm_build_840.dm_build_730()
+func (dm_build_1089 *dm_build_1079) dm_build_748() (interface{}, error) {
+	return dm_build_1089.dm_build_866.dm_build_748()
 }
 
 const (
-	Dm_build_1053 = Dm_build_633
-	Dm_build_1054 = Dm_build_1053 + USINT_SIZE
+	Dm_build_1090 = Dm_build_651
+	Dm_build_1091 = Dm_build_1090 + USINT_SIZE
 )
 
-type dm_build_1055 struct {
-	dm_build_840
-	dm_build_1056 []parameter
+type dm_build_1092 struct {
+	dm_build_1102
+	dm_build_1093 []parameter
 }
 
-func dm_build_1057(dm_build_1058 *Access, dm_build_1059 *DmStatement, dm_build_1060 []parameter) *dm_build_1055 {
-	dm_build_1061 := new(dm_build_1055)
-	dm_build_1061.dm_build_749(dm_build_1058, Dm_build_629, dm_build_1059)
-	dm_build_1061.dm_build_1056 = dm_build_1060
-	return dm_build_1061
+func dm_build_1094(dm_build_1095 *dm_build_336, dm_build_1096 *DmStatement, dm_build_1097 []parameter) *dm_build_1092 {
+	dm_build_1098 := new(dm_build_1092)
+	dm_build_1098.dm_build_767(dm_build_1095, Dm_build_647, dm_build_1096)
+	dm_build_1098.dm_build_1093 = dm_build_1097
+	return dm_build_1098
 }
 
-func (dm_build_1063 *dm_build_1055) dm_build_726() error {
+func (dm_build_1100 *dm_build_1092) dm_build_744() error {
 
-	if dm_build_1063.dm_build_1056 == nil {
-		dm_build_1063.dm_build_741.dm_build_335.Dm_build_187(Dm_build_1053, 0)
+	if dm_build_1100.dm_build_1093 == nil {
+		dm_build_1100.dm_build_759.dm_build_339.Dm_build_191(Dm_build_1090, 0)
 	} else {
-		dm_build_1063.dm_build_741.dm_build_335.Dm_build_187(Dm_build_1053, int16(len(dm_build_1063.dm_build_1056)))
+		dm_build_1100.dm_build_759.dm_build_339.Dm_build_191(Dm_build_1090, int16(len(dm_build_1100.dm_build_1093)))
 	}
 
-	dm_build_1063.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1054, 0)
+	dm_build_1100.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1091, 0)
 
-	return dm_build_1063.dm_build_863(dm_build_1063.dm_build_1056)
+	return dm_build_1100.dm_build_891(dm_build_1100.dm_build_1093)
 }
 
-type dm_build_1064 struct {
-	dm_build_840
-	dm_build_1065 bool
-	dm_build_1066 int16
+const Dm_build_1101 = 38
+
+type dm_build_1102 struct {
+	dm_build_866
+	dm_build_1103 bool
+	dm_build_1104 int16
 }
 
-func dm_build_1067(dm_build_1068 *Access, dm_build_1069 *DmStatement, dm_build_1070 bool, dm_build_1071 int16) *dm_build_1064 {
-	dm_build_1072 := new(dm_build_1064)
-	dm_build_1072.dm_build_749(dm_build_1068, Dm_build_609, dm_build_1069)
-	dm_build_1072.dm_build_1065 = dm_build_1070
-	dm_build_1072.dm_build_1066 = dm_build_1071
-	return dm_build_1072
+func dm_build_1105(dm_build_1106 *dm_build_336, dm_build_1107 *DmStatement, dm_build_1108 bool, dm_build_1109 int16) *dm_build_1102 {
+	dm_build_1110 := new(dm_build_1102)
+	dm_build_1110.dm_build_767(dm_build_1106, Dm_build_627, dm_build_1107)
+	dm_build_1110.dm_build_1103 = dm_build_1108
+	dm_build_1110.dm_build_1104 = dm_build_1109
+	return dm_build_1110
 }
 
-func (dm_build_1074 *dm_build_1064) dm_build_726() error {
+func (dm_build_1112 *dm_build_1102) dm_build_744() error {
 
-	dm_build_1075 := Dm_build_633
+	dm_build_1113 := Dm_build_651
 
-	if dm_build_1074.dm_build_741.conn.autoCommit {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
+	if dm_build_1112.dm_build_759.dm_build_340.autoCommit {
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 1)
 	} else {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
 	}
 
-	if dm_build_1074.dm_build_1065 {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
+	if dm_build_1112.dm_build_1103 {
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 1)
 	} else {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
 	}
 
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
 
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 1)
 
-	if dm_build_1074.dm_build_741.conn.CompatibleOracle() {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
+
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_191(dm_build_1113, Dm_build_702)
+
+	if dm_build_1112.dm_build_762.maxRows <= 0 || dm_build_1112.dm_build_759.dm_build_340.dmConnector.enRsCache {
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_199(dm_build_1113, INT64_MAX)
 	} else {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_199(dm_build_1113, dm_build_1112.dm_build_762.maxRows)
 	}
 
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_187(dm_build_1075, dm_build_1074.dm_build_1066)
-
-	if dm_build_1074.dm_build_744.maxRows <= 0 || dm_build_1074.dm_build_741.conn.dmConnector.enRsCache {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_195(dm_build_1075, INT64_MAX)
+	if dm_build_1112.dm_build_759.dm_build_340.dmConnector.isBdtaRS {
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, Dm_build_730)
 	} else {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_195(dm_build_1075, dm_build_1074.dm_build_744.maxRows)
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, Dm_build_729)
 	}
 
-	if dm_build_1074.dm_build_741.conn.dmConnector.isBdtaRS {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, Dm_build_712)
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_191(dm_build_1113, 0)
+
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 1)
+
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
+
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
+
+	dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_195(dm_build_1113, dm_build_1112.dm_build_762.queryTimeout)
+
+	if dm_build_1112.dm_build_762.innerExec {
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 1)
 	} else {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, Dm_build_711)
+		dm_build_1113 += dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(dm_build_1113, 0)
 	}
 
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_187(dm_build_1075, 0)
-
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
-
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
-
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
-
-	dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_191(dm_build_1075, dm_build_1074.dm_build_744.queryTimeout)
-
-	if dm_build_1074.dm_build_744.innerExec {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 1)
-	} else {
-		dm_build_1075 += dm_build_1074.dm_build_741.dm_build_335.Dm_build_183(dm_build_1075, 0)
-	}
-
-	dm_build_1074.dm_build_741.dm_build_335.Dm_build_113(dm_build_1074.dm_build_744.nativeSql, dm_build_1074.dm_build_741.conn.getServerEncoding(), dm_build_1074.dm_build_741.conn)
-
-	return nil
-}
-
-func (dm_build_1077 *dm_build_1064) dm_build_730() (interface{}, error) {
-
-	if dm_build_1077.dm_build_1065 {
-		return dm_build_1077.dm_build_840.dm_build_730()
-	}
-
-	dm_build_1078 := NewExceInfo()
-	dm_build_1079 := Dm_build_633
-
-	dm_build_1078.retSqlType = dm_build_1077.dm_build_741.dm_build_335.Dm_build_266(dm_build_1079)
-	dm_build_1079 += USINT_SIZE
-
-	dm_build_1080 := dm_build_1077.dm_build_741.dm_build_335.Dm_build_284(dm_build_1079)
-	dm_build_1079 += USINT_SIZE
-
-	dm_build_1081 := dm_build_1077.dm_build_741.dm_build_335.Dm_build_266(dm_build_1079)
-	dm_build_1079 += USINT_SIZE
-
-	dm_build_1077.dm_build_741.dm_build_335.Dm_build_272(dm_build_1079)
-	dm_build_1079 += DDWORD_SIZE
-
-	dm_build_1077.dm_build_741.conn.TrxStatus = dm_build_1077.dm_build_741.dm_build_335.Dm_build_269(dm_build_1079)
-	dm_build_1079 += ULINT_SIZE
-
-	if dm_build_1080 > 0 {
-		dm_build_1077.dm_build_744.params = dm_build_1077.dm_build_1082(int(dm_build_1080))
-		dm_build_1077.dm_build_744.paramCount = int32(dm_build_1080)
-	} else {
-		dm_build_1077.dm_build_744.params = make([]parameter, 0)
-		dm_build_1077.dm_build_744.paramCount = 0
-	}
-
-	if dm_build_1081 > 0 {
-		dm_build_1077.dm_build_744.columns = dm_build_1077.dm_build_890(int(dm_build_1081), dm_build_1078.rsBdta)
-	} else {
-		dm_build_1077.dm_build_744.columns = make([]column, 0)
-	}
-
-	return dm_build_1078, nil
-}
-
-func (dm_build_1083 *dm_build_1064) dm_build_1082(dm_build_1084 int) []parameter {
-
-	var dm_build_1085, dm_build_1086, dm_build_1087, dm_build_1088 int16
-
-	dm_build_1089 := make([]parameter, dm_build_1084)
-	for i := 0; i < dm_build_1084; i++ {
-
-		dm_build_1089[i].InitParameter()
-
-		dm_build_1089[i].colType = dm_build_1083.dm_build_741.dm_build_335.Dm_build_125()
-
-		dm_build_1089[i].prec = dm_build_1083.dm_build_741.dm_build_335.Dm_build_125()
-
-		dm_build_1089[i].scale = dm_build_1083.dm_build_741.dm_build_335.Dm_build_125()
-
-		dm_build_1089[i].nullable = dm_build_1083.dm_build_741.dm_build_335.Dm_build_125() != 0
-
-		itemFlag := dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
-
-		if int(itemFlag)&Dm_build_839 != 0 {
-			dm_build_1089[i].typeFlag = TYPE_FLAG_RECOMMEND
+	if dm_build_1112.dm_build_759.dm_build_340.MsgVersion >= Dm_build_615 {
+		if dm_build_1112.dm_build_1103 {
+			dm_build_1112.dm_build_869 = dm_build_1112.dm_build_897()
 		} else {
-			dm_build_1089[i].typeFlag = TYPE_FLAG_EXACT
+			dm_build_1112.dm_build_869 = Dm_build_860
+		}
+		dm_build_1112.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1101, byte(dm_build_1112.dm_build_869))
+	}
+
+	dm_build_1112.dm_build_759.dm_build_339.Dm_build_117(dm_build_1112.dm_build_762.nativeSql, dm_build_1112.dm_build_759.dm_build_340.getServerEncoding(), dm_build_1112.dm_build_759.dm_build_340)
+
+	return nil
+}
+
+func (dm_build_1115 *dm_build_1102) dm_build_748() (interface{}, error) {
+
+	if dm_build_1115.dm_build_1103 {
+		return dm_build_1115.dm_build_866.dm_build_748()
+	}
+
+	dm_build_1116 := NewExceInfo()
+	dm_build_1117 := Dm_build_651
+
+	dm_build_1116.retSqlType = dm_build_1115.dm_build_759.dm_build_339.Dm_build_270(dm_build_1117)
+	dm_build_1117 += USINT_SIZE
+
+	dm_build_1118 := dm_build_1115.dm_build_759.dm_build_339.Dm_build_288(dm_build_1117)
+	dm_build_1117 += USINT_SIZE
+
+	dm_build_1119 := dm_build_1115.dm_build_759.dm_build_339.Dm_build_270(dm_build_1117)
+	dm_build_1117 += USINT_SIZE
+
+	dm_build_1115.dm_build_759.dm_build_339.Dm_build_276(dm_build_1117)
+	dm_build_1117 += DDWORD_SIZE
+
+	dm_build_1115.dm_build_759.dm_build_340.TrxStatus = dm_build_1115.dm_build_759.dm_build_339.Dm_build_273(dm_build_1117)
+	dm_build_1117 += ULINT_SIZE
+
+	if dm_build_1118 > 0 {
+		dm_build_1115.dm_build_762.serverParams = dm_build_1115.dm_build_1120(int(dm_build_1118))
+		dm_build_1115.dm_build_762.bindParams = make([]parameter, dm_build_1118)
+		for i := 0; i < int(dm_build_1118); i++ {
+			dm_build_1115.dm_build_762.bindParams[i].InitParameter()
+			dm_build_1115.dm_build_762.bindParams[i].colType = dm_build_1115.dm_build_762.serverParams[i].colType
+			dm_build_1115.dm_build_762.bindParams[i].prec = dm_build_1115.dm_build_762.serverParams[i].prec
+			dm_build_1115.dm_build_762.bindParams[i].scale = dm_build_1115.dm_build_762.serverParams[i].scale
+			dm_build_1115.dm_build_762.bindParams[i].nullable = dm_build_1115.dm_build_762.serverParams[i].nullable
+			dm_build_1115.dm_build_762.bindParams[i].hasDefault = dm_build_1115.dm_build_762.serverParams[i].hasDefault
+			dm_build_1115.dm_build_762.bindParams[i].typeFlag = dm_build_1115.dm_build_762.serverParams[i].typeFlag
+			dm_build_1115.dm_build_762.bindParams[i].lob = dm_build_1115.dm_build_762.serverParams[i].lob
+			dm_build_1115.dm_build_762.bindParams[i].ioType = dm_build_1115.dm_build_762.serverParams[i].ioType
+			dm_build_1115.dm_build_762.bindParams[i].name = dm_build_1115.dm_build_762.serverParams[i].name
+			dm_build_1115.dm_build_762.bindParams[i].typeName = dm_build_1115.dm_build_762.serverParams[i].typeName
+			dm_build_1115.dm_build_762.bindParams[i].tableName = dm_build_1115.dm_build_762.serverParams[i].tableName
+			dm_build_1115.dm_build_762.bindParams[i].schemaName = dm_build_1115.dm_build_762.serverParams[i].schemaName
+			dm_build_1115.dm_build_762.bindParams[i].lobTabId = dm_build_1115.dm_build_762.serverParams[i].lobTabId
+			dm_build_1115.dm_build_762.bindParams[i].lobColId = dm_build_1115.dm_build_762.serverParams[i].lobColId
+			dm_build_1115.dm_build_762.bindParams[i].mask = dm_build_1115.dm_build_762.serverParams[i].mask
+			dm_build_1115.dm_build_762.bindParams[i].typeDescriptor = dm_build_1115.dm_build_762.serverParams[i].typeDescriptor
 		}
 
-		dm_build_1089[i].lob = int(itemFlag)&Dm_build_837 != 0
+		dm_build_1115.dm_build_762.paramCount = int32(dm_build_1118)
+	} else {
+		dm_build_1115.dm_build_762.serverParams = make([]parameter, 0)
+		dm_build_1115.dm_build_762.bindParams = make([]parameter, 0)
+		dm_build_1115.dm_build_762.paramCount = 0
+	}
 
-		dm_build_1083.dm_build_741.dm_build_335.Dm_build_125()
+	if dm_build_1119 > 0 {
+		dm_build_1115.dm_build_762.columns = dm_build_1115.dm_build_919(int(dm_build_1119), dm_build_1116.rsBdta)
+	} else {
+		dm_build_1115.dm_build_762.columns = make([]column, 0)
+	}
 
-		dm_build_1089[i].ioType = byte(dm_build_1083.dm_build_741.dm_build_335.Dm_build_122())
+	return dm_build_1116, nil
+}
 
-		dm_build_1085 = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
+func (dm_build_1121 *dm_build_1102) dm_build_1120(dm_build_1122 int) []parameter {
 
-		dm_build_1086 = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
+	var dm_build_1123, dm_build_1124, dm_build_1125, dm_build_1126 int16
 
-		dm_build_1087 = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
+	dm_build_1127 := make([]parameter, dm_build_1122)
+	for i := 0; i < dm_build_1122; i++ {
 
-		dm_build_1088 = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
-		dm_build_1089[i].name = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1085), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
-		dm_build_1089[i].typeName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1086), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
-		dm_build_1089[i].tableName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1087), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
-		dm_build_1089[i].schemaName = dm_build_1083.dm_build_741.dm_build_335.Dm_build_162(int(dm_build_1088), dm_build_1083.dm_build_741.conn.getServerEncoding(), dm_build_1083.dm_build_741.conn)
+		dm_build_1127[i].InitParameter()
 
-		if dm_build_1089[i].lob {
-			dm_build_1089[i].lobTabId = dm_build_1083.dm_build_741.dm_build_335.Dm_build_125()
-			dm_build_1089[i].lobColId = dm_build_1083.dm_build_741.dm_build_335.Dm_build_122()
+		dm_build_1127[i].colType = dm_build_1121.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_1127[i].prec = dm_build_1121.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_1127[i].scale = dm_build_1121.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_1127[i].nullable = dm_build_1121.dm_build_759.dm_build_339.Dm_build_129() != 0
+
+		itemFlag := dm_build_1121.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_1127[i].hasDefault = int(itemFlag)&Dm_build_859 != 0
+
+		if int(itemFlag)&Dm_build_858 != 0 {
+			dm_build_1127[i].typeFlag = TYPE_FLAG_RECOMMEND
+		} else {
+			dm_build_1127[i].typeFlag = TYPE_FLAG_EXACT
+		}
+
+		dm_build_1127[i].lob = int(itemFlag)&Dm_build_856 != 0
+
+		dm_build_1121.dm_build_759.dm_build_339.Dm_build_129()
+
+		dm_build_1127[i].ioType = int8(dm_build_1121.dm_build_759.dm_build_339.Dm_build_126())
+
+		dm_build_1123 = dm_build_1121.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_1124 = dm_build_1121.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_1125 = dm_build_1121.dm_build_759.dm_build_339.Dm_build_126()
+
+		dm_build_1126 = dm_build_1121.dm_build_759.dm_build_339.Dm_build_126()
+		dm_build_1127[i].name = dm_build_1121.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_1123), dm_build_1121.dm_build_759.dm_build_340.getServerEncoding(), dm_build_1121.dm_build_759.dm_build_340)
+		dm_build_1127[i].typeName = dm_build_1121.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_1124), dm_build_1121.dm_build_759.dm_build_340.getServerEncoding(), dm_build_1121.dm_build_759.dm_build_340)
+		dm_build_1127[i].tableName = dm_build_1121.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_1125), dm_build_1121.dm_build_759.dm_build_340.getServerEncoding(), dm_build_1121.dm_build_759.dm_build_340)
+		dm_build_1127[i].schemaName = dm_build_1121.dm_build_759.dm_build_339.Dm_build_166(int(dm_build_1126), dm_build_1121.dm_build_759.dm_build_340.getServerEncoding(), dm_build_1121.dm_build_759.dm_build_340)
+
+		if dm_build_1127[i].lob {
+			dm_build_1127[i].lobTabId = dm_build_1121.dm_build_759.dm_build_339.Dm_build_129()
+			dm_build_1127[i].lobColId = dm_build_1121.dm_build_759.dm_build_339.Dm_build_126()
+		}
+
+		if dm_build_1127[i].colType == DATETIME || dm_build_1127[i].colType == DATETIME2 {
+			if (dm_build_1127[i].scale & LOCAL_DATETIME_SCALE_MASK) != 0 {
+
+				dm_build_1127[i].scale = dm_build_1127[i].scale & ^LOCAL_DATETIME_SCALE_MASK
+				dm_build_1127[i].mask = MASK_LOCAL_DATETIME
+			} else if (dm_build_1127[i].scale & ORACLE_DATE_SCALE_MASK) != 0 {
+
+				dm_build_1127[i].scale = dm_build_1127[i].scale & ^ORACLE_DATE_SCALE_MASK
+				dm_build_1127[i].mask = MASK_ORACLE_DATE
+			}
+		}
+
+		if dm_build_1127[i].colType == DECIMAL && dm_build_1127[i].scale == ORACLE_FLOAT_SCALE_MASK {
+			dm_build_1127[i].prec = int32(math.Round(float64(dm_build_1127[i].prec)*0.30103) + 1)
+			dm_build_1127[i].scale = -1
+			dm_build_1127[i].mask = MASK_ORACLE_FLOAT
+		}
+
+		if dm_build_1127[i].colType == VARCHAR && dm_build_1127[i].prec == BFILE_PREC && dm_build_1127[i].scale == BFILE_SCALE {
+			dm_build_1127[i].mask = MASK_BFILE
 		}
 	}
 
-	for i := 0; i < dm_build_1084; i++ {
+	for i := 0; i < dm_build_1122; i++ {
 
-		if isComplexType(int(dm_build_1089[i].colType), int(dm_build_1089[i].scale)) {
+		if isComplexType(int(dm_build_1127[i].colType), int(dm_build_1127[i].scale)) {
 
-			strDesc := newTypeDescriptor(dm_build_1083.dm_build_741.conn)
-			strDesc.unpack(dm_build_1083.dm_build_741.dm_build_335)
-			dm_build_1089[i].typeDescriptor = strDesc
+			strDesc := newTypeDescriptor(dm_build_1121.dm_build_759.dm_build_340)
+			strDesc.unpack(dm_build_1121.dm_build_759.dm_build_339)
+			dm_build_1127[i].typeDescriptor = strDesc
 		}
 	}
 
-	return dm_build_1089
+	return dm_build_1127
 }
 
 const (
-	Dm_build_1090 = Dm_build_633
+	Dm_build_1128 = Dm_build_651
 )
 
-type dm_build_1091 struct {
-	dm_build_740
-	dm_build_1092 int16
-	dm_build_1093 *Dm_build_1498
-	dm_build_1094 int32
+type dm_build_1129 struct {
+	dm_build_758
+	dm_build_1130 int16
+	dm_build_1131 *Dm_build_1538
+	dm_build_1132 int32
 }
 
-func dm_build_1095(dm_build_1096 *Access, dm_build_1097 *DmStatement, dm_build_1098 int16, dm_build_1099 *Dm_build_1498, dm_build_1100 int32) *dm_build_1091 {
-	dm_build_1101 := new(dm_build_1091)
-	dm_build_1101.dm_build_749(dm_build_1096, Dm_build_615, dm_build_1097)
-	dm_build_1101.dm_build_1092 = dm_build_1098
-	dm_build_1101.dm_build_1093 = dm_build_1099
-	dm_build_1101.dm_build_1094 = dm_build_1100
-	return dm_build_1101
+func dm_build_1133(dm_build_1134 *dm_build_336, dm_build_1135 *DmStatement, dm_build_1136 int16, dm_build_1137 *Dm_build_1538, dm_build_1138 int32) *dm_build_1129 {
+	dm_build_1139 := new(dm_build_1129)
+	dm_build_1139.dm_build_767(dm_build_1134, Dm_build_633, dm_build_1135)
+	dm_build_1139.dm_build_1130 = dm_build_1136
+	dm_build_1139.dm_build_1131 = dm_build_1137
+	dm_build_1139.dm_build_1132 = dm_build_1138
+	return dm_build_1139
 }
 
-func (dm_build_1103 *dm_build_1091) dm_build_726() error {
-	dm_build_1103.dm_build_741.dm_build_335.Dm_build_187(Dm_build_1090, dm_build_1103.dm_build_1092)
+func (dm_build_1141 *dm_build_1129) dm_build_744() error {
+	dm_build_1141.dm_build_759.dm_build_339.Dm_build_191(Dm_build_1128, dm_build_1141.dm_build_1130)
 
-	dm_build_1103.dm_build_741.dm_build_335.Dm_build_51(dm_build_1103.dm_build_1094)
+	dm_build_1141.dm_build_759.dm_build_339.Dm_build_55(dm_build_1141.dm_build_1132)
 
-	if dm_build_1103.dm_build_741.conn.NewLobFlag {
-		dm_build_1103.dm_build_741.dm_build_335.Dm_build_51(-1)
+	if dm_build_1141.dm_build_759.dm_build_340.NewLobFlag {
+		dm_build_1141.dm_build_759.dm_build_339.Dm_build_55(-1)
 	}
-	dm_build_1103.dm_build_1093.Dm_build_1505(dm_build_1103.dm_build_741.dm_build_335, int(dm_build_1103.dm_build_1094))
+	dm_build_1141.dm_build_1131.Dm_build_1545(dm_build_1141.dm_build_759.dm_build_339, int(dm_build_1141.dm_build_1132))
 	return nil
 }
 
-type dm_build_1104 struct {
-	dm_build_740
+type dm_build_1142 struct {
+	dm_build_758
 }
 
-func dm_build_1105(dm_build_1106 *Access) *dm_build_1104 {
-	dm_build_1107 := new(dm_build_1104)
-	dm_build_1107.dm_build_745(dm_build_1106, Dm_build_613)
-	return dm_build_1107
+func dm_build_1143(dm_build_1144 *dm_build_336) *dm_build_1142 {
+	dm_build_1145 := new(dm_build_1142)
+	dm_build_1145.dm_build_763(dm_build_1144, Dm_build_631)
+	return dm_build_1145
 }
 
-type dm_build_1108 struct {
-	dm_build_740
-	dm_build_1109 int32
+type dm_build_1146 struct {
+	dm_build_758
+	dm_build_1147 int32
 }
 
-func dm_build_1110(dm_build_1111 *Access, dm_build_1112 int32) *dm_build_1108 {
-	dm_build_1113 := new(dm_build_1108)
-	dm_build_1113.dm_build_745(dm_build_1111, Dm_build_626)
-	dm_build_1113.dm_build_1109 = dm_build_1112
-	return dm_build_1113
+func dm_build_1148(dm_build_1149 *dm_build_336, dm_build_1150 int32) *dm_build_1146 {
+	dm_build_1151 := new(dm_build_1146)
+	dm_build_1151.dm_build_763(dm_build_1149, Dm_build_644)
+	dm_build_1151.dm_build_1147 = dm_build_1150
+	return dm_build_1151
 }
 
-func (dm_build_1115 *dm_build_1108) dm_build_726() error {
+func (dm_build_1153 *dm_build_1146) dm_build_744() error {
 
-	dm_build_1116 := Dm_build_633
-	dm_build_1116 += dm_build_1115.dm_build_741.dm_build_335.Dm_build_191(dm_build_1116, g2dbIsoLevel(dm_build_1115.dm_build_1109))
+	dm_build_1154 := Dm_build_651
+	dm_build_1154 += dm_build_1153.dm_build_759.dm_build_339.Dm_build_195(dm_build_1154, g2dbIsoLevel(dm_build_1153.dm_build_1147))
 	return nil
 }
 
-type dm_build_1117 struct {
-	dm_build_740
-	dm_build_1118 *lob
-	dm_build_1119 byte
-	dm_build_1120 int
-	dm_build_1121 []byte
-	dm_build_1122 int
-	dm_build_1123 int
+type dm_build_1155 struct {
+	dm_build_758
+	dm_build_1156 *lob
+	dm_build_1157 byte
+	dm_build_1158 int
+	dm_build_1159 []byte
+	dm_build_1160 int
+	dm_build_1161 int
 }
 
-func dm_build_1124(dm_build_1125 *Access, dm_build_1126 *lob, dm_build_1127 byte, dm_build_1128 int, dm_build_1129 []byte,
-	dm_build_1130 int, dm_build_1131 int) *dm_build_1117 {
-	dm_build_1132 := new(dm_build_1117)
-	dm_build_1132.dm_build_745(dm_build_1125, Dm_build_622)
-	dm_build_1132.dm_build_1118 = dm_build_1126
-	dm_build_1132.dm_build_1119 = dm_build_1127
-	dm_build_1132.dm_build_1120 = dm_build_1128
-	dm_build_1132.dm_build_1121 = dm_build_1129
-	dm_build_1132.dm_build_1122 = dm_build_1130
-	dm_build_1132.dm_build_1123 = dm_build_1131
-	return dm_build_1132
+func dm_build_1162(dm_build_1163 *dm_build_336, dm_build_1164 *lob, dm_build_1165 byte, dm_build_1166 int, dm_build_1167 []byte,
+	dm_build_1168 int, dm_build_1169 int) *dm_build_1155 {
+	dm_build_1170 := new(dm_build_1155)
+	dm_build_1170.dm_build_763(dm_build_1163, Dm_build_640)
+	dm_build_1170.dm_build_1156 = dm_build_1164
+	dm_build_1170.dm_build_1157 = dm_build_1165
+	dm_build_1170.dm_build_1158 = dm_build_1166
+	dm_build_1170.dm_build_1159 = dm_build_1167
+	dm_build_1170.dm_build_1160 = dm_build_1168
+	dm_build_1170.dm_build_1161 = dm_build_1169
+	return dm_build_1170
 }
 
-func (dm_build_1134 *dm_build_1117) dm_build_726() error {
+func (dm_build_1172 *dm_build_1155) dm_build_744() error {
 
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_43(byte(dm_build_1134.dm_build_1118.lobFlag))
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_43(dm_build_1134.dm_build_1119)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_1134.dm_build_1118.blobId))
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.groupId)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.fileId)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(dm_build_1134.dm_build_1118.pageNo)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.curFileId)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(dm_build_1134.dm_build_1118.curPageNo)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(dm_build_1134.dm_build_1118.totalOffset)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(dm_build_1134.dm_build_1118.tabId)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.colId)
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_67(uint64(dm_build_1134.dm_build_1118.rowId))
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_43(byte(dm_build_1172.dm_build_1156.lobFlag))
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_43(dm_build_1172.dm_build_1157)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1172.dm_build_1156.blobId))
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_51(dm_build_1172.dm_build_1156.groupId)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_51(dm_build_1172.dm_build_1156.fileId)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(dm_build_1172.dm_build_1156.pageNo)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_51(dm_build_1172.dm_build_1156.curFileId)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(dm_build_1172.dm_build_1156.curPageNo)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(dm_build_1172.dm_build_1156.totalOffset)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(dm_build_1172.dm_build_1156.tabId)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_51(dm_build_1172.dm_build_1156.colId)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_71(uint64(dm_build_1172.dm_build_1156.rowId))
 
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(int32(dm_build_1134.dm_build_1120))
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(int32(dm_build_1134.dm_build_1123))
-	dm_build_1134.dm_build_741.dm_build_335.Dm_build_79(dm_build_1134.dm_build_1121)
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(int32(dm_build_1172.dm_build_1158))
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(int32(dm_build_1172.dm_build_1161))
+	dm_build_1172.dm_build_759.dm_build_339.Dm_build_83(dm_build_1172.dm_build_1159)
 
-	if dm_build_1134.dm_build_741.conn.NewLobFlag {
-		dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.exGroupId)
-		dm_build_1134.dm_build_741.dm_build_335.Dm_build_47(dm_build_1134.dm_build_1118.exFileId)
-		dm_build_1134.dm_build_741.dm_build_335.Dm_build_51(dm_build_1134.dm_build_1118.exPageNo)
+	if dm_build_1172.dm_build_759.dm_build_340.NewLobFlag {
+		dm_build_1172.dm_build_759.dm_build_339.Dm_build_51(dm_build_1172.dm_build_1156.exGroupId)
+		dm_build_1172.dm_build_759.dm_build_339.Dm_build_51(dm_build_1172.dm_build_1156.exFileId)
+		dm_build_1172.dm_build_759.dm_build_339.Dm_build_55(dm_build_1172.dm_build_1156.exPageNo)
 	}
 	return nil
 }
 
-func (dm_build_1136 *dm_build_1117) dm_build_730() (interface{}, error) {
+func (dm_build_1174 *dm_build_1155) dm_build_748() (interface{}, error) {
 
-	var dm_build_1137 = dm_build_1136.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1136.dm_build_1118.blobId = dm_build_1136.dm_build_741.dm_build_335.Dm_build_128()
-	dm_build_1136.dm_build_1118.fileId = dm_build_1136.dm_build_741.dm_build_335.Dm_build_122()
-	dm_build_1136.dm_build_1118.pageNo = dm_build_1136.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1136.dm_build_1118.curFileId = dm_build_1136.dm_build_741.dm_build_335.Dm_build_122()
-	dm_build_1136.dm_build_1118.curPageNo = dm_build_1136.dm_build_741.dm_build_335.Dm_build_125()
-	dm_build_1136.dm_build_1118.totalOffset = dm_build_1136.dm_build_741.dm_build_335.Dm_build_125()
-	return dm_build_1137, nil
+	var dm_build_1175 = dm_build_1174.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1174.dm_build_1156.blobId = dm_build_1174.dm_build_759.dm_build_339.Dm_build_132()
+	dm_build_1174.dm_build_1156.fileId = dm_build_1174.dm_build_759.dm_build_339.Dm_build_126()
+	dm_build_1174.dm_build_1156.pageNo = dm_build_1174.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1174.dm_build_1156.curFileId = dm_build_1174.dm_build_759.dm_build_339.Dm_build_126()
+	dm_build_1174.dm_build_1156.curPageNo = dm_build_1174.dm_build_759.dm_build_339.Dm_build_129()
+	dm_build_1174.dm_build_1156.totalOffset = dm_build_1174.dm_build_759.dm_build_339.Dm_build_129()
+	return dm_build_1175, nil
 }
 
 const (
-	Dm_build_1138 = Dm_build_633
+	Dm_build_1176 = Dm_build_651
 
-	Dm_build_1139 = Dm_build_1138 + ULINT_SIZE
+	Dm_build_1177 = Dm_build_1176 + ULINT_SIZE
 
-	Dm_build_1140 = Dm_build_1139 + ULINT_SIZE
+	Dm_build_1178 = Dm_build_1177 + ULINT_SIZE
 
-	Dm_build_1141 = Dm_build_1140 + BYTE_SIZE
+	Dm_build_1179 = Dm_build_1178 + BYTE_SIZE
 
-	Dm_build_1142 = Dm_build_1141 + BYTE_SIZE
+	Dm_build_1180 = Dm_build_1179 + BYTE_SIZE
 
-	Dm_build_1143 = Dm_build_1142 + BYTE_SIZE
+	Dm_build_1181 = Dm_build_1180 + BYTE_SIZE
 
-	Dm_build_1144 = Dm_build_1143 + BYTE_SIZE
+	Dm_build_1182 = Dm_build_1181 + BYTE_SIZE
 
-	Dm_build_1145 = Dm_build_1144 + BYTE_SIZE
+	Dm_build_1183 = Dm_build_1182 + BYTE_SIZE
 
-	Dm_build_1146 = Dm_build_1145 + BYTE_SIZE
+	Dm_build_1184 = Dm_build_1183 + BYTE_SIZE
 
-	Dm_build_1147 = Dm_build_1146 + BYTE_SIZE
+	Dm_build_1185 = Dm_build_1184 + BYTE_SIZE
 
-	Dm_build_1148 = Dm_build_633
+	Dm_build_1186 = Dm_build_651
 
-	Dm_build_1149 = Dm_build_1148 + ULINT_SIZE
+	Dm_build_1187 = Dm_build_1186 + ULINT_SIZE
 
-	Dm_build_1150 = Dm_build_1149 + ULINT_SIZE
+	Dm_build_1188 = Dm_build_1187 + ULINT_SIZE
 
-	Dm_build_1151 = Dm_build_1150 + ULINT_SIZE
+	Dm_build_1189 = Dm_build_1188 + ULINT_SIZE
 
-	Dm_build_1152 = Dm_build_1151 + ULINT_SIZE
+	Dm_build_1190 = Dm_build_1189 + ULINT_SIZE
 
-	Dm_build_1153 = Dm_build_1152 + ULINT_SIZE
+	Dm_build_1191 = Dm_build_1190 + ULINT_SIZE
 
-	Dm_build_1154 = Dm_build_1153 + BYTE_SIZE
+	Dm_build_1192 = Dm_build_1191 + BYTE_SIZE
 
-	Dm_build_1155 = Dm_build_1154 + BYTE_SIZE
+	Dm_build_1193 = Dm_build_1192 + BYTE_SIZE
 
-	Dm_build_1156 = Dm_build_1155 + BYTE_SIZE
+	Dm_build_1194 = Dm_build_1193 + BYTE_SIZE
 
-	Dm_build_1157 = Dm_build_1156 + BYTE_SIZE
+	Dm_build_1195 = Dm_build_1194 + BYTE_SIZE
 
-	Dm_build_1158 = Dm_build_1157 + BYTE_SIZE
+	Dm_build_1196 = Dm_build_1195 + BYTE_SIZE
 
-	Dm_build_1159 = Dm_build_1158 + USINT_SIZE
+	Dm_build_1197 = Dm_build_1196 + USINT_SIZE
 
-	Dm_build_1160 = Dm_build_1159 + BYTE_SIZE
+	Dm_build_1198 = Dm_build_1197 + BYTE_SIZE
 )
 
-type dm_build_1161 struct {
-	dm_build_740
-	dm_build_1162 *Connection
-	dm_build_1163 int
-	Dm_build_1164 int32
-	Dm_build_1165 []byte
-	dm_build_1166 byte
+type dm_build_1199 struct {
+	dm_build_758
+	dm_build_1200 *DmConnection
+	dm_build_1201 int
+	Dm_build_1202 int32
+	Dm_build_1203 []byte
+	dm_build_1204 byte
 }
 
-func dm_build_1167(dm_build_1168 *Access) *dm_build_1161 {
-	dm_build_1169 := new(dm_build_1161)
-	dm_build_1169.dm_build_745(dm_build_1168, Dm_build_631)
-	dm_build_1169.dm_build_1162 = dm_build_1168.conn
-	return dm_build_1169
+func dm_build_1205(dm_build_1206 *dm_build_336) *dm_build_1199 {
+	dm_build_1207 := new(dm_build_1199)
+	dm_build_1207.dm_build_763(dm_build_1206, Dm_build_649)
+	dm_build_1207.dm_build_1200 = dm_build_1206.dm_build_340
+	return dm_build_1207
 }
 
-func dm_build_1170(dm_build_1171 string, dm_build_1172 string) int {
-	dm_build_1173 := strings.Split(dm_build_1171, ".")
-	dm_build_1174 := strings.Split(dm_build_1172, ".")
+func dm_build_1208(dm_build_1209 string, dm_build_1210 string) int {
+	dm_build_1211 := strings.Split(dm_build_1209, ".")
+	dm_build_1212 := strings.Split(dm_build_1210, ".")
 
-	for i, serStr := range dm_build_1173 {
+	for i, serStr := range dm_build_1211 {
 		ser, _ := strconv.ParseInt(serStr, 10, 32)
-		global, _ := strconv.ParseInt(dm_build_1174[i], 10, 32)
+		global, _ := strconv.ParseInt(dm_build_1212[i], 10, 32)
 		if ser < global {
 			return -1
 		} else if ser == global {
@@ -2540,221 +2729,221 @@ func dm_build_1170(dm_build_1171 string, dm_build_1172 string) int {
 	return 0
 }
 
-func (dm_build_1176 *dm_build_1161) dm_build_726() error {
+func (dm_build_1214 *dm_build_1199) dm_build_744() error {
 
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1138, int32(0))
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_191(Dm_build_1139, int32(dm_build_1176.dm_build_1162.dmConnector.compress))
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1176, int32(0))
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_195(Dm_build_1177, int32(dm_build_1214.dm_build_1200.dmConnector.compress))
 
-	if dm_build_1176.dm_build_1162.dmConnector.loginEncrypt {
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1141, 2)
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1140, 1)
+	if dm_build_1214.dm_build_1200.dmConnector.loginEncrypt {
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1179, 2)
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1178, 1)
 	} else {
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1141, 0)
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1140, 0)
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1179, 0)
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1178, 0)
 	}
 
-	if dm_build_1176.dm_build_1162.dmConnector.isBdtaRS {
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1142, Dm_build_712)
+	if dm_build_1214.dm_build_1200.dmConnector.isBdtaRS {
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1180, Dm_build_730)
 	} else {
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1142, Dm_build_711)
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1180, Dm_build_729)
 	}
 
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1143, byte(dm_build_1176.dm_build_1162.dmConnector.compressID))
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1181, byte(dm_build_1214.dm_build_1200.dmConnector.compressID))
 
-	if dm_build_1176.dm_build_1162.dmConnector.loginCertificate != "" {
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1144, 1)
+	if dm_build_1214.dm_build_1200.dmConnector.loginCertificate != "" {
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1182, 1)
 	} else {
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1144, 0)
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1182, 0)
 	}
 
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1145, 0)
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_183(Dm_build_1146, 1)
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_211(Dm_build_1147, uint16(dm_build_1176.dm_build_1162.MsgVersion))
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1183, 0)
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_187(Dm_build_1184, 1)
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_215(Dm_build_1185, uint16(dm_build_1214.dm_build_1200.MsgVersion))
 
-	dm_build_1177 := dm_build_1176.dm_build_1162.getServerEncoding()
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_95(Dm_build_597, dm_build_1177, dm_build_1176.dm_build_741.conn)
+	dm_build_1215 := dm_build_1214.dm_build_1200.getServerEncoding()
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_99(Dm_build_607, dm_build_1215, dm_build_1214.dm_build_759.dm_build_340)
 
-	var dm_build_1178 byte
-	if dm_build_1176.dm_build_1162.dmConnector.uKeyName != "" {
-		dm_build_1178 = 1
+	var dm_build_1216 byte
+	if dm_build_1214.dm_build_1200.dmConnector.uKeyName != "" {
+		dm_build_1216 = 1
 	} else {
-		dm_build_1178 = 0
+		dm_build_1216 = 0
 	}
 
-	dm_build_1176.dm_build_741.dm_build_335.Dm_build_43(0)
+	dm_build_1214.dm_build_759.dm_build_339.Dm_build_43(0)
 
-	if dm_build_1178 == 1 {
+	if dm_build_1216 == 1 {
 
 	}
 
-	if dm_build_1176.dm_build_1162.dmConnector.loginEncrypt {
-		clientPubKey, err := dm_build_1176.dm_build_741.dm_build_577()
+	if dm_build_1214.dm_build_1200.dmConnector.loginEncrypt {
+		clientPubKey, err := dm_build_1214.dm_build_759.dm_build_587()
 		if err != nil {
 			return err
 		}
-		dm_build_1176.dm_build_741.dm_build_335.Dm_build_83(clientPubKey)
+		dm_build_1214.dm_build_759.dm_build_339.Dm_build_87(clientPubKey)
 	}
 
 	return nil
 }
 
-func (dm_build_1180 *dm_build_1161) dm_build_729() error {
-	dm_build_1180.dm_build_741.dm_build_335.Dm_build_17(0)
-	dm_build_1180.dm_build_741.dm_build_335.Dm_build_25(Dm_build_632, false, true)
+func (dm_build_1218 *dm_build_1199) dm_build_747() error {
+	dm_build_1218.dm_build_759.dm_build_339.Dm_build_17(0)
+	dm_build_1218.dm_build_759.dm_build_339.Dm_build_25(Dm_build_650, false, true)
 	return nil
 }
 
-func (dm_build_1182 *dm_build_1161) dm_build_730() (interface{}, error) {
+func (dm_build_1220 *dm_build_1199) dm_build_748() (interface{}, error) {
 
-	dm_build_1182.dm_build_1162.sslEncrypt = int(dm_build_1182.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1148))
-	dm_build_1182.dm_build_1162.GlobalServerSeries = int(dm_build_1182.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1149))
+	dm_build_1220.dm_build_1200.sslEncrypt = int(dm_build_1220.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1186))
+	dm_build_1220.dm_build_1200.GlobalServerSeries = int(dm_build_1220.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1187))
 
-	switch dm_build_1182.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1150) {
+	switch dm_build_1220.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1188) {
 	case 1:
-		dm_build_1182.dm_build_1162.serverEncoding = ENCODING_UTF8
+		dm_build_1220.dm_build_1200.serverEncoding = ENCODING_UTF8
 	case 2:
-		dm_build_1182.dm_build_1162.serverEncoding = ENCODING_EUCKR
+		dm_build_1220.dm_build_1200.serverEncoding = ENCODING_EUCKR
 	default:
-		dm_build_1182.dm_build_1162.serverEncoding = ENCODING_GB18030
+		dm_build_1220.dm_build_1200.serverEncoding = ENCODING_GB18030
 	}
 
-	dm_build_1182.dm_build_1162.dmConnector.compress = int(dm_build_1182.dm_build_741.dm_build_335.Dm_build_269(Dm_build_1151))
-	dm_build_1183 := dm_build_1182.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1153)
-	dm_build_1184 := dm_build_1182.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1154)
-	dm_build_1182.dm_build_1162.dmConnector.isBdtaRS = dm_build_1182.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1155) > 0
-	dm_build_1182.dm_build_1162.dmConnector.compressID = int8(dm_build_1182.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1156))
+	dm_build_1220.dm_build_1200.dmConnector.compress = int(dm_build_1220.dm_build_759.dm_build_339.Dm_build_273(Dm_build_1189))
+	dm_build_1221 := dm_build_1220.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1191)
+	dm_build_1222 := dm_build_1220.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1192)
+	dm_build_1220.dm_build_1200.dmConnector.isBdtaRS = dm_build_1220.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1193) > 0
+	dm_build_1220.dm_build_1200.dmConnector.compressID = int8(dm_build_1220.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1194))
 
-	dm_build_1182.dm_build_741.dm_build_341 = dm_build_1182.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1158) == 1
-	dm_build_1182.dm_build_1162.dmConnector.newClientType = dm_build_1182.dm_build_741.dm_build_335.Dm_build_263(Dm_build_1159) == 1
-	dm_build_1182.dm_build_1162.MsgVersion = int32(dm_build_1182.dm_build_741.dm_build_335.Dm_build_284(Dm_build_1160))
+	dm_build_1220.dm_build_759.dm_build_345 = dm_build_1220.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1196) == 1
+	dm_build_1220.dm_build_1200.dmConnector.newClientType = dm_build_1220.dm_build_759.dm_build_339.Dm_build_267(Dm_build_1197) == 1
+	dm_build_1220.dm_build_1200.MsgVersion = int32(dm_build_1220.dm_build_759.dm_build_339.Dm_build_288(Dm_build_1198))
 
-	dm_build_1185 := dm_build_1182.dm_build_773()
-	if dm_build_1185 != nil {
-		return nil, dm_build_1185
+	dm_build_1223 := dm_build_1220.dm_build_791()
+	if dm_build_1223 != nil {
+		return nil, dm_build_1223
 	}
 
-	dm_build_1186 := dm_build_1182.dm_build_741.dm_build_335.Dm_build_167(dm_build_1182.dm_build_1162.getServerEncoding(), dm_build_1182.dm_build_741.conn)
-	if dm_build_1170(dm_build_1186, Dm_build_598) < 0 {
+	dm_build_1224 := dm_build_1220.dm_build_759.dm_build_339.Dm_build_171(dm_build_1220.dm_build_1200.getServerEncoding(), dm_build_1220.dm_build_759.dm_build_340)
+	if dm_build_1208(dm_build_1224, Dm_build_608) < 0 {
 		return nil, ECGO_ERROR_SERVER_VERSION.throw()
 	}
 
-	dm_build_1182.dm_build_1162.ServerVersion = dm_build_1186
-	dm_build_1182.dm_build_1162.Malini2 = dm_build_1170(dm_build_1186, Dm_build_599) > 0
-	dm_build_1182.dm_build_1162.Execute2 = dm_build_1170(dm_build_1186, Dm_build_600) > 0
-	dm_build_1182.dm_build_1162.LobEmptyCompOrcl = dm_build_1170(dm_build_1186, Dm_build_601) > 0
+	dm_build_1220.dm_build_1200.ServerVersion = dm_build_1224
+	dm_build_1220.dm_build_1200.Malini2 = dm_build_1208(dm_build_1224, Dm_build_609) > 0
+	dm_build_1220.dm_build_1200.Execute2 = dm_build_1208(dm_build_1224, Dm_build_610) > 0
+	dm_build_1220.dm_build_1200.LobEmptyCompOrcl = dm_build_1208(dm_build_1224, Dm_build_611) > 0
 
-	if dm_build_1182.dm_build_741.conn.dmConnector.uKeyName != "" {
-		dm_build_1182.dm_build_1166 = 1
+	if dm_build_1220.dm_build_759.dm_build_340.dmConnector.uKeyName != "" {
+		dm_build_1220.dm_build_1204 = 1
 	} else {
-		dm_build_1182.dm_build_1166 = 0
+		dm_build_1220.dm_build_1204 = 0
 	}
 
-	if dm_build_1182.dm_build_1166 == 1 {
-		dm_build_1182.dm_build_741.dm_build_342 = dm_build_1182.dm_build_741.dm_build_335.Dm_build_162(16, dm_build_1182.dm_build_1162.getServerEncoding(), dm_build_1182.dm_build_741.conn)
+	if dm_build_1220.dm_build_1204 == 1 {
+		dm_build_1220.dm_build_759.dm_build_346 = dm_build_1220.dm_build_759.dm_build_339.Dm_build_166(16, dm_build_1220.dm_build_1200.getServerEncoding(), dm_build_1220.dm_build_759.dm_build_340)
 	}
 
-	dm_build_1182.dm_build_1163 = -1
-	dm_build_1187 := false
-	dm_build_1188 := false
-	dm_build_1182.Dm_build_1164 = -1
-	if dm_build_1184 > 0 {
-		dm_build_1182.dm_build_1163 = int(dm_build_1182.dm_build_741.dm_build_335.Dm_build_125())
+	dm_build_1220.dm_build_1201 = -1
+	dm_build_1225 := false
+	dm_build_1226 := false
+	dm_build_1220.Dm_build_1202 = -1
+	if dm_build_1222 > 0 {
+		dm_build_1220.dm_build_1201 = int(dm_build_1220.dm_build_759.dm_build_339.Dm_build_129())
 	}
 
-	if dm_build_1183 > 0 {
+	if dm_build_1221 > 0 {
 
-		if dm_build_1182.dm_build_1163 == -1 {
-			dm_build_1187 = true
+		if dm_build_1220.dm_build_1201 == -1 {
+			dm_build_1225 = true
 		} else {
-			dm_build_1188 = true
+			dm_build_1226 = true
 		}
 
-		dm_build_1182.Dm_build_1165 = dm_build_1182.dm_build_741.dm_build_335.Dm_build_150()
+		dm_build_1220.Dm_build_1203 = dm_build_1220.dm_build_759.dm_build_339.Dm_build_154()
 	}
 
-	if dm_build_1184 == 2 {
-		dm_build_1182.Dm_build_1164 = dm_build_1182.dm_build_741.dm_build_335.Dm_build_125()
+	if dm_build_1222 == 2 {
+		dm_build_1220.Dm_build_1202 = dm_build_1220.dm_build_759.dm_build_339.Dm_build_129()
 	}
-	dm_build_1182.dm_build_741.dm_build_338 = dm_build_1187
-	dm_build_1182.dm_build_741.dm_build_339 = dm_build_1188
+	dm_build_1220.dm_build_759.dm_build_342 = dm_build_1225
+	dm_build_1220.dm_build_759.dm_build_343 = dm_build_1226
 
 	return nil, nil
 }
 
-type dm_build_1189 struct {
-	dm_build_740
+type dm_build_1227 struct {
+	dm_build_758
 }
 
-func dm_build_1190(dm_build_1191 *Access, dm_build_1192 *DmStatement) *dm_build_1189 {
-	dm_build_1193 := new(dm_build_1189)
-	dm_build_1193.dm_build_749(dm_build_1191, Dm_build_607, dm_build_1192)
-	return dm_build_1193
+func dm_build_1228(dm_build_1229 *dm_build_336, dm_build_1230 *DmStatement) *dm_build_1227 {
+	dm_build_1231 := new(dm_build_1227)
+	dm_build_1231.dm_build_767(dm_build_1229, Dm_build_625, dm_build_1230)
+	return dm_build_1231
 }
 
-func (dm_build_1195 *dm_build_1189) dm_build_726() error {
+func (dm_build_1233 *dm_build_1227) dm_build_744() error {
 
-	dm_build_1195.dm_build_741.dm_build_335.Dm_build_183(Dm_build_633, 1)
+	dm_build_1233.dm_build_759.dm_build_339.Dm_build_187(Dm_build_651, 1)
 	return nil
 }
 
-func (dm_build_1197 *dm_build_1189) dm_build_730() (interface{}, error) {
+func (dm_build_1235 *dm_build_1227) dm_build_748() (interface{}, error) {
 
-	dm_build_1197.dm_build_744.id = dm_build_1197.dm_build_741.dm_build_335.Dm_build_269(Dm_build_634)
+	dm_build_1235.dm_build_762.id = dm_build_1235.dm_build_759.dm_build_339.Dm_build_273(Dm_build_652)
 
-	dm_build_1197.dm_build_744.readBaseColName = dm_build_1197.dm_build_741.dm_build_335.Dm_build_263(Dm_build_633) == 1
+	dm_build_1235.dm_build_762.readBaseColName = dm_build_1235.dm_build_759.dm_build_339.Dm_build_267(Dm_build_651) == 1
 	return nil, nil
 }
 
-type dm_build_1198 struct {
-	dm_build_740
-	dm_build_1199 int32
+type dm_build_1236 struct {
+	dm_build_758
+	dm_build_1237 int32
 }
 
-func dm_build_1200(dm_build_1201 *Access, dm_build_1202 int32) *dm_build_1198 {
-	dm_build_1203 := new(dm_build_1198)
-	dm_build_1203.dm_build_745(dm_build_1201, Dm_build_608)
-	dm_build_1203.dm_build_1199 = dm_build_1202
-	return dm_build_1203
+func dm_build_1238(dm_build_1239 *dm_build_336, dm_build_1240 int32) *dm_build_1236 {
+	dm_build_1241 := new(dm_build_1236)
+	dm_build_1241.dm_build_763(dm_build_1239, Dm_build_626)
+	dm_build_1241.dm_build_1237 = dm_build_1240
+	return dm_build_1241
 }
 
-func (dm_build_1205 *dm_build_1198) dm_build_727() {
-	dm_build_1205.dm_build_740.dm_build_727()
-	dm_build_1205.dm_build_741.dm_build_335.Dm_build_191(Dm_build_634, dm_build_1205.dm_build_1199)
+func (dm_build_1243 *dm_build_1236) dm_build_745() {
+	dm_build_1243.dm_build_758.dm_build_745()
+	dm_build_1243.dm_build_759.dm_build_339.Dm_build_195(Dm_build_652, dm_build_1243.dm_build_1237)
 }
 
-type dm_build_1206 struct {
-	dm_build_740
-	dm_build_1207 []uint32
+type dm_build_1244 struct {
+	dm_build_758
+	dm_build_1245 []uint32
 }
 
-func dm_build_1208(dm_build_1209 *Access, dm_build_1210 []uint32) *dm_build_1206 {
-	dm_build_1211 := new(dm_build_1206)
-	dm_build_1211.dm_build_745(dm_build_1209, Dm_build_628)
-	dm_build_1211.dm_build_1207 = dm_build_1210
-	return dm_build_1211
+func dm_build_1246(dm_build_1247 *dm_build_336, dm_build_1248 []uint32) *dm_build_1244 {
+	dm_build_1249 := new(dm_build_1244)
+	dm_build_1249.dm_build_763(dm_build_1247, Dm_build_646)
+	dm_build_1249.dm_build_1245 = dm_build_1248
+	return dm_build_1249
 }
 
-func (dm_build_1213 *dm_build_1206) dm_build_726() error {
+func (dm_build_1251 *dm_build_1244) dm_build_744() error {
 
-	dm_build_1213.dm_build_741.dm_build_335.Dm_build_211(Dm_build_633, uint16(len(dm_build_1213.dm_build_1207)))
+	dm_build_1251.dm_build_759.dm_build_339.Dm_build_215(Dm_build_651, uint16(len(dm_build_1251.dm_build_1245)))
 
-	for _, tableID := range dm_build_1213.dm_build_1207 {
-		dm_build_1213.dm_build_741.dm_build_335.Dm_build_63(uint32(tableID))
+	for _, tableID := range dm_build_1251.dm_build_1245 {
+		dm_build_1251.dm_build_759.dm_build_339.Dm_build_67(uint32(tableID))
 	}
 
 	return nil
 }
 
-func (dm_build_1215 *dm_build_1206) dm_build_730() (interface{}, error) {
-	dm_build_1216 := dm_build_1215.dm_build_741.dm_build_335.Dm_build_284(Dm_build_633)
-	if dm_build_1216 <= 0 {
+func (dm_build_1253 *dm_build_1244) dm_build_748() (interface{}, error) {
+	dm_build_1254 := dm_build_1253.dm_build_759.dm_build_339.Dm_build_288(Dm_build_651)
+	if dm_build_1254 <= 0 {
 		return nil, nil
 	}
 
-	dm_build_1217 := make([]int64, dm_build_1216)
-	for i := 0; i < int(dm_build_1216); i++ {
-		dm_build_1217[i] = dm_build_1215.dm_build_741.dm_build_335.Dm_build_128()
+	dm_build_1255 := make([]int64, dm_build_1254)
+	for i := 0; i < int(dm_build_1254); i++ {
+		dm_build_1255[i] = dm_build_1253.dm_build_759.dm_build_339.Dm_build_132()
 	}
 
-	return dm_build_1217, nil
+	return dm_build_1255, nil
 }

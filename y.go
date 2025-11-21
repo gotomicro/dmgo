@@ -48,7 +48,7 @@ func newEPGroup(name string, serverList []*ep) *epGroup {
 	return g
 }
 
-func (g *epGroup) connect(connector *Connector) (*Connection, error) {
+func (g *epGroup) connect(connector *DmConnector) (*DmConnection, error) {
 	var dbSelector = g.getEPSelector(connector)
 	var ex error = nil
 	// 如果配置了loginMode的主、备等优先策略，而未找到最高优先级的节点时持续循环switchtimes次，如果最终还是没有找到最高优先级则选择次优先级的
@@ -72,7 +72,7 @@ func (g *epGroup) connect(connector *Connector) (*Connection, error) {
 	return nil, ex
 }
 
-func (g *epGroup) getEPSelector(connector *Connector) *epSelector {
+func (g *epGroup) getEPSelector(connector *DmConnector) *epSelector {
 	if connector.epSelector == TYPE_HEAD_FIRST {
 		return newEPSelector(g.epList)
 	} else {
@@ -97,7 +97,7 @@ func (g *epGroup) getEPSelector(connector *Connector) *epSelector {
 * DBError.ECJDBC_INVALID_SERVER_MODE 有站点的模式不匹配
 * DBError.ECJDBC_COMMUNITION_ERROR 所有站点都连不上
  */
-func (g *epGroup) traverseServerList(connector *Connector, epSelector *epSelector, first bool, last bool) (*Connection, error) {
+func (g *epGroup) traverseServerList(connector *DmConnector, epSelector *epSelector, first bool, last bool) (*DmConnection, error) {
 	epList := epSelector.sortDBList(first)
 	errorMsg := bytes.NewBufferString("")
 	var ex error = nil // 第一个错误

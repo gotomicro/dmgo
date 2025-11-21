@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	READ_LEN = Dm_build_716
+	READ_LEN = Dm_build_734
 )
 
 type iOffRowBinder interface {
-	read(buf *Dm_build_1498)
+	read(buf *Dm_build_1538)
 	isReadOver() bool
 	getObj() interface{}
 }
@@ -22,7 +22,7 @@ type offRowBinder struct {
 	obj          interface{}
 	encoding     string
 	readOver     bool
-	buffer       *Dm_build_1498
+	buffer       *Dm_build_1538
 	position     int32
 	offRow       bool
 	targetLength int64
@@ -34,7 +34,7 @@ func newOffRowBinder(obj interface{}, encoding string, targetLength int64) *offR
 		encoding:     encoding,
 		targetLength: targetLength,
 		readOver:     false,
-		buffer:       Dm_build_1502(),
+		buffer:       Dm_build_1542(),
 		position:     0,
 	}
 }
@@ -48,16 +48,16 @@ func newOffRowBytesBinder(obj []byte, encoding string) *offRowBytesBinder {
 		newOffRowBinder(obj, encoding, int64(IGNORE_TARGET_LENGTH)),
 	}
 	binder.read(binder.buffer)
-	binder.offRow = binder.buffer.Dm_build_1503() > Dm_build_713
+	binder.offRow = binder.buffer.Dm_build_1543() > Dm_build_731
 	return binder
 }
 
-func (b *offRowBytesBinder) read(buf *Dm_build_1498) {
-	if b.buffer.Dm_build_1503() > 0 {
-		buf.Dm_build_1535(b.buffer)
+func (b *offRowBytesBinder) read(buf *Dm_build_1538) {
+	if b.buffer.Dm_build_1543() > 0 {
+		buf.Dm_build_1575(b.buffer)
 	} else if !b.readOver {
 		var obj = b.obj.([]byte)
-		buf.Dm_build_1524(obj, 0, len(obj))
+		buf.Dm_build_1564(obj, 0, len(obj))
 		b.readOver = true
 	}
 }
@@ -79,13 +79,13 @@ func newOffRowBlobBinder(blob DmBlob, encoding string) *offRowBlobBinder {
 		newOffRowBinder(blob, encoding, int64(IGNORE_TARGET_LENGTH)),
 	}
 	binder.read(binder.buffer)
-	binder.offRow = binder.buffer.Dm_build_1503() > Dm_build_713
+	binder.offRow = binder.buffer.Dm_build_1543() > Dm_build_731
 	return binder
 }
 
-func (b *offRowBlobBinder) read(buf *Dm_build_1498) {
-	if b.buffer.Dm_build_1503() > 0 {
-		buf.Dm_build_1535(b.buffer)
+func (b *offRowBlobBinder) read(buf *Dm_build_1538) {
+	if b.buffer.Dm_build_1543() > 0 {
+		buf.Dm_build_1575(b.buffer)
 	} else if !b.readOver {
 		var obj = b.obj.(DmBlob)
 		var totalLen, _ = obj.GetLength()
@@ -99,7 +99,7 @@ func (b *offRowBlobBinder) read(buf *Dm_build_1498) {
 		if b.position == int32(totalLen) {
 			b.readOver = true
 		}
-		buf.Dm_build_1524(bytes, 0, len(bytes))
+		buf.Dm_build_1564(bytes, 0, len(bytes))
 	}
 }
 
@@ -120,13 +120,13 @@ func newOffRowClobBinder(clob DmClob, encoding string) *offRowClobBinder {
 		newOffRowBinder(clob, encoding, int64(IGNORE_TARGET_LENGTH)),
 	}
 	binder.read(binder.buffer)
-	binder.offRow = binder.buffer.Dm_build_1503() > Dm_build_713
+	binder.offRow = binder.buffer.Dm_build_1543() > Dm_build_731
 	return binder
 }
 
-func (b *offRowClobBinder) read(buf *Dm_build_1498) {
-	if b.buffer.Dm_build_1503() > 0 {
-		buf.Dm_build_1535(b.buffer)
+func (b *offRowClobBinder) read(buf *Dm_build_1538) {
+	if b.buffer.Dm_build_1543() > 0 {
+		buf.Dm_build_1575(b.buffer)
 	} else if !b.readOver {
 		var obj = b.obj.(DmClob)
 		var totalLen, _ = obj.GetLength()
@@ -136,12 +136,12 @@ func (b *offRowClobBinder) read(buf *Dm_build_1498) {
 			readLen = READ_LEN
 		}
 		var str, _ = obj.getSubString(int64(b.position)+1, readLen)
-		var bytes = Dm_build_1219.Dm_build_1432(str, b.encoding, nil)
+		var bytes = Dm_build_1257.Dm_build_1473(str, b.encoding, nil)
 		b.position += readLen
 		if b.position == int32(totalLen) {
 			b.readOver = true
 		}
-		buf.Dm_build_1524(bytes, 0, len(bytes))
+		buf.Dm_build_1564(bytes, 0, len(bytes))
 	}
 }
 
@@ -162,13 +162,13 @@ func newOffRowReaderBinder(reader io.Reader, encoding string) *offRowReaderBinde
 		newOffRowBinder(reader, encoding, int64(IGNORE_TARGET_LENGTH)),
 	}
 	binder.read(binder.buffer)
-	binder.offRow = binder.buffer.Dm_build_1503() > Dm_build_713
+	binder.offRow = binder.buffer.Dm_build_1543() > Dm_build_731
 	return binder
 }
 
-func (b *offRowReaderBinder) read(buf *Dm_build_1498) {
-	if b.buffer.Dm_build_1503() > 0 {
-		buf.Dm_build_1535(b.buffer)
+func (b *offRowReaderBinder) read(buf *Dm_build_1538) {
+	if b.buffer.Dm_build_1543() > 0 {
+		buf.Dm_build_1575(b.buffer)
 	} else if !b.readOver {
 		var err error
 		var readLen = READ_LEN
@@ -183,17 +183,17 @@ func (b *offRowReaderBinder) read(buf *Dm_build_1498) {
 		if readLen < len(bytes) || b.targetLength != int64(IGNORE_TARGET_LENGTH) && int64(b.position) == b.targetLength {
 			b.readOver = true
 		}
-		buf.Dm_build_1524(bytes[0:readLen], 0, readLen)
+		buf.Dm_build_1564(bytes[0:readLen], 0, readLen)
 	}
 }
 
 func (b *offRowReaderBinder) readAll() []byte {
-	var byteArray = Dm_build_1502()
+	var byteArray = Dm_build_1542()
 	b.read(byteArray)
 	for !b.readOver {
 		b.read(byteArray)
 	}
-	return byteArray.Dm_build_1545()
+	return byteArray.Dm_build_1585()
 }
 
 func (b *offRowReaderBinder) isReadOver() bool {

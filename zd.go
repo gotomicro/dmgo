@@ -28,7 +28,7 @@ func (filterChain *filterChain) reset() *filterChain {
 	return filterChain
 }
 
-func (filterChain *filterChain) DmDriverOpen(d *Driver, dsn string) (*Connection, error) {
+func (filterChain *filterChain) DmDriverOpen(d *DmDriver, dsn string) (*DmConnection, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -38,7 +38,7 @@ func (filterChain *filterChain) DmDriverOpen(d *Driver, dsn string) (*Connection
 	return d.open(dsn)
 }
 
-func (filterChain *filterChain) DmDriverOpenConnector(d *Driver, dsn string) (*Connector, error) {
+func (filterChain *filterChain) DmDriverOpenConnector(d *DmDriver, dsn string) (*DmConnector, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -49,7 +49,7 @@ func (filterChain *filterChain) DmDriverOpenConnector(d *Driver, dsn string) (*C
 }
 
 //DmConnector
-func (filterChain *filterChain) DmConnectorConnect(c *Connector, ctx context.Context) (*Connection, error) {
+func (filterChain *filterChain) DmConnectorConnect(c *DmConnector, ctx context.Context) (*DmConnection, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -59,7 +59,7 @@ func (filterChain *filterChain) DmConnectorConnect(c *Connector, ctx context.Con
 	return c.connect(ctx)
 }
 
-func (filterChain *filterChain) DmConnectorDriver(c *Connector) *Driver {
+func (filterChain *filterChain) DmConnectorDriver(c *DmConnector) *DmDriver {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -70,7 +70,7 @@ func (filterChain *filterChain) DmConnectorDriver(c *Connector) *Driver {
 }
 
 //DmConnection
-func (filterChain *filterChain) DmConnectionBegin(c *Connection) (*Connection, error) {
+func (filterChain *filterChain) DmConnectionBegin(c *DmConnection) (*DmConnection, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -79,7 +79,7 @@ func (filterChain *filterChain) DmConnectionBegin(c *Connection) (*Connection, e
 
 	return c.begin()
 }
-func (filterChain *filterChain) DmConnectionBeginTx(c *Connection, ctx context.Context, opts driver.TxOptions) (*Connection, error) {
+func (filterChain *filterChain) DmConnectionBeginTx(c *DmConnection, ctx context.Context, opts driver.TxOptions) (*DmConnection, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -89,7 +89,7 @@ func (filterChain *filterChain) DmConnectionBeginTx(c *Connection, ctx context.C
 	return c.beginTx(ctx, opts)
 }
 
-func (filterChain *filterChain) DmConnectionCommit(c *Connection) error {
+func (filterChain *filterChain) DmConnectionCommit(c *DmConnection) error {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -99,7 +99,7 @@ func (filterChain *filterChain) DmConnectionCommit(c *Connection) error {
 	return c.commit()
 }
 
-func (filterChain *filterChain) DmConnectionRollback(c *Connection) error {
+func (filterChain *filterChain) DmConnectionRollback(c *DmConnection) error {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -109,7 +109,7 @@ func (filterChain *filterChain) DmConnectionRollback(c *Connection) error {
 	return c.rollback()
 }
 
-func (filterChain *filterChain) DmConnectionClose(c *Connection) error {
+func (filterChain *filterChain) DmConnectionClose(c *DmConnection) error {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -119,7 +119,7 @@ func (filterChain *filterChain) DmConnectionClose(c *Connection) error {
 	return c.close()
 }
 
-func (filterChain *filterChain) DmConnectionPing(c *Connection, ctx context.Context) error {
+func (filterChain *filterChain) DmConnectionPing(c *DmConnection, ctx context.Context) error {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -129,7 +129,7 @@ func (filterChain *filterChain) DmConnectionPing(c *Connection, ctx context.Cont
 	return c.ping(ctx)
 }
 
-func (filterChain *filterChain) DmConnectionExec(c *Connection, query string, args []driver.Value) (*DmResult, error) {
+func (filterChain *filterChain) DmConnectionExec(c *DmConnection, query string, args []driver.Value) (*DmResult, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -139,7 +139,7 @@ func (filterChain *filterChain) DmConnectionExec(c *Connection, query string, ar
 	return c.exec(query, args)
 }
 
-func (filterChain *filterChain) DmConnectionExecContext(c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
+func (filterChain *filterChain) DmConnectionExecContext(c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmResult, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -149,7 +149,7 @@ func (filterChain *filterChain) DmConnectionExecContext(c *Connection, ctx conte
 	return c.execContext(ctx, query, args)
 }
 
-func (filterChain *filterChain) DmConnectionQuery(c *Connection, query string, args []driver.Value) (*DmRows, error) {
+func (filterChain *filterChain) DmConnectionQuery(c *DmConnection, query string, args []driver.Value) (*DmRows, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -159,7 +159,7 @@ func (filterChain *filterChain) DmConnectionQuery(c *Connection, query string, a
 	return c.query(query, args)
 }
 
-func (filterChain *filterChain) DmConnectionQueryContext(c *Connection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
+func (filterChain *filterChain) DmConnectionQueryContext(c *DmConnection, ctx context.Context, query string, args []driver.NamedValue) (*DmRows, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -169,7 +169,7 @@ func (filterChain *filterChain) DmConnectionQueryContext(c *Connection, ctx cont
 	return c.queryContext(ctx, query, args)
 }
 
-func (filterChain *filterChain) DmConnectionPrepare(c *Connection, query string) (*DmStatement, error) {
+func (filterChain *filterChain) DmConnectionPrepare(c *DmConnection, query string) (*DmStatement, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -179,7 +179,7 @@ func (filterChain *filterChain) DmConnectionPrepare(c *Connection, query string)
 	return c.prepare(query)
 }
 
-func (filterChain *filterChain) DmConnectionPrepareContext(c *Connection, ctx context.Context, query string) (*DmStatement, error) {
+func (filterChain *filterChain) DmConnectionPrepareContext(c *DmConnection, ctx context.Context, query string) (*DmStatement, error) {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -189,7 +189,7 @@ func (filterChain *filterChain) DmConnectionPrepareContext(c *Connection, ctx co
 	return c.prepareContext(ctx, query)
 }
 
-func (filterChain *filterChain) DmConnectionResetSession(c *Connection, ctx context.Context) error {
+func (filterChain *filterChain) DmConnectionResetSession(c *DmConnection, ctx context.Context) error {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++
@@ -199,7 +199,7 @@ func (filterChain *filterChain) DmConnectionResetSession(c *Connection, ctx cont
 	return c.resetSession(ctx)
 }
 
-func (filterChain *filterChain) DmConnectionCheckNamedValue(c *Connection, nv *driver.NamedValue) error {
+func (filterChain *filterChain) DmConnectionCheckNamedValue(c *DmConnection, nv *driver.NamedValue) error {
 	if filterChain.fpos < len(filterChain.filters) {
 		f := filterChain.filters[filterChain.fpos]
 		filterChain.fpos++

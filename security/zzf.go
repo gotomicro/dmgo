@@ -20,8 +20,8 @@ type ThirdPartCipher struct {
 	key         []byte
 	cipherCount int // 外部加密算法个数
 	//innerId		int // 外部加密算法内部id
-	blockSize   int // 分组块大小
-	khSize      int // key/hash大小
+	blockSize int // 分组块大小
+	khSize    int // key/hash大小
 }
 
 func NewThirdPartCipher(encryptType int, key []byte, cipherPath string, hashType int) (ThirdPartCipher, error) {
@@ -37,7 +37,9 @@ func NewThirdPartCipher(encryptType int, key []byte, cipherPath string, hashType
 		return tpc, err
 	}
 	tpc.getCount()
-	tpc.getInfo()
+	if err = tpc.getInfo(); err != nil {
+		return tpc, err
+	}
 	return tpc, nil
 }
 
@@ -48,7 +50,7 @@ func (tpc *ThirdPartCipher) getCount() int {
 	return tpc.cipherCount
 }
 
-func (tpc *ThirdPartCipher) getInfo() {
+func (tpc *ThirdPartCipher) getInfo() error {
 	var cipher_id, ty, blk_size, kh_size int
 	//var strptr, _ = syscall.UTF16PtrFromString(tpc.encryptName)
 	var strptr *uint16 = new(uint16)
@@ -59,10 +61,10 @@ func (tpc *ThirdPartCipher) getInfo() {
 			tpc.blockSize = blk_size
 			tpc.khSize = kh_size
 			tpc.encryptName = string(uintptr2bytes(uintptr(unsafe.Pointer(strptr))))
-			return
+			return nil
 		}
 	}
-	panic(fmt.Sprintf("ThirdPartyCipher: cipher id:%d not found", tpc.encryptType))
+	return fmt.Errorf("ThirdPartyCipher: cipher id:%d not found", tpc.encryptType)
 }
 
 func (tpc ThirdPartCipher) Encrypt(plaintext []byte, genDigest bool) []byte {
@@ -129,11 +131,11 @@ func uintptr2bytes(p uintptr) []byte {
 	i := 0
 	for b := (*byte)(unsafe.Pointer(p)); *b != 0; i++ {
 		if i > cap(buf) {
-			buf = addBufSize(buf, i * 2)
+			buf = addBufSize(buf, i*2)
 		}
 		buf[i] = *b
 		// byte占1字节
-		p ++
+		p++
 		b = (*byte)(unsafe.Pointer(p))
 	}
 	return buf[:i]

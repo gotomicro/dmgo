@@ -41,7 +41,7 @@ type TypeDescriptor struct {
 
 	m_size int
 
-	m_conn *Connection
+	m_conn *DmConnection
 
 	m_serverEncoding string
 
@@ -52,7 +52,7 @@ type TypeDescriptor struct {
 	m_descBuf []byte
 }
 
-func newTypeDescriptorWithFulName(fulName string, conn *Connection) *TypeDescriptor {
+func newTypeDescriptorWithFulName(fulName string, conn *DmConnection) *TypeDescriptor {
 	td := new(TypeDescriptor)
 	td.init()
 	td.m_sqlName = newSqlNameByFulName(fulName)
@@ -60,7 +60,7 @@ func newTypeDescriptorWithFulName(fulName string, conn *Connection) *TypeDescrip
 	return td
 }
 
-func newTypeDescriptor(conn *Connection) *TypeDescriptor {
+func newTypeDescriptor(conn *DmConnection) *TypeDescriptor {
 	td := new(TypeDescriptor)
 	td.init()
 	td.m_sqlName = newSqlNameByConn(conn)
@@ -211,11 +211,11 @@ func pack(typeDesc *TypeDescriptor, msg *Dm_build_0) error {
 		return packRecord(typeDesc, msg)
 	}
 
-	msg.Dm_build_51(typeDesc.column.colType)
+	msg.Dm_build_55(typeDesc.column.colType)
 
-	msg.Dm_build_51(typeDesc.column.prec)
+	msg.Dm_build_55(typeDesc.column.prec)
 
-	msg.Dm_build_51(typeDesc.column.scale)
+	msg.Dm_build_55(typeDesc.column.scale)
 	return nil
 }
 
@@ -228,7 +228,7 @@ func getPackArraySize(arrDesc *TypeDescriptor) (int, error) {
 	l += USINT_SIZE
 
 	serverEncoding := arrDesc.getServerEncoding()
-	ret := Dm_build_1219.Dm_build_1432(name, serverEncoding, arrDesc.m_conn)
+	ret := Dm_build_1257.Dm_build_1473(name, serverEncoding, arrDesc.m_conn)
 	l += len(ret)
 
 	l += ULINT_SIZE
@@ -249,30 +249,30 @@ func getPackArraySize(arrDesc *TypeDescriptor) (int, error) {
 
 func packArray(arrDesc *TypeDescriptor, msg *Dm_build_0) error {
 
-	msg.Dm_build_51(arrDesc.column.colType)
+	msg.Dm_build_55(arrDesc.column.colType)
 
-	msg.Dm_build_107(arrDesc.m_sqlName.m_name, arrDesc.getServerEncoding(), arrDesc.m_conn)
+	msg.Dm_build_111(arrDesc.m_sqlName.m_name, arrDesc.getServerEncoding(), arrDesc.m_conn)
 
-	msg.Dm_build_51(int32(arrDesc.m_objId))
+	msg.Dm_build_55(int32(arrDesc.m_objId))
 
-	msg.Dm_build_51(int32(arrDesc.m_objVersion))
+	msg.Dm_build_55(int32(arrDesc.m_objVersion))
 
-	msg.Dm_build_51(int32(arrDesc.m_length))
+	msg.Dm_build_55(int32(arrDesc.m_length))
 
 	return pack(arrDesc.m_arrObj, msg)
 }
 
 func packRecord(strctDesc *TypeDescriptor, msg *Dm_build_0) error {
 
-	msg.Dm_build_51(strctDesc.column.colType)
+	msg.Dm_build_55(strctDesc.column.colType)
 
-	msg.Dm_build_107(strctDesc.m_sqlName.m_name, strctDesc.getServerEncoding(), strctDesc.m_conn)
+	msg.Dm_build_111(strctDesc.m_sqlName.m_name, strctDesc.getServerEncoding(), strctDesc.m_conn)
 
-	msg.Dm_build_51(int32(strctDesc.m_objId))
+	msg.Dm_build_55(int32(strctDesc.m_objId))
 
-	msg.Dm_build_51(int32(strctDesc.m_objVersion))
+	msg.Dm_build_55(int32(strctDesc.m_objVersion))
 
-	msg.Dm_build_47(int16(strctDesc.m_size))
+	msg.Dm_build_51(int16(strctDesc.m_size))
 
 	for i := 0; i < strctDesc.m_size; i++ {
 		err := pack(&strctDesc.m_fieldsObj[i], msg)
@@ -292,7 +292,7 @@ func getPackRecordSize(strctDesc *TypeDescriptor) (int, error) {
 	l += USINT_SIZE
 
 	serverEncoding := strctDesc.getServerEncoding()
-	ret := Dm_build_1219.Dm_build_1432(name, serverEncoding, strctDesc.m_conn)
+	ret := Dm_build_1257.Dm_build_1473(name, serverEncoding, strctDesc.m_conn)
 	l += len(ret)
 
 	l += ULINT_SIZE
@@ -321,7 +321,7 @@ func getPackClassSize(strctDesc *TypeDescriptor) (int, error) {
 	l += USINT_SIZE
 
 	serverEncoding := strctDesc.getServerEncoding()
-	ret := Dm_build_1219.Dm_build_1432(name, serverEncoding, strctDesc.m_conn)
+	ret := Dm_build_1257.Dm_build_1473(name, serverEncoding, strctDesc.m_conn)
 	l += len(ret)
 
 	l += ULINT_SIZE
@@ -342,21 +342,21 @@ func getPackClassSize(strctDesc *TypeDescriptor) (int, error) {
 
 func packClass(strctDesc *TypeDescriptor, msg *Dm_build_0) error {
 
-	msg.Dm_build_51(strctDesc.column.colType)
+	msg.Dm_build_55(strctDesc.column.colType)
 
-	msg.Dm_build_107(strctDesc.m_sqlName.m_name, strctDesc.getServerEncoding(), strctDesc.m_conn)
+	msg.Dm_build_111(strctDesc.m_sqlName.m_name, strctDesc.getServerEncoding(), strctDesc.m_conn)
 
-	msg.Dm_build_51(int32(strctDesc.m_objId))
+	msg.Dm_build_55(int32(strctDesc.m_objId))
 
-	msg.Dm_build_51(int32(strctDesc.m_objVersion))
+	msg.Dm_build_55(int32(strctDesc.m_objVersion))
 
 	if strctDesc.m_objId == 4 {
 
-		msg.Dm_build_51(int32(strctDesc.m_outerId))
+		msg.Dm_build_55(int32(strctDesc.m_outerId))
 
-		msg.Dm_build_51(int32(strctDesc.m_outerVer))
+		msg.Dm_build_55(int32(strctDesc.m_outerVer))
 
-		msg.Dm_build_51(int32(strctDesc.m_subId))
+		msg.Dm_build_55(int32(strctDesc.m_subId))
 
 	}
 
@@ -365,7 +365,7 @@ func packClass(strctDesc *TypeDescriptor, msg *Dm_build_0) error {
 
 func (typeDescriptor *TypeDescriptor) unpack(buffer *Dm_build_0) error {
 
-	typeDescriptor.column.colType = buffer.Dm_build_125()
+	typeDescriptor.column.colType = buffer.Dm_build_129()
 
 	switch typeDescriptor.column.colType {
 	case ARRAY, SARRAY:
@@ -376,25 +376,25 @@ func (typeDescriptor *TypeDescriptor) unpack(buffer *Dm_build_0) error {
 		return typeDescriptor.unpackRecord(buffer)
 	}
 
-	typeDescriptor.column.prec = buffer.Dm_build_125()
+	typeDescriptor.column.prec = buffer.Dm_build_129()
 
-	typeDescriptor.column.scale = buffer.Dm_build_125()
+	typeDescriptor.column.scale = buffer.Dm_build_129()
 	return nil
 }
 
 func (typeDescriptor *TypeDescriptor) unpackArray(buffer *Dm_build_0) error {
 
-	typeDescriptor.m_sqlName.m_name = buffer.Dm_build_175(typeDescriptor.getServerEncoding(), typeDescriptor.m_conn)
+	typeDescriptor.m_sqlName.m_name = buffer.Dm_build_179(typeDescriptor.getServerEncoding(), typeDescriptor.m_conn)
 
-	typeDescriptor.m_sqlName.m_schId = int(buffer.Dm_build_125())
+	typeDescriptor.m_sqlName.m_schId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_sqlName.m_packId = int(buffer.Dm_build_125())
+	typeDescriptor.m_sqlName.m_packId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_objId = int(buffer.Dm_build_125())
+	typeDescriptor.m_objId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_objVersion = int(buffer.Dm_build_125())
+	typeDescriptor.m_objVersion = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_length = int(buffer.Dm_build_125())
+	typeDescriptor.m_length = int(buffer.Dm_build_129())
 	if typeDescriptor.column.colType == ARRAY {
 		typeDescriptor.m_length = 0
 	}
@@ -405,17 +405,17 @@ func (typeDescriptor *TypeDescriptor) unpackArray(buffer *Dm_build_0) error {
 
 func (typeDescriptor *TypeDescriptor) unpackRecord(buffer *Dm_build_0) error {
 
-	typeDescriptor.m_sqlName.m_name = buffer.Dm_build_175(typeDescriptor.getServerEncoding(), typeDescriptor.m_conn)
+	typeDescriptor.m_sqlName.m_name = buffer.Dm_build_179(typeDescriptor.getServerEncoding(), typeDescriptor.m_conn)
 
-	typeDescriptor.m_sqlName.m_schId = int(buffer.Dm_build_125())
+	typeDescriptor.m_sqlName.m_schId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_sqlName.m_packId = int(buffer.Dm_build_125())
+	typeDescriptor.m_sqlName.m_packId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_objId = int(buffer.Dm_build_125())
+	typeDescriptor.m_objId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_objVersion = int(buffer.Dm_build_125())
+	typeDescriptor.m_objVersion = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_size = int(buffer.Dm_build_140())
+	typeDescriptor.m_size = int(buffer.Dm_build_144())
 
 	typeDescriptor.m_fieldsObj = make([]TypeDescriptor, typeDescriptor.m_size)
 	for i := 0; i < typeDescriptor.m_size; i++ {
@@ -428,7 +428,7 @@ func (typeDescriptor *TypeDescriptor) unpackRecord(buffer *Dm_build_0) error {
 
 func (typeDescriptor *TypeDescriptor) unpackClnt_nestTab(buffer *Dm_build_0) error {
 
-	typeDescriptor.m_maxCnt = int(buffer.Dm_build_125())
+	typeDescriptor.m_maxCnt = int(buffer.Dm_build_129())
 
 	typeDescriptor.m_arrObj = newTypeDescriptor(typeDescriptor.m_conn)
 
@@ -439,13 +439,13 @@ func (typeDescriptor *TypeDescriptor) unpackClnt_nestTab(buffer *Dm_build_0) err
 
 func (typeDescriptor *TypeDescriptor) unpackClnt(buffer *Dm_build_0) error {
 
-	typeDescriptor.m_outerId = int(buffer.Dm_build_125())
+	typeDescriptor.m_outerId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_outerVer = int(buffer.Dm_build_125())
+	typeDescriptor.m_outerVer = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_subId = int(buffer.Dm_build_140())
+	typeDescriptor.m_subId = int(buffer.Dm_build_144())
 
-	typeDescriptor.m_cltnType = int(buffer.Dm_build_140())
+	typeDescriptor.m_cltnType = int(buffer.Dm_build_144())
 
 	switch typeDescriptor.m_cltnType {
 	case CLTN_TYPE_IND_TABLE:
@@ -460,21 +460,21 @@ func (typeDescriptor *TypeDescriptor) unpackClnt(buffer *Dm_build_0) error {
 
 func (typeDescriptor *TypeDescriptor) unpackClass(buffer *Dm_build_0) error {
 
-	typeDescriptor.m_sqlName.m_name = buffer.Dm_build_175(typeDescriptor.getServerEncoding(), typeDescriptor.m_conn)
+	typeDescriptor.m_sqlName.m_name = buffer.Dm_build_179(typeDescriptor.getServerEncoding(), typeDescriptor.m_conn)
 
-	typeDescriptor.m_sqlName.m_schId = int(buffer.Dm_build_125())
+	typeDescriptor.m_sqlName.m_schId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_sqlName.m_packId = int(buffer.Dm_build_125())
+	typeDescriptor.m_sqlName.m_packId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_objId = int(buffer.Dm_build_125())
+	typeDescriptor.m_objId = int(buffer.Dm_build_129())
 
-	typeDescriptor.m_objVersion = int(buffer.Dm_build_125())
+	typeDescriptor.m_objVersion = int(buffer.Dm_build_129())
 
 	if typeDescriptor.m_objId == 4 {
 		return typeDescriptor.unpackClnt(buffer)
 	} else {
 
-		typeDescriptor.m_size = int(buffer.Dm_build_140())
+		typeDescriptor.m_size = int(buffer.Dm_build_144())
 
 		typeDescriptor.m_fieldsObj = make([]TypeDescriptor, typeDescriptor.m_size)
 		for i := 0; i < typeDescriptor.m_size; i++ {
@@ -620,10 +620,10 @@ func calcChkDescLen(desc *TypeDescriptor) (int, error) {
 
 func (typeDescriptor *TypeDescriptor) makeChkDesc_array(offset int, desc *TypeDescriptor) (int, error) {
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, ARRAY)
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, ARRAY)
 	offset += USINT_SIZE
 
-	Dm_build_1219.Dm_build_1235(typeDescriptor.m_descBuf, offset, int32(desc.m_length))
+	Dm_build_1257.Dm_build_1273(typeDescriptor.m_descBuf, offset, int32(desc.m_length))
 	offset += ULINT_SIZE
 
 	return typeDescriptor.makeChkDesc(offset, desc)
@@ -631,10 +631,10 @@ func (typeDescriptor *TypeDescriptor) makeChkDesc_array(offset int, desc *TypeDe
 
 func (typeDescriptor *TypeDescriptor) makeChkDesc_record(offset int, desc *TypeDescriptor) (int, error) {
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, PLTYPE_RECORD)
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, PLTYPE_RECORD)
 	offset += USINT_SIZE
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, int16(desc.m_size))
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, int16(desc.m_size))
 	offset += USINT_SIZE
 	var err error
 	for i := 0; i < desc.m_size; i++ {
@@ -657,13 +657,13 @@ func (typeDescriptor *TypeDescriptor) makeChkDesc_buildin(offset int, desc *Type
 		scale = desc.getScale()
 	}
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, dtype)
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, dtype)
 	offset += USINT_SIZE
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, int16(prec))
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, int16(prec))
 	offset += USINT_SIZE
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, int16(scale))
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, int16(scale))
 	offset += USINT_SIZE
 
 	return offset
@@ -671,7 +671,7 @@ func (typeDescriptor *TypeDescriptor) makeChkDesc_buildin(offset int, desc *Type
 
 func (typeDescriptor *TypeDescriptor) makeChkDesc_class_normal(offset int, desc *TypeDescriptor) (int, error) {
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, int16(desc.m_size))
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, int16(desc.m_size))
 	offset += USINT_SIZE
 	var err error
 
@@ -687,10 +687,10 @@ func (typeDescriptor *TypeDescriptor) makeChkDesc_class_normal(offset int, desc 
 
 func (typeDescriptor *TypeDescriptor) makeChkDesc_class_clnt(offset int, desc *TypeDescriptor) (int, error) {
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, int16(desc.m_cltnType))
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, int16(desc.m_cltnType))
 	offset += USINT_SIZE
 
-	Dm_build_1219.Dm_build_1235(typeDescriptor.m_descBuf, offset, int32(desc.getMaxCnt()))
+	Dm_build_1257.Dm_build_1273(typeDescriptor.m_descBuf, offset, int32(desc.getMaxCnt()))
 	offset += ULINT_SIZE
 
 	switch desc.m_cltnType {
@@ -707,7 +707,7 @@ func (typeDescriptor *TypeDescriptor) makeChkDesc_class_clnt(offset int, desc *T
 
 func (typeDescriptor *TypeDescriptor) makeChkDesc_class(offset int, desc *TypeDescriptor) (int, error) {
 
-	Dm_build_1219.Dm_build_1230(typeDescriptor.m_descBuf, offset, CLASS)
+	Dm_build_1257.Dm_build_1268(typeDescriptor.m_descBuf, offset, CLASS)
 	offset += USINT_SIZE
 
 	isClnt := false
@@ -716,9 +716,9 @@ func (typeDescriptor *TypeDescriptor) makeChkDesc_class(offset int, desc *TypeDe
 	}
 
 	if isClnt {
-		Dm_build_1219.Dm_build_1220(typeDescriptor.m_descBuf, offset, byte(1))
+		Dm_build_1257.Dm_build_1258(typeDescriptor.m_descBuf, offset, byte(1))
 	} else {
-		Dm_build_1219.Dm_build_1220(typeDescriptor.m_descBuf, offset, byte(0))
+		Dm_build_1257.Dm_build_1258(typeDescriptor.m_descBuf, offset, byte(0))
 	}
 
 	offset += BYTE_SIZE

@@ -12,50 +12,17 @@ import (
 	"unicode"
 )
 
-func encodeByString(x string, dtype int, scale int, ltz int, dtz int) ([]byte, error) {
+func encodeByString(x string, column column, conn DmConnection) ([]byte, error) {
 	dt := make([]int, DT_LEN)
 	if _, err := toDTFromString(x, dt); err != nil {
 		return nil, err
 	}
-	return encode(dt, dtype, scale, ltz)
+	return encode(dt, column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 }
 
-func encodeByTime(x time.Time, dtype int, scale int, lTz int, dbTz int) ([]byte, error) {
+func encodeByTime(x time.Time, column column, conn DmConnection) ([]byte, error) {
 	dt := toDTFromTime(x)
-	return encode(dt, dtype, scale, lTz)
-}
-
-func encodeByDateNumber(x int64, destDType int, scale int, lTz int, dbTz int16) ([]byte, error) {
-	switch destDType {
-	case DATETIME:
-
-		if x > 2958463*24*60*60 {
-			return nil, ECGO_DATETIME_OVERFLOW.throw()
-		}
-
-		dt := toDTFromUnix(x-Seconds_1900_1970, 0)
-		return encode(dt, destDType, scale, lTz)
-
-	case TIME:
-		dt := toDTFromUnix(x, 0)
-		return encode(dt, destDType, scale, lTz)
-
-	case DATE:
-
-		if x > 2958463 {
-			return nil, ECGO_DATETIME_OVERFLOW.throw()
-		}
-
-		dt := toDTFromUnix(x*24*60*60-Seconds_1900_1970, 0)
-		if dt[OFFSET_YEAR] < -4712 || dt[OFFSET_YEAR] > 9999 {
-			return nil, ECGO_DATETIME_OVERFLOW.throw()
-		}
-		return encode(dt, destDType, scale, lTz)
-
-	default:
-		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
-
-	}
+	return encode(dt, column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
 }
 
 func toTimeFromString(str string, ltz int) time.Time {
@@ -84,7 +51,7 @@ func toTimeFromDT(dt []int, ltz int) time.Time {
 	hour = dt[OFFSET_HOUR]
 	minute = dt[OFFSET_MINUTE]
 	second = dt[OFFSET_SECOND]
-	nsec = dt[OFFSET_MILLISECOND] * 1000
+	nsec = dt[OFFSET_NANOSECOND]
 	if dt[OFFSET_TIMEZONE] == INVALID_VALUE {
 		tz = ltz * 60
 	} else {
@@ -93,7 +60,7 @@ func toTimeFromDT(dt []int, ltz int) time.Time {
 	return time.Date(year, time.Month(month), day, hour, minute, second, nsec, time.FixedZone("", tz))
 }
 
-func decode(value []byte, isBdta bool, colType int, scale int, ltz int, dbtz int) []int {
+func decode(value []byte, isBdta bool, column column, ltz int, dtz int) []int {
 	var dt []int
 	if isBdta {
 		dt = dmdtDecodeBdta(value)
@@ -101,15 +68,10 @@ func decode(value []byte, isBdta bool, colType int, scale int, ltz int, dbtz int
 		dt = dmdtDecodeFast(value)
 	}
 
-	if isLocalTimeZone(colType, scale) {
-		transformTZ(dt, dbtz, ltz)
-		scale = getLocalTimeZoneScale(colType, scale)
+	if column.mask == MASK_LOCAL_DATETIME {
+		transformTZ(dt, dtz, ltz)
 	}
 
-	if scale > 0 && scale < 6 {
-		tmp := math.Pow10(6 - scale)
-		dt[OFFSET_MILLISECOND] = int(float64(dt[OFFSET_MILLISECOND]) / tmp * tmp)
-	}
 	return dt
 }
 
@@ -117,9 +79,26 @@ func dmdtDecodeFast(value []byte) []int {
 	dt := make([]int, DT_LEN)
 	dt[OFFSET_TIMEZONE] = INVALID_VALUE
 
-	if len(value) == 3 {
+	dtype := 0
+	if len(value) == DATE_PREC {
+		dtype = DATE
+	} else if len(value) == TIME_PREC {
+		dtype = TIME
+	} else if len(value) == TIME_TZ_PREC {
+		dtype = TIME_TZ
+	} else if len(value) == DATETIME_PREC {
+		dtype = DATETIME
+	} else if len(value) == DATETIME2_PREC {
+		dtype = DATETIME2
+	} else if len(value) == DATETIME_TZ_PREC {
+		dtype = DATETIME_TZ
+	} else if len(value) == DATETIME2_TZ_PREC {
+		dtype = DATETIME2_TZ
+	}
 
-		dt[OFFSET_YEAR] = int(Dm_build_1219.Dm_build_1316(value, 0)) & 0x7FFF
+	if dtype == DATE {
+
+		dt[OFFSET_YEAR] = int(Dm_build_1257.Dm_build_1354(value, 0)) & 0x7FFF
 		if dt[OFFSET_YEAR] > 9999 {
 			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
 		}
@@ -127,19 +106,22 @@ func dmdtDecodeFast(value []byte) []int {
 		dt[OFFSET_MONTH] = ((int(value[1]) >> 7) & 0x1) + ((int(value[2]) & 0x07) << 1)
 
 		dt[OFFSET_DAY] = ((int(value[2]) & 0xF8) >> 3) & 0x1f
-	} else if len(value) < 8 {
-
+	} else if dtype == TIME {
 		dt[OFFSET_HOUR] = int(value[0]) & 0x1F
 		dt[OFFSET_MINUTE] = ((int(value[0]) >> 5) & 0x07) + ((int(value[1]) & 0x07) << 3)
 		dt[OFFSET_SECOND] = ((int(value[1]) >> 3) & 0x1f) + ((int(value[2]) & 0x01) << 5)
-		dt[OFFSET_MILLISECOND] = ((int(value[2]) >> 1) & 0x7f) + ((int(value[3]) & 0x00ff) << 7) + ((int(value[4]) & 0x1F) << 15)
+		dt[OFFSET_NANOSECOND] = ((int(value[2]) >> 1) & 0x7f) + ((int(value[3]) & 0x00ff) << 7) + ((int(value[4]) & 0x1F) << 15)
+		dt[OFFSET_NANOSECOND] *= 1000
+	} else if dtype == TIME_TZ {
+		dt[OFFSET_HOUR] = int(value[0]) & 0x1F
+		dt[OFFSET_MINUTE] = ((int(value[0]) >> 5) & 0x07) + ((int(value[1]) & 0x07) << 3)
+		dt[OFFSET_SECOND] = ((int(value[1]) >> 3) & 0x1f) + ((int(value[2]) & 0x01) << 5)
+		dt[OFFSET_NANOSECOND] = ((int(value[2]) >> 1) & 0x7f) + ((int(value[3]) & 0x00ff) << 7) + ((int(value[4]) & 0x1F) << 15)
+		dt[OFFSET_NANOSECOND] *= 1000
+		dt[OFFSET_TIMEZONE] = int(Dm_build_1257.Dm_build_1354(value, 5))
+	} else if dtype == DATETIME {
 
-		if len(value) > 5 {
-			dt[OFFSET_TIMEZONE] = int(Dm_build_1219.Dm_build_1316(value, 5))
-		}
-	} else {
-
-		dt[OFFSET_YEAR] = int(Dm_build_1219.Dm_build_1316(value, 0)) & 0x7FFF
+		dt[OFFSET_YEAR] = int(Dm_build_1257.Dm_build_1354(value, 0)) & 0x7FFF
 		if dt[OFFSET_YEAR] > 9999 {
 			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
 		}
@@ -154,30 +136,91 @@ func dmdtDecodeFast(value []byte) []int {
 
 		dt[OFFSET_SECOND] = ((int(value[4]) >> 3) & 0x1f) + ((int(value[5]) & 0x01) << 5)
 
-		dt[OFFSET_MILLISECOND] = ((int(value[5]) >> 1) & 0x7f) + ((int(value[6]) & 0x00ff) << 7) + ((int(value[7]) & 0x1F) << 15)
+		dt[OFFSET_NANOSECOND] = ((int(value[5]) >> 1) & 0x7f) + ((int(value[6]) & 0x00ff) << 7) + ((int(value[7]) & 0x1F) << 15)
+		dt[OFFSET_NANOSECOND] *= 1000
+	} else if dtype == DATETIME_TZ {
 
-		if len(value) > 8 {
-			dt[OFFSET_TIMEZONE] = int(Dm_build_1219.Dm_build_1316(value, 8))
+		dt[OFFSET_YEAR] = int(Dm_build_1257.Dm_build_1354(value, 0)) & 0x7FFF
+		if dt[OFFSET_YEAR] > 9999 {
+			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
 		}
+
+		dt[OFFSET_MONTH] = ((int(value[1]) >> 7) & 0x1) + ((int(value[2]) & 0x07) << 1)
+
+		dt[OFFSET_DAY] = ((int(value[2]) & 0xF8) >> 3) & 0x1f
+
+		dt[OFFSET_HOUR] = (int(value[3]) & 0x1F)
+
+		dt[OFFSET_MINUTE] = ((int(value[3]) >> 5) & 0x07) + ((int(value[4]) & 0x07) << 3)
+
+		dt[OFFSET_SECOND] = ((int(value[4]) >> 3) & 0x1f) + ((int(value[5]) & 0x01) << 5)
+
+		dt[OFFSET_NANOSECOND] = ((int(value[5]) >> 1) & 0x7f) + ((int(value[6]) & 0x00ff) << 7) + ((int(value[7]) & 0x1F) << 15)
+		dt[OFFSET_NANOSECOND] *= 1000
+
+		dt[OFFSET_TIMEZONE] = int(Dm_build_1257.Dm_build_1354(value, len(value)-2))
+	} else if dtype == DATETIME2 {
+
+		dt[OFFSET_YEAR] = int(Dm_build_1257.Dm_build_1354(value, 0)) & 0x7FFF
+		if dt[OFFSET_YEAR] > 9999 {
+			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
+		}
+
+		dt[OFFSET_MONTH] = ((int(value[1]) >> 7) & 0x1) + ((int(value[2]) & 0x07) << 1)
+
+		dt[OFFSET_DAY] = ((int(value[2]) & 0xF8) >> 3) & 0x1f
+
+		dt[OFFSET_HOUR] = (int(value[3]) & 0x1F)
+
+		dt[OFFSET_MINUTE] = ((int(value[3]) >> 5) & 0x07) + ((int(value[4]) & 0x07) << 3)
+
+		dt[OFFSET_SECOND] = ((int(value[4]) >> 3) & 0x1f) + ((int(value[5]) & 0x01) << 5)
+
+		dt[OFFSET_NANOSECOND] = ((int(value[5]) >> 1) & 0x7f) + ((int(value[6]) & 0x00ff) << 7) + ((int(value[7]) & 0x00ff) << 15) + ((int(value[8]) & 0x7F) << 23)
+	} else if dtype == DATETIME2_TZ {
+
+		dt[OFFSET_YEAR] = int(Dm_build_1257.Dm_build_1354(value, 0)) & 0x7FFF
+		if dt[OFFSET_YEAR] > 9999 {
+			dt[OFFSET_YEAR] = int(int16(dt[OFFSET_YEAR] | 0x8000))
+		}
+
+		dt[OFFSET_MONTH] = ((int(value[1]) >> 7) & 0x1) + ((int(value[2]) & 0x07) << 1)
+
+		dt[OFFSET_DAY] = ((int(value[2]) & 0xF8) >> 3) & 0x1f
+
+		dt[OFFSET_HOUR] = (int(value[3]) & 0x1F)
+
+		dt[OFFSET_MINUTE] = ((int(value[3]) >> 5) & 0x07) + ((int(value[4]) & 0x07) << 3)
+
+		dt[OFFSET_SECOND] = ((int(value[4]) >> 3) & 0x1f) + ((int(value[5]) & 0x01) << 5)
+
+		dt[OFFSET_NANOSECOND] = ((int(value[5]) >> 1) & 0x7f) + ((int(value[6]) & 0x00ff) << 7) + ((int(value[7]) & 0x00ff) << 15) + ((int(value[8]) & 0x7F) << 23)
+
+		dt[OFFSET_TIMEZONE] = int(Dm_build_1257.Dm_build_1354(value, len(value)-2))
 	}
 	return dt
 }
 
 func dmdtDecodeBdta(value []byte) []int {
 	dt := make([]int, DT_LEN)
-	dt[OFFSET_YEAR] = int(Dm_build_1219.Dm_build_1316(value, 0))
+	dt[OFFSET_YEAR] = int(Dm_build_1257.Dm_build_1354(value, 0))
 	dt[OFFSET_MONTH] = int(value[2] & 0xFF)
 	dt[OFFSET_DAY] = int(value[3] & 0xFF)
 	dt[OFFSET_HOUR] = int(value[4] & 0xFF)
 	dt[OFFSET_MINUTE] = int(value[5] & 0xFF)
 	dt[OFFSET_SECOND] = int(value[6] & 0xFF)
-	dt[OFFSET_MILLISECOND] = int((value[7] & 0xFF) + (value[8] << 8) + (value[9] << 16))
-	dt[OFFSET_TIMEZONE] = int(Dm_build_1219.Dm_build_1316(value, 10))
+	dt[OFFSET_NANOSECOND] = int((value[7] & 0xFF) + (value[8] << 8) + (value[9] << 16))
+	dt[OFFSET_TIMEZONE] = int(Dm_build_1257.Dm_build_1354(value, 10))
+
+	if len(value) > 12 {
+
+		dt[OFFSET_NANOSECOND] += int(value[12] << 24)
+	}
 	return dt
 }
 
-func dtToStringByOracleFormat(dt []int, oracleFormatPattern string, language int) string {
-	return format(dt, oracleFormatPattern, language)
+func dtToStringByOracleFormat(dt []int, oracleFormatPattern string, scale int32, language int) string {
+	return format(dt, oracleFormatPattern, scale, language)
 }
 
 func dtToString(dt []int, dtype int, scale int) string {
@@ -187,28 +230,28 @@ func dtToString(dt []int, dtype int, scale int) string {
 
 	case TIME:
 		if scale > 0 {
-			return format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_MILLISECOND], scale)
+			return format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_NANOSECOND], scale)
 		} else {
 			return format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND])
 		}
 
 	case TIME_TZ:
 		if scale > 0 {
-			return format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_MILLISECOND], scale) + " " + formatTZ(dt[OFFSET_TIMEZONE])
+			return format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_NANOSECOND], scale) + " " + formatTZ(dt[OFFSET_TIMEZONE])
 		} else {
 			return format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + " " + formatTZ(dt[OFFSET_TIMEZONE])
 		}
 
-	case DATETIME:
+	case DATETIME, DATETIME2:
 		if scale > 0 {
-			return formatYear(dt[OFFSET_YEAR]) + "-" + format2(dt[OFFSET_MONTH]) + "-" + format2(dt[OFFSET_DAY]) + " " + format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_MILLISECOND], scale)
+			return formatYear(dt[OFFSET_YEAR]) + "-" + format2(dt[OFFSET_MONTH]) + "-" + format2(dt[OFFSET_DAY]) + " " + format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_NANOSECOND], scale)
 		} else {
 			return formatYear(dt[OFFSET_YEAR]) + "-" + format2(dt[OFFSET_MONTH]) + "-" + format2(dt[OFFSET_DAY]) + " " + format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND])
 		}
 
-	case DATETIME_TZ:
+	case DATETIME_TZ, DATETIME2_TZ:
 		if scale > 0 {
-			return formatYear(dt[OFFSET_YEAR]) + "-" + format2(dt[OFFSET_MONTH]) + "-" + format2(dt[OFFSET_DAY]) + " " + format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_MILLISECOND], scale) + " " + formatTZ(dt[OFFSET_TIMEZONE])
+			return formatYear(dt[OFFSET_YEAR]) + "-" + format2(dt[OFFSET_MONTH]) + "-" + format2(dt[OFFSET_DAY]) + " " + format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + "." + formatMilliSecond(dt[OFFSET_NANOSECOND], scale) + " " + formatTZ(dt[OFFSET_TIMEZONE])
 		} else {
 			return formatYear(dt[OFFSET_YEAR]) + "-" + format2(dt[OFFSET_MONTH]) + "-" + format2(dt[OFFSET_DAY]) + " " + format2(dt[OFFSET_HOUR]) + ":" + format2(dt[OFFSET_MINUTE]) + ":" + format2(dt[OFFSET_SECOND]) + " " + formatTZ(dt[OFFSET_TIMEZONE])
 		}
@@ -236,7 +279,7 @@ func formatYear(value int) string {
 		} else if value > -1000 {
 			return "-0" + strconv.FormatInt(int64(-value), 10)
 		} else {
-			return strconv.FormatInt(int64(-value), 10)
+			return strconv.FormatInt(int64(value), 10)
 		}
 	}
 }
@@ -252,20 +295,26 @@ func format2(value int) string {
 func formatMilliSecond(ms int, prec int) string {
 	var ret string
 	if ms < 10 {
-		ret = "00000" + strconv.FormatInt(int64(ms), 10)
+		ret = "00000000" + strconv.FormatInt(int64(ms), 10)
 	} else if ms < 100 {
-		ret = "0000" + strconv.FormatInt(int64(ms), 10)
+		ret = "0000000" + strconv.FormatInt(int64(ms), 10)
 	} else if ms < 1000 {
-		ret = "000" + strconv.FormatInt(int64(ms), 10)
+		ret = "000000" + strconv.FormatInt(int64(ms), 10)
 	} else if ms < 10000 {
-		ret = "00" + strconv.FormatInt(int64(ms), 10)
+		ret = "00000" + strconv.FormatInt(int64(ms), 10)
 	} else if ms < 100000 {
+		ret = "0000" + strconv.FormatInt(int64(ms), 10)
+	} else if ms < 1000000 {
+		ret = "000" + strconv.FormatInt(int64(ms), 10)
+	} else if ms < 10000000 {
+		ret = "00" + strconv.FormatInt(int64(ms), 10)
+	} else if ms < 100000000 {
 		ret = "0" + strconv.FormatInt(int64(ms), 10)
 	} else {
 		ret = strconv.FormatInt(int64(ms), 10)
 	}
 
-	if prec < 6 {
+	if prec < NANOSECOND_DIGITS {
 		ret = ret[:prec]
 	}
 	return ret
@@ -291,7 +340,7 @@ func toDTFromTime(x time.Time) []int {
 	ts[OFFSET_HOUR] = hour
 	ts[OFFSET_MINUTE] = min
 	ts[OFFSET_SECOND] = sec
-	ts[OFFSET_MILLISECOND] = (int)(x.Nanosecond() / 1000)
+	ts[OFFSET_NANOSECOND] = (int)(x.Nanosecond())
 	_, tz := x.Zone()
 	ts[OFFSET_TIMEZONE] = tz / 60
 	return ts
@@ -459,15 +508,15 @@ func toDTFromString(s string, dt []int) (dtype int, err error) {
 				second = int(i)
 
 				nanos_s = time_s[period+1:]
-				if len(nanos_s) > 9 {
+				if len(nanos_s) > NANOSECOND_DIGITS {
 					return -1, ECGO_INVALID_DATETIME_FORMAT.throw()
 				}
 				if !unicode.IsDigit(rune(nanos_s[0])) {
 					return -1, ECGO_INVALID_DATETIME_FORMAT.throw()
 				}
-				nanos_s = nanos_s + zeros[0:9-len(nanos_s)]
+				nanos_s = nanos_s + zeros[0:NANOSECOND_DIGITS-len(nanos_s)]
 
-				i, err = strconv.ParseInt(nanos_s[:6], 10, 32)
+				i, err = strconv.ParseInt(nanos_s, 10, 32)
 				if err != nil {
 					return 0, ECGO_INVALID_DATETIME_FORMAT.addDetailln(err.Error()).throw()
 				}
@@ -549,29 +598,29 @@ func toDTFromString(s string, dt []int) (dtype int, err error) {
 	dt[OFFSET_HOUR] = hour
 	dt[OFFSET_MINUTE] = minute
 	dt[OFFSET_SECOND] = second
-	dt[OFFSET_MILLISECOND] = a_nanos
+	dt[OFFSET_NANOSECOND] = a_nanos
 	dt[OFFSET_TIMEZONE] = int(ownTz)
 	return dtype, nil
 }
 
 func transformTZ(dt []int, defaultSrcTz int, destTz int) {
 	srcTz := defaultSrcTz
-	if dt[OFFSET_TIMEZONE] != INVALID_VALUE {
-		srcTz = dt[OFFSET_TIMEZONE]
-	}
 
-	if destTz != srcTz {
+	if srcTz != INVALID_VALUE && destTz != INVALID_VALUE && destTz != srcTz {
 		dt = addMinute(dt, destTz-srcTz)
-		if dt[OFFSET_TIMEZONE] != INVALID_VALUE {
-			dt[OFFSET_TIMEZONE] = destTz
-		}
+
+		dt[OFFSET_TIMEZONE] = destTz
+
 	}
 }
 
-func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
-
-	if isLocalTimeZone(dtype, scale) && dt[OFFSET_TIMEZONE] != INVALID_VALUE && dt[OFFSET_TIMEZONE] != lTz {
+func encode(dt []int, column column, lTz int, dTz int) ([]byte, error) {
+	if dt[OFFSET_TIMEZONE] != INVALID_VALUE {
 		transformTZ(dt, dt[OFFSET_TIMEZONE], lTz)
+	}
+
+	if column.mask == MASK_LOCAL_DATETIME {
+		transformTZ(dt, dt[OFFSET_TIMEZONE], dTz)
 	}
 
 	if dt[OFFSET_YEAR] < -4712 || dt[OFFSET_YEAR] > 9999 {
@@ -590,19 +639,19 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 
 	sec := dt[OFFSET_SECOND]
 
-	msec := dt[OFFSET_MILLISECOND]
+	msec := dt[OFFSET_NANOSECOND]
 
 	var tz int
 
 	if dt[OFFSET_TIMEZONE] == INVALID_VALUE {
-		tz = lTz
+		tz = dTz
 	} else {
 		tz = dt[OFFSET_TIMEZONE]
 	}
 
 	var ret []byte
 
-	if dtype == DATE {
+	if column.colType == DATE {
 		ret = make([]byte, 3)
 
 		ret[0] = (byte)(year & 0xFF)
@@ -614,7 +663,8 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 		}
 
 		ret[2] = (byte)(((month & 0x0E) >> 1) | (day << 3))
-	} else if dtype == DATETIME {
+	} else if column.colType == DATETIME {
+		msec /= 1000
 		ret = make([]byte, 8)
 
 		ret[0] = (byte)(year & 0xFF)
@@ -636,7 +686,32 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 		ret[6] = (byte)((msec >> 7) & 0xFF)
 
 		ret[7] = (byte)((msec >> 15) & 0xFF)
-	} else if dtype == DATETIME_TZ {
+	} else if column.colType == DATETIME2 {
+		ret = make([]byte, 9)
+
+		ret[0] = (byte)(year & 0xFF)
+
+		if year >= 0 {
+			ret[1] = (byte)((year >> 8) | ((month & 0x01) << 7))
+		} else {
+			ret[1] = (byte)((year >> 8) & (((month & 0x01) << 7) | 0x7f))
+		}
+
+		ret[2] = (byte)(((month & 0x0E) >> 1) | (day << 3))
+
+		ret[3] = (byte)(hour | ((min & 0x07) << 5))
+
+		ret[4] = (byte)(((min & 0x38) >> 3) | ((sec & 0x1F) << 3))
+
+		ret[5] = (byte)(((sec & 0x20) >> 5) | ((msec & 0x7F) << 1))
+
+		ret[6] = (byte)((msec >> 7) & 0xFF)
+
+		ret[7] = (byte)((msec >> 15) & 0xFF)
+
+		ret[8] = (byte)((msec >> 23) & 0xFF)
+	} else if column.colType == DATETIME_TZ {
+		msec /= 1000
 		ret = make([]byte, 10)
 
 		ret[0] = (byte)(year & 0xFF)
@@ -659,8 +734,35 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 
 		ret[7] = (byte)((msec >> 15) & 0xFF)
 
-		Dm_build_1219.Dm_build_1230(ret, 8, int16(tz))
-	} else if dtype == TIME {
+		Dm_build_1257.Dm_build_1268(ret, 8, int16(tz))
+	} else if column.colType == DATETIME2_TZ {
+		ret = make([]byte, 11)
+
+		ret[0] = (byte)(year & 0xFF)
+
+		if year >= 0 {
+			ret[1] = (byte)((year >> 8) | ((month & 0x01) << 7))
+		} else {
+			ret[1] = (byte)((year >> 8) & (((month & 0x01) << 7) | 0x7f))
+		}
+
+		ret[2] = (byte)(((month & 0x0E) >> 1) | (day << 3))
+
+		ret[3] = (byte)(hour | ((min & 0x07) << 5))
+
+		ret[4] = (byte)(((min & 0x38) >> 3) | ((sec & 0x1F) << 3))
+
+		ret[5] = (byte)(((sec & 0x20) >> 5) | ((msec & 0x7F) << 1))
+
+		ret[6] = (byte)((msec >> 7) & 0xFF)
+
+		ret[7] = (byte)((msec >> 15) & 0xFF)
+
+		ret[8] = (byte)((msec >> 23) & 0xFF)
+
+		Dm_build_1257.Dm_build_1268(ret, 8, int16(tz))
+	} else if column.colType == TIME {
+		msec /= 1000
 		ret = make([]byte, 5)
 
 		ret[0] = (byte)(hour | ((min & 0x07) << 5))
@@ -672,7 +774,8 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 		ret[3] = (byte)((msec >> 7) & 0xFF)
 
 		ret[4] = (byte)((msec >> 15) & 0xFF)
-	} else if dtype == TIME_TZ {
+	} else if column.colType == TIME_TZ {
+		msec /= 1000
 		ret = make([]byte, 7)
 
 		ret[0] = (byte)(hour | ((min & 0x07) << 5))
@@ -685,10 +788,40 @@ func encode(dt []int, dtype int, scale int, lTz int) ([]byte, error) {
 
 		ret[4] = (byte)((msec >> 15) & 0xFF)
 
-		Dm_build_1219.Dm_build_1230(ret, 5, int16(tz))
+		Dm_build_1257.Dm_build_1268(ret, 5, int16(tz))
 	}
 
 	return ret, nil
+}
+
+func toDate(x int64, column column, conn DmConnection) ([]byte, error) {
+	switch column.colType {
+	case DATETIME, DATETIME2:
+		if x > 2958463*24*60*60 {
+			return nil, ECGO_DATETIME_OVERFLOW.throw()
+		}
+
+		dt := toDTFromUnix(x-Seconds_1900_1970, 0)
+		return encode(dt, column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+
+	case TIME:
+		dt := toDTFromUnix(x, 0)
+		return encode(dt, column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+
+	case DATE:
+		if x > 2958463 {
+			return nil, ECGO_DATETIME_OVERFLOW.throw()
+		}
+
+		dt := toDTFromUnix(x*24*60*60-Seconds_1900_1970, 0)
+		if dt[OFFSET_YEAR] < -4712 || dt[OFFSET_YEAR] > 9999 {
+			return nil, ECGO_DATETIME_OVERFLOW.throw()
+		}
+		return encode(dt, column, int(conn.dmConnector.localTimezone), int(conn.DbTimezone))
+
+	default:
+		return nil, ECGO_DATA_CONVERTION_ERROR.throw()
+	}
 }
 
 func checkDate(year int, month int, day int) bool {
@@ -720,7 +853,7 @@ func getDaysOfMonth(year int, month int) int {
 }
 
 func isLeapYear(year int) bool {
-	return ((year%4 == 0 && year%100 != 0) || year%400 == 0)
+	return (year%4 == 0 && year%100 != 0) || year%400 == 0
 }
 
 func addYear(dt []int, n int) []int {

@@ -1,5 +1,3 @@
-// +build windows
-
 /*
  * Copyright (c) 2000-2018, 达梦数据库有限公司.
  * All rights reserved.
